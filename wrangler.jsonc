@@ -1,12 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sovereign-glidepath",
-  "compatibility_date": "2026-06-23",
-  "observability": {
-    "enabled": true
-  },
-  "main": "@tanstack/react-start/server-entry",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+  "compatibility_date": "2026-06-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "dist/server/server.js",
+  "assets": {
+    "directory": "dist/client"
+  }
 }
