@@ -1,47 +1,41 @@
-Sovereign Glidepath — Web Demo Update (Build 048)
-==================================================
+Sovereign Glidepath — Web Update Build 050
+=============================================
 
-This bundle is a drop-in replacement for the seven items already in your
-GitHub repo (the same minimal Cloudflare set used for Build 047):
+This zip is a drop-in replacement for the web-hosted (Cloudflare Pages) copy
+of Sovereign Glidepath. It contains ONLY the files needed for the web demo;
+desktop/installer artefacts are intentionally excluded to stay under
+GitHub's 100 MB file limit.
 
-  .gitignore
-  package.json
-  tsconfig.json
-  vite.config.ts
-  wrangler.jsonc
-  public/
-  src/
+Contents
+--------
+- public/
+- src/
+- package.json
+- tsconfig.json
+- vite.config.ts
+- wrangler.jsonc
+- .gitignore
 
-WHAT'S NEW IN 048
------------------
-Risk Simulator pension start age fix. The fan-chart kink now lands at the
-pension start age (e.g. 67) instead of one year early. Isolated change in
-src/components/sovereign/MonteCarloPanel.tsx; engine/ledger untouched.
-
-HOW TO APPLY (GitHub web UI)
-----------------------------
+Option A — GitHub web UI
+------------------------
 1. Open your repo on github.com.
-2. For each top-level file (.gitignore, package.json, tsconfig.json,
-   vite.config.ts, wrangler.jsonc): click the file → pencil icon → paste
-   the new contents → Commit.
-3. For public/ and src/: easiest is "Add file → Upload files" and drag the
-   folders from this zip into the repo root. GitHub overwrites matching
-   paths. Commit.
+2. Click "Add file" → "Upload files".
+3. Drag the contents of this zip (not the zip itself) into the upload area.
+   Keep the folder structure intact.
+4. Commit directly to the default branch with message:
+   "Sync to Build 050"
 
-HOW TO APPLY (command line)
----------------------------
-Unzip into a working copy, then:
-    git add -A
-    git commit -m "Sovereign Glidepath build 048"
-    git push
+Option B — Git CLI
+------------------
+1. Unzip into your local clone, overwriting existing files:
+     unzip -o sovereign-glidepath-web-build050.zip -d /path/to/repo
+2. From the repo root:
+     git add -A
+     git commit -m "Sync to Build 050"
+     git push
 
-CLOUDFLARE
+Cloudflare
 ----------
-Nothing to do. Cloudflare Pages picks up the push automatically and
-redeploys within a minute or two. Watch progress in
-Workers & Pages → your project → Deployments.
-
-VERIFY
-------
-After deploy, header should read "v1.0 build 048". In Pane 5 with
-pensionAge 67, the fan-chart slope change should sit at x = 67.
+No action needed. Cloudflare Pages is wired to the GitHub repo, so the push
+automatically triggers a new build and redeploy (usually live in 1–2 min).
+Watch progress in: Cloudflare → Workers & Pages → your project → Deployments.
