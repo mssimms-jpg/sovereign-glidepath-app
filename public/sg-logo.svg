@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Dark Slate Premium Background Component -->
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  
+  <!-- Subtle inner glow ring -->
+  <rect x="20" y="20" width="472" height="472" rx="92" fill="none" stroke="#1e293b" stroke-width="8"/>
+  
+  <!-- Central Graphic Group -->
+  <g transform="translate(256, 195) scale(0.92)">
+    <!-- The Defensive Shield -->
+    <path d="M -140,-120 
+             L 140,-120 
+             Q 140,-10 0,150 
+             Q -140,-10 -140,-120 Z" 
+          fill="none" 
+          stroke="#3b82f6" 
+          stroke-width="24" 
+          stroke-linejoin="round"/>
+          
+    <!-- The Glidepath Line -->
+    <path d="M -90,60 
+             Q -30,40 0,-10 
+             T 90,-70" 
+          fill="none" 
+          stroke="#10b981" 
+          stroke-width="28" 
+          stroke-linecap="round"/>
+          
+    <!-- Trajectory Arrow Head -->
+    <path d="M 60,-75 L 95,-75 L 95,-40" 
+          fill="none" 
+          stroke="#10b981" 
+          stroke-width="24" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
+          
+    <!-- Anchor Foundation Piece -->
+    <circle cx="-90" cy="60" r="16" fill="#3b82f6"/>
+  </g>
+
+  <!-- Maxed-out Monogram Corner Typography (Size: 115px, Y-axis lifted to 425) -->
+  <!-- Bottom Left Corner: 'S' -->
+  <text x="105" y="425" 
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+        font-size="115" 
+        font-weight="900" 
+        fill="#3b82f6" 
+        text-anchor="middle" 
+        opacity="0.95">S</text>
+
+  <!-- Bottom Right Corner: 'G' -->
+  <text x="407" y="425" 
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+        font-size="115" 
+        font-weight="900" 
+        fill="#10b981" 
+        text-anchor="middle" 
+        opacity="0.95">G</text>
+</svg>
