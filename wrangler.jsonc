@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "sovereign-glidepath",
+  "name": "sovereign-glidepath-app",
   "compatibility_date": "2026-06-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "dist/server/server.js",
