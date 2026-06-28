@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "sg_mobile_gate_dismissed_v1";
+const DISMISS_KEY = "sg_mobile_gate_dismissed_v2";
 const BREAKPOINT = 900;
 
 export function MobileGate() {
@@ -8,17 +8,22 @@ export function MobileGate() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(DISMISS_KEY) === "1") return;
-    const check = () => setShow(window.innerWidth < BREAKPOINT);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    try {
+      if (localStorage.getItem(DISMISS_KEY) === "1") return;
+    } catch {
+      /* private mode — fall through */
+    }
+    setShow(window.innerWidth < BREAKPOINT);
   }, []);
 
   if (!show) return null;
 
   const dismiss = () => {
-    sessionStorage.setItem(DISMISS_KEY, "1");
+    try {
+      localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      /* ignore — still hide for this session */
+    }
     setShow(false);
   };
 

@@ -31,7 +31,7 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "051";
+const APP_BUILD = "052";
 
 type CurrencySymbol = "£" | "€" | "$";
 
