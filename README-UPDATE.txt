@@ -1,16 +1,18 @@
-Sovereign Glidepath — Web Update Build 052
-===========================================
-Version: 1.0.52
+Sovereign Glidepath — Web Update Build 057
+==========================================
 
-Fix: Mobile "best viewed on larger screen" overlay now uses localStorage,
-so dismissing it once permanently hides it (instead of reappearing on
-every refresh on a phone).
+Drop-in replacement for the Cloudflare Pages web copy. Contains only
+files needed for the web demo (no desktop/installer binaries).
 
-Deployment (drop-in for the existing Cloudflare/GitHub repo)
-------------------------------------------------------------
-1. Unzip into the root of your Sovereign Glidepath repository, overwriting
-   matching files.
-2. Commit & push. Cloudflare Pages will rebuild automatically.
+Option A — GitHub web UI
+------------------------
+1. github.com → your repo → Add file → Upload files.
+2. Drag the CONTENTS of this zip (not the zip itself), preserving structure.
+3. Commit to default branch: "Sync to Build 057".
 
-Files included: package.json, CHANGELOG.md, public/, src/.
-Excluded: node_modules, electron/, installer/, dist*, .git, large binaries.
+Option B — Git CLI
+------------------
+  unzip -o sovereign-glidepath-web-build057.zip -d /path/to/repo
+  cd /path/to/repo && git add -A && git commit -m "Sync to Build 057" && git push
+
+Cloudflare Pages auto-redeploys on push (live in 1–2 min).

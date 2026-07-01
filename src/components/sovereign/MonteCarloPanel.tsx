@@ -45,6 +45,8 @@ function quantile(sorted: number[], q: number): number {
   return sorted[base];
 }
 
+type ThresholdMode = "strict" | "standard" | "aggressive";
+
 type PersistedMC = {
   meanStr?: string;
   stdevStr?: string;
@@ -52,6 +54,8 @@ type PersistedMC = {
   pensionStr?: string;
   pensionAgeStr?: string;
   pensionIncreasePct?: number;
+  cashRealPct?: number;
+  threshold?: ThresholdMode;
 };
 
 function loadMC(): PersistedMC {
@@ -72,7 +76,10 @@ function saveMC(s: PersistedMC) {
 }
 
 export interface MonteCarloPanelProps {
-  startingCapital: number;
+  /** @deprecated kept for backward compat — prefer equitiesCapital + cashCapital */
+  startingCapital?: number;
+  equitiesCapital?: number;
+  cashCapital?: number;
   years: number;
   deterministicRatePct: number;
   annualWithdrawal?: number;
@@ -82,12 +89,24 @@ export interface MonteCarloPanelProps {
 
 export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   startingCapital,
+  equitiesCapital,
+  cashCapital,
   years,
   deterministicRatePct,
   annualWithdrawal = 0,
   currentAge = 0,
   currency = "£",
 }) => {
+  // Resolve equities & cash. New callers pass equitiesCapital + cashCapital;
+  // legacy callers passing only startingCapital are treated as 100% equities.
+  const livEquities =
+    typeof equitiesCapital === "number"
+      ? equitiesCapital
+      : typeof startingCapital === "number"
+        ? startingCapital
+        : 0;
+  const livCash = typeof cashCapital === "number" ? cashCapital : 0;
+
   const persisted = useRef<PersistedMC>(loadMC());
   const p = persisted.current;
 
@@ -106,6 +125,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const [pensionIncreasePct, setPensionIncreasePct] = useState<number>(
     typeof p.pensionIncreasePct === "number" ? p.pensionIncreasePct : 0,
   );
+  // Two-bucket controls.
+  const [cashRealPct, setCashRealPct] = useState<number>(
+    typeof p.cashRealPct === "number" ? p.cashRealPct : 1,
+  );
+  const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
+
   const pension = cleanNum(pensionStr);
   const pensionAge = Math.max(0, Math.floor(cleanNum(pensionAgeStr)));
 
@@ -118,8 +143,19 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       pensionStr,
       pensionAgeStr,
       pensionIncreasePct,
+      cashRealPct,
+      threshold,
     });
-  }, [meanStr, stdevStr, inflationPct, pensionStr, pensionAgeStr, pensionIncreasePct]);
+  }, [
+    meanStr,
+    stdevStr,
+    inflationPct,
+    pensionStr,
+    pensionAgeStr,
+    pensionIncreasePct,
+    cashRealPct,
+    threshold,
+  ]);
 
   const [withdrawStr, setWithdrawStr] = useState<string>(
     annualWithdrawal > 0 ? annualWithdrawal.toFixed(2) : "",
@@ -137,23 +173,37 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const withdrawOverridden = Math.abs(withdraw - annualWithdrawal) > 0.005;
   const contrib = 0;
 
-  // Total Capital — seeded from live ledger value but freely editable for
-  // "what if" experiments. Never persisted; resets to the real value on
-  // refresh or when the ledger changes (provided the user hasn't overridden).
-  const [capitalStr, setCapitalStr] = useState<string>(
-    startingCapital > 0 ? startingCapital.toFixed(2) : "",
+  // Equities (override) — seeded from live ledger but freely editable for what-if.
+  const [equitiesStr, setEquitiesStr] = useState<string>(
+    livEquities > 0 ? livEquities.toFixed(2) : "",
   );
-  const [capitalFocused, setCapitalFocused] = useState(false);
-  const capitalSeedRef = React.useRef<number>(startingCapital);
+  const [equitiesFocused, setEquitiesFocused] = useState(false);
+  const equitiesSeedRef = React.useRef<number>(livEquities);
   useEffect(() => {
-    if (cleanNum(capitalStr) === capitalSeedRef.current) {
-      capitalSeedRef.current = startingCapital;
-      setCapitalStr(startingCapital > 0 ? startingCapital.toFixed(2) : "");
+    if (cleanNum(equitiesStr) === equitiesSeedRef.current) {
+      equitiesSeedRef.current = livEquities;
+      setEquitiesStr(livEquities > 0 ? livEquities.toFixed(2) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startingCapital]);
-  const simCapital = cleanNum(capitalStr);
-  const capitalOverridden = Math.abs(simCapital - startingCapital) > 0.005;
+  }, [livEquities]);
+  const simEquities = cleanNum(equitiesStr);
+  const equitiesOverridden = Math.abs(simEquities - livEquities) > 0.005;
+
+  // Cash Pot (override).
+  const [cashStr, setCashStr] = useState<string>(livCash > 0 ? livCash.toFixed(2) : "");
+  const [cashFocused, setCashFocused] = useState(false);
+  const cashSeedRef = React.useRef<number>(livCash);
+  useEffect(() => {
+    if (cleanNum(cashStr) === cashSeedRef.current) {
+      cashSeedRef.current = livCash;
+      setCashStr(livCash > 0 ? livCash.toFixed(2) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livCash]);
+  const simCash = cleanNum(cashStr);
+  const cashOverridden = Math.abs(simCash - livCash) > 0.005;
+
+  const simCapital = simEquities + simCash;
 
 
   // Pane 5 zoom brush + crosshair tooltip state.
@@ -165,22 +215,37 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
   const sim = useMemo(() => {
     const yrs = Math.max(1, Math.min(60, Math.floor(years)));
-    const start = Math.max(0, simCapital);
+    const E0 = Math.max(0, simEquities);
+    const C0 = Math.max(0, simCash);
+    const start = E0 + C0;
     if (start <= 0) return null;
-
 
     const mean = meanPct / 100;
     const sd = stdevPct / 100;
     const infl = Math.max(0, inflationPct) / 100;
     const pensG = Math.max(0, pensionIncreasePct) / 100;
-    // Pension grows at pensG in REAL terms (today's £). Setting it to 0 gives
-    // a flat-real pension. Setting it to e.g. 2% compounds visibly over the
-    // horizon (~22% higher after 10 years from start age).
     const pensionRealFactor = 1 + pensG;
+    const cashRealReturn = cashRealPct / 100;
+    // Threshold for defensive draw, applied to NOMINAL equity return.
+    // The original Build 053 real-return thresholds often classified the same
+    // historical years into every mode because the annual proxy data is rounded
+    // and has few observations between 0% and inflation. These wider, ordered
+    // bands make each button materially change the draw rule while keeping the
+    // meaning intuitive: crash-only, weak-market, or expected-return hurdle.
+    const detRNominal = deterministicRatePct / 100;
+    const detRReal = infl > 0 ? (1 + detRNominal) / (1 + infl) - 1 : detRNominal;
+    const standardNominalThreshold = Math.max(infl + cashRealReturn + 0.04, detRNominal + 0.03);
+    const aggressiveNominalThreshold = Math.max(standardNominalThreshold + 0.04, mean + 0.03);
+    const drawThreshold =
+      threshold === "strict"
+        ? 0
+        : threshold === "standard"
+          ? standardNominalThreshold
+          : aggressiveNominalThreshold;
 
-    // Stable seed: depends only on inputs that should change the underlying
-    // random draws. The pension/withdrawal sliders deliberately do NOT seed
-    // the RNG, so dragging them produces smooth deltas in the fan chart.
+    // Target cash buffer = the user's starting Cash Pot (refill ceiling).
+    const targetCashBuffer = C0;
+
     const seed =
       0x9e3779b1 ^
       (Math.floor(start) >>> 0) ^
@@ -192,10 +257,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
     const byYear: number[][] = Array.from({ length: yrs + 1 }, () => []);
     const finals: number[] = [];
+    let defensiveSum = 0;
 
     for (let r = 0; r < RUNS; r++) {
-      let v = start;
-      byYear[0].push(v);
+      let E = E0;
+      let C = C0;
+      byYear[0].push(E + C);
       for (let y = 1; y <= yrs; y++) {
         let nominal: number;
         if (mode === "historical") {
@@ -203,17 +270,47 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         } else {
           nominal = mean + sd * gaussian(rng);
         }
-        const real = infl > 0 ? (1 + nominal) / (1 + infl) - 1 : nominal;
+        const realEq = infl > 0 ? (1 + nominal) / (1 + infl) - 1 : nominal;
+
         const ageThisYear = currentAge + y - 1;
-        // Pension escalates in real terms from the simulation start.
         const pensionThisYear =
           pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
         const netDraw = Math.max(0, withdraw - pensionThisYear);
-        v = v * (1 + real) + contrib - netDraw;
-        if (v < 0) v = 0;
-        byYear[y].push(v);
+
+        // Apply real growth to both buckets first.
+        let Egrown = E * (1 + realEq);
+        let Cgrown = C * (1 + cashRealReturn);
+
+        const defensive = nominal < drawThreshold;
+        if (defensive) defensiveSum++;
+        if (defensive) {
+          // Bad/mediocre year — spend from cash before the year's cash return;
+          // fall back to equities if cash is insufficient. This makes the
+          // defensive choice affect the path immediately, not only via a later
+          // bucket-mix drift.
+          let cashBeforeGrowth = C;
+          if (cashBeforeGrowth >= netDraw) {
+            cashBeforeGrowth -= netDraw;
+            Cgrown = cashBeforeGrowth * (1 + cashRealReturn);
+          } else {
+            const rest = netDraw - cashBeforeGrowth;
+            Cgrown = 0;
+            Egrown = Math.max(0, Egrown - rest);
+          }
+        } else {
+          // Good year — spend from equities, then refill cash up to target.
+          Egrown = Egrown - netDraw;
+          if (Egrown > 0 && Cgrown < targetCashBuffer) {
+            const refill = Math.min(Egrown, targetCashBuffer - Cgrown);
+            Egrown -= refill;
+            Cgrown += refill;
+          }
+        }
+        E = Math.max(0, Egrown);
+        C = Math.max(0, Cgrown);
+        byYear[y].push(E + C);
       }
-      finals.push(v);
+      finals.push(E + C);
     }
 
     const bands = byYear.map((arr) => {
@@ -227,16 +324,40 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       };
     });
 
-    const det: number[] = [start];
-    const rNominal = deterministicRatePct / 100;
-    const rReal = infl > 0 ? (1 + rNominal) / (1 + infl) - 1 : rNominal;
+    // Deterministic projection — same two-bucket logic at the assumed rate.
+    // Every year is a "good year" by definition, so equities fund the draw
+    // and any cash drawdown gets refilled to target.
+    const det: number[] = [E0 + C0];
+    let dE = E0;
+    let dC = C0;
     for (let y = 1; y <= yrs; y++) {
       const ageThisYear = currentAge + y - 1;
       const pensionThisYear =
         pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
       const netDraw = Math.max(0, withdraw - pensionThisYear);
-      const next = det[y - 1] * (1 + rReal) + contrib - netDraw;
-      det.push(next < 0 ? 0 : next);
+      let Egrown = dE * (1 + detRReal);
+      let Cgrown = dC * (1 + cashRealReturn);
+      const defensive = detRNominal < drawThreshold; // typically false except under wider thresholds
+      if (defensive) {
+        if (dC >= netDraw) {
+          Cgrown = (dC - netDraw) * (1 + cashRealReturn);
+        }
+        else {
+          const rest = netDraw - dC;
+          Cgrown = 0;
+          Egrown = Math.max(0, Egrown - rest);
+        }
+      } else {
+        Egrown -= netDraw;
+        if (Egrown > 0 && Cgrown < targetCashBuffer) {
+          const refill = Math.min(Egrown, targetCashBuffer - Cgrown);
+          Egrown -= refill;
+          Cgrown += refill;
+        }
+      }
+      dE = Math.max(0, Egrown);
+      dC = Math.max(0, Cgrown);
+      det.push(dE + dC);
     }
 
     const sortedFinals = [...finals].sort((a, b) => a - b);
@@ -257,7 +378,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     );
     const detRuined = detFinal <= 0;
 
-    return { yrs, bands, det, pctRank, finals: sortedFinals, successRate, ruinRate, detRuined };
+    const avgDefensiveYears = defensiveSum / RUNS;
+    const defensivePct = Math.round((avgDefensiveYears / yrs) * 100);
+
+    return { yrs, bands, det, pctRank, finals: sortedFinals, successRate, ruinRate, detRuined, avgDefensiveYears, defensivePct };
   }, [
     mode,
     meanPct,
@@ -269,7 +393,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     pensionAge,
     pensionIncreasePct,
     currentAge,
-    simCapital,
+    simEquities,
+    simCash,
+    cashRealPct,
+    threshold,
     years,
     deterministicRatePct,
   ]);
@@ -286,7 +413,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     );
   }
 
-  const { yrs, bands, det, pctRank, finals: _finals, successRate, ruinRate, detRuined } = sim;
+  const { yrs, bands, det, pctRank, finals: _finals, successRate, ruinRate, detRuined, avgDefensiveYears, defensivePct } = sim;
   void _finals;
 
   const w = 1000,
@@ -550,6 +677,13 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             <em>shape</em> of uncertainty visible.
           </p>
           <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>True two-bucket sim.</strong> Equities and Cash run as separate buckets. In a{" "}
+            <em>good</em> year (equities clear the defensive threshold) we spend from Equities and
+            refill the Cash Pot up to its starting size. In a <em>bad</em> year we spend from Cash
+            to avoid forced selling. The <strong>threshold</strong> buttons pick how cautious that
+            switch is — Standard = "spend from cash in flat or weak equity markets".
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
             <strong>Modes:</strong> <em>Historical</em> draws each year at random from real MSCI
             World (Net Total Return, GBP) annual returns 1970–2024 — a global-tracker proxy for a
             typical UK investor. <em>Parametric</em> manufactures returns from a normal curve with a
@@ -649,7 +783,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         className="mc-compact"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
           gap: "0.6rem 0.75rem",
           marginBottom: "1rem",
         }}
@@ -709,8 +843,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         </div>
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Total Capital {currency}{" "}
-            {capitalOverridden && (
+            Equities {currency}{" "}
+            {equitiesOverridden && (
               <span
                 style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}
                 title="Overridden — not saved, will reset on refresh"
@@ -723,22 +857,24 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             type="text"
             inputMode="decimal"
             placeholder={`${currency}0.00`}
-            value={capitalFocused ? capitalStr : capitalStr ? formatGBP(cleanNum(capitalStr)) : ""}
+            value={
+              equitiesFocused ? equitiesStr : equitiesStr ? formatGBP(cleanNum(equitiesStr)) : ""
+            }
             onFocus={(e) => {
               const n = cleanNum(e.currentTarget.value);
-              setCapitalStr(n !== 0 ? n.toFixed(2) : "");
-              setCapitalFocused(true);
+              setEquitiesStr(n !== 0 ? n.toFixed(2) : "");
+              setEquitiesFocused(true);
             }}
-            onBlur={() => setCapitalFocused(false)}
-            onChange={(e) => setCapitalStr(e.target.value)}
+            onBlur={() => setEquitiesFocused(false)}
+            onChange={(e) => setEquitiesStr(e.target.value)}
           />
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-            {capitalOverridden ? (
+            {equitiesOverridden ? (
               <button
                 type="button"
                 onClick={() => {
-                  setCapitalStr(startingCapital > 0 ? startingCapital.toFixed(2) : "");
-                  capitalSeedRef.current = startingCapital;
+                  setEquitiesStr(livEquities > 0 ? livEquities.toFixed(2) : "");
+                  equitiesSeedRef.current = livEquities;
                 }}
                 style={{
                   background: "none",
@@ -750,10 +886,60 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   textDecoration: "underline",
                 }}
               >
-                Reset to actual ({formatGBP(startingCapital)})
+                Reset to actual ({formatGBP(livEquities)})
               </button>
             ) : (
-              <>What-if only — does not change ledger</>
+              <>Volatile bucket — random walk</>
+            )}
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Cash Pot {currency}{" "}
+            {cashOverridden && (
+              <span
+                style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}
+                title="Overridden — not saved, will reset on refresh"
+              >
+                ✎ what-if
+              </span>
+            )}
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder={`${currency}0.00`}
+            value={cashFocused ? cashStr : cashStr ? formatGBP(cleanNum(cashStr)) : ""}
+            onFocus={(e) => {
+              const n = cleanNum(e.currentTarget.value);
+              setCashStr(n !== 0 ? n.toFixed(2) : "");
+              setCashFocused(true);
+            }}
+            onBlur={() => setCashFocused(false)}
+            onChange={(e) => setCashStr(e.target.value)}
+          />
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+            {cashOverridden ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCashStr(livCash > 0 ? livCash.toFixed(2) : "");
+                  cashSeedRef.current = livCash;
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--accent-blue)",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontSize: "0.7rem",
+                  textDecoration: "underline",
+                }}
+              >
+                Reset to actual ({formatGBP(livCash)})
+              </button>
+            ) : (
+              <>Defensive buffer — refill target</>
             )}
           </div>
         </div>
@@ -827,6 +1013,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           </div>
         </div>
         <div />
+        <div />
         <div>
 
           <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -850,6 +1037,164 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           </div>
         </div>
         <div />
+      </div>
+
+      {/* Allocation bias slider — rebalance Equities↔Cash while preserving total */}
+      {simCapital > 0 && (
+        (() => {
+          const eqPct = Math.round((simEquities / simCapital) * 1000) / 10;
+          const liveTotal = livEquities + livCash;
+          const liveEqPct = liveTotal > 0 ? Math.round((livEquities / liveTotal) * 1000) / 10 : 50;
+          const splitOverridden = Math.abs(eqPct - liveEqPct) > 0.05;
+          return (
+            <div
+              style={{
+                marginBottom: "1rem",
+                padding: "0.6rem 0.75rem",
+                background: "rgba(245,158,11,0.04)",
+                border: "1px solid var(--border-color)",
+                borderRadius: 8,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted)",
+                  marginBottom: "0.2rem",
+                }}
+              >
+                <span>
+                  Allocation bias —{" "}
+                  <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+                    {eqPct.toFixed(1)}% Equities / {(100 - eqPct).toFixed(1)}% Cash
+                  </span>
+                </span>
+                {splitOverridden && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEquitiesStr(livEquities > 0 ? livEquities.toFixed(2) : "");
+                      setCashStr(livCash > 0 ? livCash.toFixed(2) : "");
+                      equitiesSeedRef.current = livEquities;
+                      cashSeedRef.current = livCash;
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--accent-blue)",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontSize: "0.7rem",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Reset split to actual ({liveEqPct.toFixed(1)}% / {(100 - liveEqPct).toFixed(1)}%)
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>← Equities</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={eqPct}
+                  onChange={(e) => {
+                    const pct = parseFloat(e.target.value) || 0;
+                    const total = simCapital;
+                    const newEq = total * (pct / 100);
+                    const newCash = total - newEq;
+                    setEquitiesStr(newEq.toFixed(2));
+                    setCashStr(newCash.toFixed(2));
+                  }}
+                  style={{ flex: 1 }}
+                  aria-label="Allocation bias"
+                />
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Cash →</span>
+              </div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                Shift the balance between buckets while keeping the total pot ({formatGBP(simCapital)})
+                fixed. Free-text overrides above still take priority.
+              </div>
+            </div>
+          );
+        })()
+      )}
+
+      {/* Two-bucket controls — cash real return + defensive-draw threshold */}
+      <div
+        className="mc-compact"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.6fr)",
+          gap: "0.6rem 1rem",
+          marginBottom: "1rem",
+          padding: "0.6rem 0.75rem",
+          background: "rgba(59,130,246,0.05)",
+          border: "1px solid var(--border-color)",
+          borderRadius: 8,
+        }}
+      >
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Cash real return %{" "}
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {cashRealPct.toFixed(1)}%
+            </span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={3}
+            step={0.1}
+            value={cashRealPct}
+            onChange={(e) => setCashRealPct(parseFloat(e.target.value) || 0)}
+            style={{ width: "100%" }}
+            aria-label="Cash real return"
+          />
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+            What the Cash Pot earns above inflation (0% = treads water)
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Defensive draw threshold{" "}
+            <span style={{ color: "var(--accent-blue)", fontWeight: 700, fontSize: "0.7rem" }}>
+              · avg {avgDefensiveYears.toFixed(1)} of {yrs} yrs ({defensivePct}%) draw from cash
+            </span>
+          </label>
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.2rem" }}>
+            {(
+              [
+                ["strict", "Strict", "draw cash on negative years only"],
+                ["standard", "Standard", "draw cash in flat or weak markets"],
+                ["aggressive", "Aggressive", "draw cash unless markets are clearly strong"],
+              ] as [ThresholdMode, string, string][]
+            ).map(([id, label, tip]) => (
+              <button
+                key={id}
+                type="button"
+                className={threshold === id ? "" : "secondary"}
+                style={{ fontSize: "0.72rem", padding: "0.35rem 0.6rem" }}
+                onClick={() => setThreshold(id)}
+                title={tip}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+            {threshold === "strict"
+              ? "Strict — spend from cash only when equities post a negative nominal year."
+              : threshold === "standard"
+                ? "Standard — spend from cash in flat or weak equity years. Refill in clearly positive years."
+                : "Aggressive — spend from cash unless equities are clearly above the expected-return hurdle."}
+          </div>
+        </div>
       </div>
 
       <div

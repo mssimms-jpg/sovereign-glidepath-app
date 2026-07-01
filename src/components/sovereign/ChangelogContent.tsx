@@ -11,6 +11,92 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 055 — 2026-06-29
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Pane 5 — defensive threshold buttons now materially re-run the sim.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Threshold fix.</strong> Strict / Standard / Aggressive now use wider
+                nominal-return bands so each preset changes which years spend from Cash. The previous
+                real-return thresholds could collapse onto the same historical years, making the p10,
+                median and p90 figures identical to the penny.
+              </li>
+              <li>
+                <strong>Immediate re-simulation.</strong> Every threshold click updates state and
+                re-runs all 2,750 paths against the same seeded return sequence, so differences come
+                from the draw rule rather than from random re-rolling.
+              </li>
+              <li>
+                <strong>Docs and changelog caught up.</strong> Help, Full Manual and this hidden
+                changelog now show the latest builds instead of stopping at build 041.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 054 — 2026-06-29
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Pane 5 — allocation bias slider + visible defensive-draw feedback.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Allocation bias slider.</strong> Rebalances Equities ↔ Cash while keeping
+                the total pot fixed; free-text what-if overrides remain the source of truth.
+              </li>
+              <li>
+                <strong>Defensive-draw counter.</strong> Shows the average number of years per run
+                that drew from Cash, making the threshold logic visible immediately.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 053 — 2026-06-29
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Pane 5 — true two-bucket Risk Simulator.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                Tracks Equities and Cash as separate buckets through every Monte Carlo path instead
+                of treating the whole pot as equities.
+              </li>
+              <li>
+                Added the Cash real return slider, defensive draw thresholds, and separate Equities / Cash what-if overrides.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 052 — 2026-06-28
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Mobile gate fix.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                The small-screen warning now remembers dismissal in local storage and no longer
+                reappears after refresh on the same device.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 041 — 2026-06-25
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

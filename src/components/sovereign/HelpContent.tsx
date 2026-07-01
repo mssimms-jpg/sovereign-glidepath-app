@@ -137,6 +137,61 @@ export function HelpContent() {
             the future — it's to make the <em>shape</em> of uncertainty visible.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
+            <strong>True two-bucket simulation (new in Build 053).</strong> The simulator now runs{" "}
+            <em>two</em> separate buckets through every year — Equities (volatile, real growth from
+            the chosen return model) and Cash (deterministic, earns the <em>Cash real return</em>{" "}
+            slider in real terms). Each year the engine decides which bucket to spend from using a{" "}
+            <em>defensive draw threshold</em>: in a <strong>good</strong> year it spends from
+            Equities and refills the Cash Pot up to its starting size; in a <strong>bad</strong>{" "}
+            year it spends from Cash to avoid selling shares at a discount. This captures the
+            modest <em>cash drag</em> on the median (cash compounds slower than equities) while
+            showing how the buffer lifts the 5th–10th percentile floor when sequence-of-returns
+            risk bites early.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Defensive draw threshold.</strong> Three presets:
+          </p>
+          <ul style={{ paddingLeft: "1.25rem", marginTop: "0.4rem" }}>
+            <li>
+              <strong>Strict</strong> — only spend from cash when equities post a{" "}
+              <em>negative nominal</em> year. Closest to "hold cash for crashes only", so cash
+              drag is minimal but the buffer is rarely used.
+            </li>
+            <li>
+              <strong>Standard</strong> (default) — spend from cash in flat or weak equity years.
+              Refill the buffer in clearly positive years. This gives a visible middle setting
+              between crash-only and highly defensive behaviour.
+            </li>
+            <li>
+              <strong>Aggressive</strong> — spend from cash unless equities are clearly above the
+              expected-return hurdle. Uses the buffer most often; biggest reduction in
+              sequence-of-returns risk but largest cash drag.
+            </li>
+          </ul>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Equities (override) &amp; Cash Pot (override).</strong> Both buckets are
+            seeded from your latest ledger entry but freely editable for "what-if" experiments.
+            An amber <em>✎ what-if</em> marker appears when you've overridden them; click{" "}
+            <em>Reset to actual</em> to snap back. The overrides are never persisted — refreshing
+            the app, or committing a new ledger entry, restores the real values.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Allocation bias slider (new in Build 054).</strong> Sits directly under the
+            two override fields and rebalances Equities↔Cash while keeping the total pot fixed —
+            the fastest way to see what tilting another 10% into cash (or out of it) does to the
+            fan. The free-text overrides above still take priority, and <em>Reset split to actual</em>{" "}
+            returns the dial to your live ledger ratio.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Defensive-draw counter.</strong> Next to the threshold buttons you'll see e.g.{" "}
+            <em>avg 12.4 of 30 yrs (41%) draw from cash</em> — the average number of years per
+            simulated run that pulled from the Cash Pot. Flipping Strict → Standard → Aggressive
+            should visibly change this number and re-run all 2,750 paths against the same seeded
+            return sequence; the visible difference is therefore from the draw rule, not random
+            re-rolling.
+          </p>
+
+          <p style={{ marginTop: "0.75rem" }}>
             <strong>Historical vs Parametric.</strong> Historical draws each year at random from
             MSCI World (Net Total Return, GBP) annual returns 1970–2024 — a global-tracker proxy
             more appropriate for a typical UK investor than a single-country index. It keeps the fat
@@ -218,6 +273,21 @@ export function HelpContent() {
             <em> is</em> now modelled via the slider above the chart.) It's a stress test, not a
             forecast. Most useful when the answer makes you uncomfortable.
           </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Want to see one full path play out?</strong> The Full Manual has a worked
+            30-year example — year-by-year returns, which bucket fired each year, and how the State
+            Pension layers in — at{" "}
+            <a
+              href="/sovereign-glidepath-manual.html#ch-23c"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent-blue)", textDecoration: "underline" }}
+            >
+              §23c — Worked example: a 30-year stress test
+            </a>
+            . It also explains how the simulator differs from the live quarterly app.
+          </p>
+
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Zoom brush &amp; hover tooltip.</strong> Drag the handles on the strip beneath
             the chart to zoom into a specific time window — the Y-axis auto-rescales to the visible

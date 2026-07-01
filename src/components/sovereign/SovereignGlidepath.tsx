@@ -31,7 +31,7 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "052";
+const APP_BUILD = "057";
 
 type CurrencySymbol = "£" | "€" | "$";
 
@@ -1989,7 +1989,8 @@ export function SovereignGlidepath() {
 
           {/* Monte Carlo Risk Simulator */}
           <MonteCarloPanel
-            startingCapital={Number(ledger[0]?.totalCapital) || 0}
+            equitiesCapital={Number(ledger[0]?.equities) || cleanNum(equityVal)}
+            cashCapital={Number(ledger[0]?.mmFund) || cleanNum(mmVal)}
             years={Math.max(1, cappingAge - age)}
             deterministicRatePct={growthRate}
             annualWithdrawal={cleanNum(targetYearly)}
