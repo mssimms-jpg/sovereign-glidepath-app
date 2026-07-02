@@ -12,7 +12,14 @@ interface Props {
   stressPct: number;
   desiredRunwayMonths: number;
   currency?: "£" | "€" | "$";
+  legacyTarget?: number;
+  onCommitSpecialEvent?: (opts: {
+    description: string;
+    fromEq: number;
+    fromCash: number;
+  }) => string | null;
 }
+
 
 export function AffordCalculator(props: Props) {
   const {
@@ -26,12 +33,17 @@ export function AffordCalculator(props: Props) {
     stressPct,
     desiredRunwayMonths,
     currency = "£",
+    legacyTarget = 0,
+    onCommitSpecialEvent,
   } = props;
 
   const [expenseStr, setExpenseStr] = useState("");
   const [expenseFocused, setExpenseFocused] = useState(false);
   const [source, setSource] = useState<"auto" | "cash" | "equities">("equities");
   const [activePresets, setActivePresets] = useState<number[]>([]);
+  const [description, setDescription] = useState("");
+  const [commitError, setCommitError] = useState("");
+
 
   const expense = cleanNum(expenseStr);
 
@@ -75,7 +87,9 @@ export function AffordCalculator(props: Props) {
       stressPct,
       growthRatePct: growthRate,
       desiredRunwayMonths,
+      legacyTarget,
     };
+
 
     const before = calculate({ ...baseInputs, rawEquities: eq, mmFund: mm }, null);
     const after = calculate({ ...baseInputs, rawEquities: eqAfter, mmFund: cashAfter }, null);
@@ -110,8 +124,10 @@ export function AffordCalculator(props: Props) {
     cappingAge,
     stressPct,
     desiredRunwayMonths,
+    legacyTarget,
     source,
   ]);
+
 
   const presets = [
     { label: `${currency}1,000`, v: 1000 },
@@ -380,11 +396,100 @@ export function AffordCalculator(props: Props) {
             Hypothetical only — uses your current Pane 1 inputs and the same guardrail logic as the
             live directives. Commit a ledger entry to make any change permanent.
           </div>
+
+          {onCommitSpecialEvent && !result.exhausted && (
+            <div
+              style={{
+                marginTop: "1rem",
+                padding: "0.85rem 1rem",
+                background: "rgba(168,85,247,0.06)",
+                border: "1px solid rgba(168,85,247,0.35)",
+                borderRadius: "0.4rem",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  color: "var(--accent-purple)",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Record as Special-Event Withdrawal
+              </div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted)",
+                  marginBottom: 8,
+                }}
+              >
+                Use this ONLY for real one-off spending you've actually taken (e.g. Car purchase,
+                Kitchen refit). Committing will deduct the split above from your pots and reduce
+                ATH by {formatGBP(expense)}, then log a flagged ledger entry with today's date.
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  maxLength={60}
+                  placeholder="Short description (e.g. Car purchase)"
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setCommitError("");
+                  }}
+                  style={{ flex: "1 1 220px" }}
+                />
+                <button
+                  type="button"
+                  style={{
+                    fontSize: "0.8rem",
+                    padding: "0.5rem 0.9rem",
+                    background: "var(--accent-purple)",
+                    fontWeight: 700,
+                  }}
+                  onClick={() => {
+                    if (!onCommitSpecialEvent) return;
+                    const err = onCommitSpecialEvent({
+                      description,
+                      fromEq: result.fromEq,
+                      fromCash: result.fromCash,
+                    });
+                    if (err) {
+                      setCommitError(err);
+                      return;
+                    }
+                    setDescription("");
+                    setExpenseStr("");
+                    setActivePresets([]);
+                    setCommitError("");
+                  }}
+                >
+                  Commit Special Event
+                </button>
+              </div>
+              {commitError && (
+                <div
+                  role="alert"
+                  style={{
+                    color: "var(--accent-red)",
+                    fontSize: "0.8rem",
+                    marginTop: 6,
+                    fontWeight: 600,
+                  }}
+                >
+                  {commitError}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
 
 function Stat({
   label,

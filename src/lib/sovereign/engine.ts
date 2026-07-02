@@ -18,6 +18,16 @@ export interface LedgerEntry {
   drawdownPct: number;
   rule: string;
   phase: string;
+  // Real-terms legacy / inheritance target held aside from the "Fun Bucket".
+  legacyTarget?: number;
+  // Special-event marker: a one-off withdrawal (e.g. car purchase) committed
+  // from Pane 6. Carries a plain-text note and an ISO date.
+  isSpecialEvent?: boolean;
+  eventNote?: string;
+  eventDate?: string;
+  eventFromEq?: number;
+  eventFromCash?: number;
+  eventAmount?: number;
 }
 
 export interface CalcInputs {
@@ -30,7 +40,9 @@ export interface CalcInputs {
   stressPct: number;
   growthRatePct: number;
   desiredRunwayMonths: number;
+  legacyTarget?: number;
 }
+
 
 export interface CalcOutputs {
   phase: Phase;
@@ -49,6 +61,8 @@ export interface CalcOutputs {
   runwayMonths: number;
   runwayColor: string;
   surplus: number;
+  legacyTarget: number;
+  comfortYears: number;
   trajectory: Trajectory;
   trajectoryLabel: string;
   trajectoryColor: string;
@@ -65,6 +79,7 @@ export const COLORS = {
   muted: "var(--text-muted)",
   text: "var(--text-main)",
 };
+
 
 export function phaseFor(age: number): Phase {
   if (age <= 75) return "Go-Go";
@@ -165,7 +180,9 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
         ? targetYearly * ((1 - Math.pow(1 + realG, -remainingYears)) / realG)
         : targetYearly * remainingYears;
   }
-  const surplus = total - baselineNeed;
+  const legacyTarget = Math.max(0, inp.legacyTarget || 0);
+  const surplus = total - baselineNeed - legacyTarget;
+  const comfortYears = targetYearly > 0 ? surplus / targetYearly : 0;
 
   let trajectory: Trajectory = "stable";
   let trajectoryLabel = "No records";
@@ -202,6 +219,8 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
     runwayMonths,
     runwayColor,
     surplus,
+    legacyTarget,
+    comfortYears,
     trajectory,
     trajectoryLabel,
     trajectoryColor,
@@ -209,6 +228,7 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
     baselineNeed,
   };
 }
+
 
 export interface Directive {
   html: string;
@@ -229,14 +249,25 @@ export function generateDirectives(o: CalcOutputs, inp: CalcInputs): Directive {
     guardrailFactor: gF,
     trajectory: traj,
     surplus,
+    legacyTarget,
+    comfortYears,
     stressedEquities: eq,
   } = o;
   const mm = inp.mmFund;
   const capA = inp.cappingAge;
 
+
+
   const sC = mm - targetCashAmount;
   const pT = phase === "Go-Slow" ? 15.0 : 10.0;
   const sT = phase === "Go-Slow" ? 25.0 : 20.0;
+
+  // Comfort bypass: if the plan has 3+ years of true surplus beyond the
+  // baseline lifetime need AND the legacy target, drawdown-vs-ATH signals
+  // are stale and the Preservation/Freeze branches are counter-productive.
+  // Skip them so the user can spend normally from Equities.
+  const comfortBypass = comfortYears >= 3 && phase !== "No-Go" && draw < sT;
+
 
   // Amount wording: only say "adjusted" when Guyton-Klinger actually changed it.
   const isAdj = gF !== 1.0;
@@ -327,6 +358,19 @@ export function generateDirectives(o: CalcOutputs, inp: CalcInputs): Directive {
       `Markets are down (${draw.toFixed(1)}% off ATH) but your Cash Shield is well above target. Use surplus cash to buy equities at depressed prices while funding spending from cash.`,
       `Fund this quarter's <strong>${formatGBP(amt)}</strong> ${amtLabel} from the Cash Pot${amtNote}${amtNote ? "" : "."}<br/>Deploy up to <strong>${formatGBP(excess)}</strong> of surplus cash into Global Equities.`,
     );
+  } else if (comfortBypass && draw >= pT) {
+    cGT = "Comfortable Amortization";
+    cGC = COLORS.green;
+    const legacyNote =
+      legacyTarget > 0
+        ? ` You are still on track to leave <strong>${formatGBP(legacyTarget)}</strong> (real terms) as a legacy.`
+        : "";
+    h = wrap(
+      "green",
+      "Comfortable Amortization — Draw Normally",
+      `Portfolio is ${draw.toFixed(1)}% off a past all-time high, but you still hold roughly <strong>${comfortYears.toFixed(1)} years</strong> of surplus beyond lifetime needs${legacyTarget > 0 ? " and legacy target" : ""}. The distant ATH is stale — freezing equities here would just hoard capital you cannot spend.${legacyNote}`,
+      `Sell <strong>${formatGBP(amt)}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
+    );
   } else if (draw < pT) {
     cGT = "Normal Draw";
     cGC = COLORS.green;
@@ -357,7 +401,12 @@ export function generateDirectives(o: CalcOutputs, inp: CalcInputs): Directive {
     );
   }
 
-  const actuarialHtml = `<span style="color:${cGC}; font-weight:bold;">${cGT}:</span> ${surplus >= 0 ? "Surplus " + formatGBP(surplus) : "Deficit " + formatGBP(Math.abs(surplus))} beyond age ${capA} needs.`;
+  const legacyBit =
+    legacyTarget > 0
+      ? ` (after reserving <strong>${formatGBP(legacyTarget)}</strong> legacy target)`
+      : "";
+  const actuarialHtml = `<span style="color:${cGC}; font-weight:bold;">${cGT}:</span> ${surplus >= 0 ? "Surplus " + formatGBP(surplus) : "Deficit " + formatGBP(Math.abs(surplus))} beyond age ${capA} needs${legacyBit}. <span style="color:var(--text-muted); font-weight:400;">(≈ ${comfortYears.toFixed(1)} years of draw.)</span>`;
+
 
   if (sC > 0.01 && runwayMonths > modifiedTargetMonths)
     h += `<div style="margin-top:1rem; font-size:0.85rem; color:var(--accent-blue);"><strong>Cash Drag Note:</strong> Cash Pot holds <strong>${formatGBP(sC)}</strong> above the ${modifiedTargetMonths}-month target — consider reallocating that surplus into Global Equities.</div>`;

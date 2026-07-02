@@ -31,7 +31,8 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "057";
+const APP_BUILD = "058";
+
 
 type CurrencySymbol = "£" | "€" | "$";
 
@@ -121,7 +122,9 @@ type PersistedSettings = {
   growthRate?: number;
   desiredRunwayMonths?: number;
   currency?: CurrencySymbol;
+  legacyTarget?: number;
 };
+
 
 function loadSettings(): PersistedSettings {
   try {
@@ -625,7 +628,9 @@ export function SovereignGlidepath() {
   const [desiredRunwayMonths, setDesiredRunwayMonths] = useState(36);
   const [stressPct, setStressPct] = useState(0);
   const [currency, setCurrency] = useState<CurrencySymbol>("£");
+  const [legacyTarget, setLegacyTarget] = useState<number>(0);
   const [editIndex, setEditIndex] = useState(-1);
+
 
   // --- Ledger ---
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
@@ -657,6 +662,11 @@ export function SovereignGlidepath() {
       setCurrency(s.currency);
       setCurrencySymbol(s.currency);
     }
+    if (typeof s.legacyTarget === "number" && s.legacyTarget >= 0) {
+      setLegacyTarget(s.legacyTarget);
+    } else if (typeof latest?.legacyTarget === "number") {
+      setLegacyTarget(latest.legacyTarget);
+    }
 
     if (latest) {
       setAge(latest.age || 55);
@@ -672,8 +682,9 @@ export function SovereignGlidepath() {
   // Persist standalone settings whenever they change (after hydration)
   useEffect(() => {
     if (!settingsReady) return;
-    saveSettings({ cappingAge, growthRate, desiredRunwayMonths, currency });
-  }, [cappingAge, growthRate, desiredRunwayMonths, currency, settingsReady]);
+    saveSettings({ cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget });
+  }, [cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget, settingsReady]);
+
 
   // Keep the engine's currency symbol in sync with the selected currency.
   // IMPORTANT: do this SYNCHRONOUSLY during render (not in useEffect) so the
@@ -702,6 +713,7 @@ export function SovereignGlidepath() {
         stressPct,
         growthRatePct: growthRate,
         desiredRunwayMonths,
+        legacyTarget,
       },
       prevEq,
     );
@@ -715,7 +727,9 @@ export function SovereignGlidepath() {
     stressPct,
     growthRate,
     desiredRunwayMonths,
+    legacyTarget,
     ledger,
+
   ]);
 
   const directive = useMemo(
@@ -730,6 +744,7 @@ export function SovereignGlidepath() {
         stressPct,
         growthRatePct: growthRate,
         desiredRunwayMonths,
+        legacyTarget,
       }),
     [
       calc,
@@ -742,8 +757,10 @@ export function SovereignGlidepath() {
       stressPct,
       growthRate,
       desiredRunwayMonths,
+      legacyTarget,
     ],
   );
+
 
   // --- Toast ---
   const [toast, setToast] = useState("");
@@ -818,6 +835,7 @@ export function SovereignGlidepath() {
       drawdownPct: a > 0 ? ((a - tot) / a) * 100 : 0,
       rule: directive.guardrailText,
       phase: phaseFor(age),
+      legacyTarget,
     };
     const next =
       editIndex > -1 ? ledger.map((e, i) => (i === editIndex ? entry : e)) : [entry, ...ledger];
@@ -825,6 +843,68 @@ export function SovereignGlidepath() {
     saveLedger(next);
     setEditIndex(-1);
     showToast("Entry Committed");
+  };
+
+  // Commit a Special-Event withdrawal from Pane 6. Reduces both pots by the
+  // supplied split, reduces ATH by the total expense (so the plan's peak
+  // baseline reflects the drawdown), and creates a flagged ledger entry.
+  const commitSpecialEvent = (opts: {
+    description: string;
+    fromEq: number;
+    fromCash: number;
+  }): string | null => {
+    if (trialBlocked) {
+      setShowLockout(true);
+      return "Ledger entry limit reached.";
+    }
+    const desc = (opts.description || "").trim().slice(0, 60);
+    if (!desc) return "Please enter a short description of the event.";
+    const amt = (opts.fromEq || 0) + (opts.fromCash || 0);
+    if (amt <= 0) return "Nothing to withdraw.";
+    const eqCur = cleanNum(equityVal);
+    const mmCur = cleanNum(mmVal);
+    if (opts.fromEq > eqCur + 0.005) return "Not enough in Global Equities.";
+    if (opts.fromCash > mmCur + 0.005) return "Not enough in the Cash Pot.";
+
+    const eqAfter = Math.max(0, eqCur - opts.fromEq);
+    const cashAfter = Math.max(0, mmCur - opts.fromCash);
+    const athCur = cleanNum(athVal);
+    const athAfter = Math.max(eqAfter + cashAfter, athCur - amt);
+    const tot = eqAfter + cashAfter;
+    const iso = new Date().toISOString().slice(0, 10);
+
+    const entry: LedgerEntry = {
+      label: `SPECIAL: ${desc}`,
+      age,
+      cappingAge,
+      equities: eqAfter,
+      mmFund: cashAfter,
+      ath: athAfter,
+      targetYearly: cleanNum(targetYearly),
+      desiredMonths: desiredRunwayMonths,
+      growthRate,
+      totalCapital: tot,
+      drawdownPct: athAfter > 0 ? ((athAfter - tot) / athAfter) * 100 : 0,
+      rule: "Special Event Withdrawal",
+      phase: phaseFor(age),
+      legacyTarget,
+      isSpecialEvent: true,
+      eventNote: desc,
+      eventDate: iso,
+      eventFromEq: opts.fromEq,
+      eventFromCash: opts.fromCash,
+      eventAmount: amt,
+    };
+
+    const next = [entry, ...ledger];
+    setLedger(next);
+    saveLedger(next);
+    // Reflect the deduction in the live input fields so Pane 1 stays honest.
+    setEquityVal(eqAfter ? String(eqAfter.toFixed(2)) : "");
+    setMmVal(cashAfter ? String(cashAfter.toFixed(2)) : "");
+    setAthVal(athAfter ? String(athAfter.toFixed(2)) : "");
+    showToast(`Special event recorded: ${desc}`);
+    return null;
   };
 
   const editEntry = (i: number) => {
@@ -839,9 +919,11 @@ export function SovereignGlidepath() {
     setTargetYearly(String(d.targetYearly ?? ""));
     setDesiredRunwayMonths(d.desiredMonths || 36);
     if (typeof d.growthRate === "number" && !isNaN(d.growthRate)) setGrowthRate(d.growthRate);
+    if (typeof d.legacyTarget === "number" && d.legacyTarget >= 0) setLegacyTarget(d.legacyTarget);
     setEditIndex(i);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
 
   const deleteEntry = (i: number) => {
     if (!confirm("Delete this entry?")) return;
@@ -1675,6 +1757,30 @@ export function SovereignGlidepath() {
                     />
                   </div>
                 </div>
+                <div style={{ marginTop: "1rem" }}>
+                  <label htmlFor="legacyTarget">
+                    Legacy / Inheritance Target ({currency})
+                  </label>
+                  <MoneyInput
+                    id="legacyTarget"
+                    value={legacyTarget ? String(legacyTarget) : ""}
+                    onChange={(v) => setLegacyTarget(cleanNum(v))}
+                    currency={currency}
+                  />
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--text-muted)",
+                      marginTop: 4,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Real-terms amount you want to leave behind (rises with inflation). Held aside
+                    from the Fun Bucket and factored into every directive. Set to {currency}0 if you
+                    plan to draw the pot to zero. Adjust any time as circumstances change.
+                  </div>
+                </div>
+
                 <div
                   style={{
                     marginTop: "1rem",
@@ -2009,8 +2115,11 @@ export function SovereignGlidepath() {
             cappingAge={cappingAge}
             stressPct={stressPct}
             desiredRunwayMonths={desiredRunwayMonths}
+            legacyTarget={legacyTarget}
             currency={currency}
+            onCommitSpecialEvent={commitSpecialEvent}
           />
+
 
           {/* Ledger */}
           <div className="shd-card">
@@ -2058,17 +2167,51 @@ export function SovereignGlidepath() {
                         ? (Number(d.targetYearly || 0) / Number(d.totalCapital)) * 100
                         : 0;
                     return (
-                      <tr key={`${d.label}-${i}`} className="ledger-row-stacked">
+                      <tr
+                        key={`${d.label}-${i}`}
+                        className="ledger-row-stacked"
+                        style={
+                          d.isSpecialEvent
+                            ? { background: "rgba(168,85,247,0.06)" }
+                            : undefined
+                        }
+                      >
                         {/* Timeline */}
                         <td>
-                          <div className="cell-primary">{d.label}</div>
+                          <div className="cell-primary">
+                            {d.isSpecialEvent && (
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  fontSize: "0.6rem",
+                                  fontWeight: 800,
+                                  color: "var(--accent-purple)",
+                                  border: "1px solid var(--accent-purple)",
+                                  padding: "1px 5px",
+                                  borderRadius: 3,
+                                  marginRight: 6,
+                                  verticalAlign: "middle",
+                                }}
+                                title="One-off special-event withdrawal recorded from Pane 6"
+                              >
+                                ★ EVENT
+                              </span>
+                            )}
+                            {d.label}
+                          </div>
                           <div className="cell-muted">
                             Age {d.age}{" "}
                             <span className={`phase-badge ${phaseBadgeClass(d.phase || "")}`}>
                               {d.phase}
                             </span>
+                            {d.isSpecialEvent && d.eventDate && (
+                              <span style={{ marginLeft: 6, fontSize: "0.7rem" }}>
+                                · {d.eventDate}
+                              </span>
+                            )}
                           </div>
                         </td>
+
                         {/* Asset Pools */}
                         <td className="text-right">
                           <div className="cell-primary">

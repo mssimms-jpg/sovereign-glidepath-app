@@ -11,6 +11,52 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 058 — Legacy target &amp; Special-Event withdrawals
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Stops the "silly late-life freeze" directive.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>New Pane 1 field — Legacy / Inheritance Target.</strong> Real-terms
+                amount you want to leave behind. It is reserved from the Fun Bucket and factored
+                into the surplus and comfort-years calculations. Set to 0 to happily amortize to
+                zero; raise it any time to reflect changing family plans.
+              </li>
+              <li>
+                <strong>Comfortable Amortization directive.</strong> When the plan still holds
+                3+ years of true surplus (beyond both lifetime needs and the legacy target), the
+                Preservation / Freeze branch is bypassed and a green "Draw Normally" directive
+                fires — even if drawdown vs a very old ATH looks large. This fixes the case
+                where an 80-year-old with £790k and only 10 years left was being told to freeze
+                equities against a stale £1m peak.
+              </li>
+              <li>
+                <strong>Pane 6 — Commit as Special-Event Withdrawal.</strong> When "Can I afford
+                this?" reflects a real one-off spend (car, kitchen, gift), type a short
+                description and hit <em>Commit Special Event</em>. The app deducts the split
+                shown from Equities/Cash, lowers ATH by the same amount so the peak baseline
+                stays honest, and writes a purple <code>★ EVENT</code> ledger entry stamped with
+                today's date and your note.
+              </li>
+              <li>
+                <strong>Ledger — Special Event styling.</strong> Special-event rows are tinted
+                purple with an <code>★ EVENT</code> chip and the transaction date so they are
+                obvious in the historical timeline.
+              </li>
+              <li>
+                <strong>Fun Bucket wording.</strong> The Actuarial Amortization Matrix now
+                explicitly shows "(after reserving £X legacy target)" whenever a legacy figure
+                is set.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 055 — 2026-06-29
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
