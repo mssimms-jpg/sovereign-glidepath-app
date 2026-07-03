@@ -31,7 +31,7 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "058";
+const APP_BUILD = "059";
 
 
 type CurrencySymbol = "£" | "€" | "$";
@@ -123,6 +123,7 @@ type PersistedSettings = {
   desiredRunwayMonths?: number;
   currency?: CurrencySymbol;
   legacyTarget?: number;
+  cashRealPct?: number;
 };
 
 
@@ -629,6 +630,10 @@ export function SovereignGlidepath() {
   const [stressPct, setStressPct] = useState(0);
   const [currency, setCurrency] = useState<CurrencySymbol>("£");
   const [legacyTarget, setLegacyTarget] = useState<number>(0);
+  // Cash Pot real return — lifted from the Risk Simulator so Pane 1 and Pane 5
+  // share the same slider (and the Fun Bucket / Amortization Matrix now
+  // reflects cash drag identically to the simulator).
+  const [cashRealPct, setCashRealPct] = useState<number>(1);
   const [editIndex, setEditIndex] = useState(-1);
 
 
@@ -667,6 +672,18 @@ export function SovereignGlidepath() {
     } else if (typeof latest?.legacyTarget === "number") {
       setLegacyTarget(latest.legacyTarget);
     }
+    if (typeof s.cashRealPct === "number" && s.cashRealPct >= 0) {
+      setCashRealPct(s.cashRealPct);
+    } else {
+      // One-time migration from the old MC-local key so returning users don't lose their slider position.
+      try {
+        const raw = localStorage.getItem("shd_mc_v1");
+        if (raw) {
+          const mc = JSON.parse(raw);
+          if (typeof mc?.cashRealPct === "number") setCashRealPct(mc.cashRealPct);
+        }
+      } catch { /* ignore */ }
+    }
 
     if (latest) {
       setAge(latest.age || 55);
@@ -682,8 +699,8 @@ export function SovereignGlidepath() {
   // Persist standalone settings whenever they change (after hydration)
   useEffect(() => {
     if (!settingsReady) return;
-    saveSettings({ cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget });
-  }, [cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget, settingsReady]);
+    saveSettings({ cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget, cashRealPct });
+  }, [cappingAge, growthRate, desiredRunwayMonths, currency, legacyTarget, cashRealPct, settingsReady]);
 
 
   // Keep the engine's currency symbol in sync with the selected currency.
@@ -714,6 +731,7 @@ export function SovereignGlidepath() {
         growthRatePct: growthRate,
         desiredRunwayMonths,
         legacyTarget,
+        cashRealPct,
       },
       prevEq,
     );
@@ -728,6 +746,7 @@ export function SovereignGlidepath() {
     growthRate,
     desiredRunwayMonths,
     legacyTarget,
+    cashRealPct,
     ledger,
 
   ]);
@@ -745,6 +764,7 @@ export function SovereignGlidepath() {
         growthRatePct: growthRate,
         desiredRunwayMonths,
         legacyTarget,
+        cashRealPct,
       }),
     [
       calc,
@@ -758,6 +778,7 @@ export function SovereignGlidepath() {
       growthRate,
       desiredRunwayMonths,
       legacyTarget,
+      cashRealPct,
     ],
   );
 
@@ -1689,7 +1710,7 @@ export function SovereignGlidepath() {
                     Auto-Label
                   </button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.6fr", gap: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                   <div>
                     <label>Global Equities ({currency})</label>
                     <MoneyInput
@@ -1698,10 +1719,72 @@ export function SovereignGlidepath() {
                       onChange={setEquityVal}
                       currency={currency}
                     />
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <label style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        Assumed Growth Rate{" "}
+                        <strong style={{ color: "var(--accent-blue)" }}>
+                          {growthRate.toFixed(1)}%
+                        </strong>
+                      </label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={10}
+                        step={0.1}
+                        value={growthRate}
+                        onChange={(e) => setGrowthRate(parseFloat(e.target.value) || 0)}
+                        style={{ width: "100%" }}
+                        aria-label="Assumed real growth rate on Global Equities"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label>Cash Pot ({currency})</label>
                     <MoneyInput id="mmVal" value={mmVal} onChange={setMmVal} currency={currency} />
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <label style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        Cash Real Return{" "}
+                        <strong style={{ color: "var(--accent-blue)" }}>
+                          {cashRealPct.toFixed(1)}%
+                        </strong>
+                      </label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={3}
+                        step={0.1}
+                        value={cashRealPct}
+                        onChange={(e) => setCashRealPct(parseFloat(e.target.value) || 0)}
+                        style={{ width: "100%" }}
+                        aria-label="Cash Pot real return above inflation"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shd-cluster">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.9fr", gap: "1rem" }}>
+                  <div>
+                    <label>Cash Buffer Target (months)</label>
+                    <IntInput
+                      min={1}
+                      max={120}
+                      value={desiredRunwayMonths}
+                      fallback={36}
+                      onChange={setDesiredRunwayMonths}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="legacyTargetTop">
+                      Legacy Target ({currency})
+                    </label>
+                    <MoneyInput
+                      id="legacyTargetTop"
+                      value={legacyTarget ? String(legacyTarget) : ""}
+                      onChange={(v) => setLegacyTarget(cleanNum(v))}
+                      currency={currency}
+                    />
                   </div>
                   <div>
                     <label htmlFor="currencySel">Currency</label>
@@ -1714,9 +1797,9 @@ export function SovereignGlidepath() {
                         background: "var(--bg-input, #0f172a)",
                         border: "1px solid var(--border-color)",
                         color: "var(--text-main)",
-                        padding: "0.75rem",
+                        padding: "0.6rem",
                         borderRadius: "0.375rem",
-                        fontSize: "1rem",
+                        fontSize: "0.95rem",
                       }}
                       aria-label="Display currency (cosmetic only — no FX conversion)"
                     >
@@ -1726,59 +1809,18 @@ export function SovereignGlidepath() {
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="shd-cluster">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                  <div>
-                    <label>Assumed Growth Rate</label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={10}
-                        step={0.1}
-                        value={growthRate}
-                        onChange={(e) => setGrowthRate(parseFloat(e.target.value) || 0)}
-                      />
-                      <strong style={{ color: "var(--accent-blue)", minWidth: 45 }}>
-                        {growthRate.toFixed(1)}%
-                      </strong>
-                    </div>
-                  </div>
-                  <div>
-                    <label>Cash Buffer Target (months)</label>
-                    <IntInput
-                      min={1}
-                      max={120}
-                      value={desiredRunwayMonths}
-                      fallback={36}
-                      onChange={setDesiredRunwayMonths}
-                    />
-                  </div>
-                </div>
-                <div style={{ marginTop: "1rem" }}>
-                  <label htmlFor="legacyTarget">
-                    Legacy / Inheritance Target ({currency})
-                  </label>
-                  <MoneyInput
-                    id="legacyTarget"
-                    value={legacyTarget ? String(legacyTarget) : ""}
-                    onChange={(v) => setLegacyTarget(cleanNum(v))}
-                    currency={currency}
-                  />
-                  <div
-                    style={{
-                      fontSize: "0.72rem",
-                      color: "var(--text-muted)",
-                      marginTop: 4,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    Real-terms amount you want to leave behind (rises with inflation). Held aside
-                    from the Fun Bucket and factored into every directive. Set to {currency}0 if you
-                    plan to draw the pot to zero. Adjust any time as circumstances change.
-                  </div>
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "var(--text-muted)",
+                    marginTop: 6,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Legacy Target: real-terms amount you want to leave behind (rises with inflation).
+                  Held aside from the Fun Bucket and factored into every directive. Set to{" "}
+                  {currency}0 to draw the pot to zero. Currency change is cosmetic only — no FX
+                  conversion.
                 </div>
 
                 <div
@@ -2099,6 +2141,9 @@ export function SovereignGlidepath() {
             cashCapital={Number(ledger[0]?.mmFund) || cleanNum(mmVal)}
             years={Math.max(1, cappingAge - age)}
             deterministicRatePct={growthRate}
+            onDeterministicRateChange={setGrowthRate}
+            cashRealPct={cashRealPct}
+            onCashRealPctChange={setCashRealPct}
             annualWithdrawal={cleanNum(targetYearly)}
             currentAge={age}
             currency={currency}
@@ -2242,12 +2287,37 @@ export function SovereignGlidepath() {
                             {(Number(d.drawdownPct) || 0).toFixed(2)}%
                           </div>
                         </td>
-                        {/* Drawdown Income */}
+                        {/* Drawdown Income (or Special-Event withdrawal) */}
                         <td className="text-right">
-                          <div className="cell-primary">
-                            {formatGBP(Number(d.targetYearly) || 0)}
-                          </div>
-                          <div className="cell-muted">WR {wPct.toFixed(2)}%</div>
+                          {d.isSpecialEvent ? (
+                            <>
+                              <div
+                                className="cell-primary"
+                                style={{ color: "var(--accent-purple)", fontWeight: 700 }}
+                                title="Special-event withdrawal — one-off deduction from the pot"
+                              >
+                                −{formatGBP(Number(d.eventAmount) || 0)}
+                              </div>
+                              <div className="cell-muted">
+                                {(() => {
+                                  const eq = Number(d.eventFromEq) || 0;
+                                  const ca = Number(d.eventFromCash) || 0;
+                                  const parts: string[] = [];
+                                  if (eq > 0) parts.push(`Eq ${formatGBP(eq)}`);
+                                  if (ca > 0) parts.push(`Cash ${formatGBP(ca)}`);
+                                  return parts.join(" · ") || "Special event";
+                                })()}
+                                {d.eventNote ? ` — ${d.eventNote}` : ""}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="cell-primary">
+                                {formatGBP(Number(d.targetYearly) || 0)}
+                              </div>
+                              <div className="cell-muted">WR {wPct.toFixed(2)}%</div>
+                            </>
+                          )}
                         </td>
                         {/* Status & Controls */}
                         <td>

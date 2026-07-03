@@ -1,40 +1,15 @@
-Sovereign Glidepath — Web Update Build 058
-=============================================
+Sovereign Glidepath — Web Update Build 059
+==========================================
 
-This zip is a drop-in replacement for the web-hosted (Cloudflare Pages) copy
-of Sovereign Glidepath. It contains ONLY the files needed for the web demo;
-desktop/installer artefacts are intentionally excluded to stay under
-GitHub's 100 MB file limit.
+Drop-in replacement for the Cloudflare Pages web deployment.
+Contains only the source files needed for the web build.
 
-Contents
---------
-- public/
-- src/
-- package.json
-- tsconfig.json
-- vite.config.ts
-- wrangler.jsonc
-- .gitignore
+Highlights:
+- Comfort-bypass fix: no more phantom -10% cut against stale ATH.
+- Ledger Special-Event rows show withdrawal amount + split + note.
+- Assumed Growth Rate & Cash Real Return sliders mirrored between Pane 1 and the Risk Simulator.
+- Pane 2 Fun Bucket now uses a pot-weighted blended real rate.
 
-Option A — GitHub web UI
-------------------------
-1. Open your repo on github.com.
-2. Click "Add file" -> "Upload files".
-3. Drag the contents of this zip (not the zip itself) into the upload area.
-   Keep the folder structure intact.
-4. Commit directly to the default branch with message:
-   "Sync to Build 058"
-
-Option B — Git CLI
-------------------
-1. Unzip into your local clone, overwriting existing files:
-     unzip -o sovereign-glidepath-web-build058.zip -d /path/to/repo
-2. From the repo root:
-     git add -A
-     git commit -m "Sync to Build 058"
-     git push
-
-Cloudflare
-----------
-No action needed. Cloudflare Pages is wired to the GitHub repo, so the push
-automatically triggers a new build and redeploy (usually live in 1-2 min).
+To deploy:
+1. Replace the matching folders/files at the root of your GitHub repo.
+2. Commit and push. Cloudflare Pages will auto-rebuild.

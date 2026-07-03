@@ -41,6 +41,8 @@ export interface CalcInputs {
   growthRatePct: number;
   desiredRunwayMonths: number;
   legacyTarget?: number;
+  /** Real return on the Cash Pot, in %. Used to blend the amortization rate. */
+  cashRealPct?: number;
 }
 
 
@@ -133,6 +135,12 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
   const stressedEquities = rawEquities * (1 - stressPct / 100);
   const total = stressedEquities + mmFund;
 
+  // Blended real return across the two buckets — makes the Fun Bucket / Actuarial
+  // Amortization Matrix respond to cash drag the same way the Risk Simulator does.
+  const cashRealG = ((typeof inp.cashRealPct === "number" ? inp.cashRealPct : 1) || 0) / 100;
+  const blendedRealG =
+    total > 0 ? (stressedEquities * realG + mmFund * cashRealG) / total : realG;
+
   const drawdownPct = ath > 0 ? ((ath - total) / ath) * 100 : 0;
   const targetWR = ath > 0 ? (targetYearly / ath) * 100 : 0;
   const currentWR = total > 0 ? (targetYearly / total) * 100 : 0;
@@ -176,8 +184,8 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
   let baselineNeed = 0;
   if (remainingYears > 0) {
     baselineNeed =
-      realG > 0
-        ? targetYearly * ((1 - Math.pow(1 + realG, -remainingYears)) / realG)
+      blendedRealG > 0
+        ? targetYearly * ((1 - Math.pow(1 + blendedRealG, -remainingYears)) / blendedRealG)
         : targetYearly * remainingYears;
   }
   const legacyTarget = Math.max(0, inp.legacyTarget || 0);
@@ -201,6 +209,17 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
       trajectoryColor = COLORS.muted;
     }
   }
+
+  // Comfort bypass — if surplus beyond lifetime needs + legacy is >= 3 years,
+  // the ATH is stale and the Guyton-Klinger guardrails would mis-fire.
+  // Neutralise them so the guardrail status readout matches the directive.
+  const _comfortBypass = comfortYears >= 3 && phase !== "No-Go";
+  if (_comfortBypass && guardrailFactor !== 1.0) {
+    guardrailFactor = 1.0;
+    guardrailStatus = "Comfortable Amortization";
+    guardrailColor = COLORS.green;
+  }
+
 
   return {
     phase,
@@ -264,13 +283,15 @@ export function generateDirectives(o: CalcOutputs, inp: CalcInputs): Directive {
 
   // Comfort bypass: if the plan has 3+ years of true surplus beyond the
   // baseline lifetime need AND the legacy target, drawdown-vs-ATH signals
-  // are stale and the Preservation/Freeze branches are counter-productive.
-  // Skip them so the user can spend normally from Equities.
-  const comfortBypass = comfortYears >= 3 && phase !== "No-Go" && draw < sT;
+  // are stale and the Preservation/Freeze/G-K reduction branches are
+  // counter-productive — the ATH is old, the surplus is real. Skip them so
+  // the user simply draws normally from Equities.
+  const comfortBypass = comfortYears >= 3 && phase !== "No-Go";
 
 
   // Amount wording: only say "adjusted" when Guyton-Klinger actually changed it.
-  const isAdj = gF !== 1.0;
+  // Under comfort bypass we also force the amount back to the un-reduced quarterly.
+  const isAdj = gF !== 1.0 && !comfortBypass;
   const amtLabel = isAdj ? "adjusted quarterly draw" : "quarterly draw";
   const amt = isAdj ? gAdjQ : tQ;
   const amtNote = isAdj
@@ -278,9 +299,9 @@ export function generateDirectives(o: CalcOutputs, inp: CalcInputs): Directive {
     : "";
 
   let gAB = "";
-  if (gF < 1.0)
+  if (!comfortBypass && gF < 1.0)
     gAB = `<div style="padding:0.75rem; background:rgba(245,158,11,0.1); border:1px solid var(--accent-amber); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-amber);">Guyton-Klinger Preservation:</strong> Realised withdrawal rate is more than 20% above target. Cut this quarter's payout by 10% to <strong>${formatGBP(gAdjQ)}</strong>.</div>`;
-  else if (gF > 1.0)
+  else if (!comfortBypass && gF > 1.0)
     gAB = `<div style="padding:0.75rem; background:rgba(168,85,247,0.1); border:1px solid var(--accent-purple); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-purple);">Guyton-Klinger Prosperity:</strong> Realised withdrawal rate is more than 20% below target. You may raise this quarter's payout by 10% to <strong>${formatGBP(gAdjQ)}</strong>.</div>`;
 
   let cGT = "Prosperity";

@@ -11,6 +11,42 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 059 — Mirrored growth sliders &amp; comfort-bypass fix
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Directives now match the actuarial matrix when a stale ATH would otherwise trigger a −10% cut.</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Comfort-bypass hardening.</strong> When the plan holds 3+ years of true
+                surplus (beyond lifetime needs and legacy target), the Guyton-Klinger −10%
+                reduction is now suppressed at the calculation layer — so both the guardrail
+                status readout <em>and</em> the directive box agree on "Draw Normally."
+              </li>
+              <li>
+                <strong>Ledger shows Special-Event amounts.</strong> The Drawdown Income column
+                now displays the withdrawal amount (in the accent-purple), the Equities/Cash
+                split, and the note you typed (e.g. "Car — £24,000 · Eq £18,000 · Cash £6,000").
+              </li>
+              <li>
+                <strong>Assumed Growth Rate + Cash Real Return mirrored across Pane 1 and the
+                Risk Simulator.</strong> Change either slider in either place — the other
+                updates immediately. In Pane 1 the sliders sit directly under Global Equities
+                and Cash Pot; the currency selector moves down beside Cash Buffer and Legacy.
+              </li>
+              <li>
+                <strong>Fun Bucket now feels cash drag.</strong> Pane 2's Amortization Matrix
+                uses a blended real-growth rate (equities × equity return + cash × cash real
+                return, weighted by pot size) — so raising cash allocation shortens the
+                comfort horizon exactly as the Risk Simulator predicts.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 058 — Legacy target &amp; Special-Event withdrawals
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

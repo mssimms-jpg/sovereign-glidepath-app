@@ -82,6 +82,11 @@ export interface MonteCarloPanelProps {
   cashCapital?: number;
   years: number;
   deterministicRatePct: number;
+  /** Optional setter — lets Pane 5 mirror the Pane 1 Assumed Growth Rate slider. */
+  onDeterministicRateChange?: (v: number) => void;
+  /** Cash Pot real return %. When provided, becomes the single source of truth. */
+  cashRealPct?: number;
+  onCashRealPctChange?: (v: number) => void;
   annualWithdrawal?: number;
   currentAge?: number;
   currency?: "£" | "€" | "$";
@@ -93,6 +98,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   cashCapital,
   years,
   deterministicRatePct,
+  onDeterministicRateChange,
+  cashRealPct: cashRealPctProp,
+  onCashRealPctChange,
   annualWithdrawal = 0,
   currentAge = 0,
   currency = "£",
@@ -126,9 +134,18 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     typeof p.pensionIncreasePct === "number" ? p.pensionIncreasePct : 0,
   );
   // Two-bucket controls.
-  const [cashRealPct, setCashRealPct] = useState<number>(
-    typeof p.cashRealPct === "number" ? p.cashRealPct : 1,
+  // cashRealPct is prop-controlled when a setter is supplied by the parent
+  // (Pane 1 mirror). Falls back to a local state for legacy callers.
+  const [cashRealPctLocal, setCashRealPctLocal] = useState<number>(
+    typeof cashRealPctProp === "number"
+      ? cashRealPctProp
+      : typeof p.cashRealPct === "number" ? p.cashRealPct : 1,
   );
+  const cashRealPct = typeof cashRealPctProp === "number" ? cashRealPctProp : cashRealPctLocal;
+  const setCashRealPct = (v: number) => {
+    if (onCashRealPctChange) onCashRealPctChange(v);
+    else setCashRealPctLocal(v);
+  };
   const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
 
   const pension = cleanNum(pensionStr);
@@ -1012,8 +1029,51 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             {currency === "£" ? "pounds" : currency === "€" ? "euros" : "dollars"}
           </div>
         </div>
-        <div />
-        <div />
+        {/* Assumed Growth Rate — mirror of Pane 1 slider, sits below Equities */}
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Assumed Growth Rate %{" "}
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {deterministicRatePct.toFixed(1)}%
+            </span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={0.1}
+            value={deterministicRatePct}
+            onChange={(e) => onDeterministicRateChange?.(parseFloat(e.target.value) || 0)}
+            disabled={!onDeterministicRateChange}
+            style={{ width: "100%" }}
+            aria-label="Assumed real growth rate on Global Equities (mirror of Pane 1)"
+          />
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+            Equities real return · mirrored with Pane 1
+          </div>
+        </div>
+        {/* Cash Real Return — mirror of Pane 1 slider, sits below Cash Pot */}
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Cash Real Return %{" "}
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {cashRealPct.toFixed(1)}%
+            </span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={3}
+            step={0.1}
+            value={cashRealPct}
+            onChange={(e) => setCashRealPct(parseFloat(e.target.value) || 0)}
+            style={{ width: "100%" }}
+            aria-label="Cash Pot real return (mirror of Pane 1)"
+          />
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+            Cash real return · mirrored with Pane 1
+          </div>
+        </div>
         <div>
 
           <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -1125,13 +1185,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         })()
       )}
 
-      {/* Two-bucket controls — cash real return + defensive-draw threshold */}
+      {/* Defensive-draw threshold — cash real return is now inline above with the other sliders */}
       <div
-        className="mc-compact"
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.6fr)",
-          gap: "0.6rem 1rem",
           marginBottom: "1rem",
           padding: "0.6rem 0.75rem",
           background: "rgba(59,130,246,0.05)",
@@ -1139,61 +1195,38 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           borderRadius: 8,
         }}
       >
-        <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Cash real return %{" "}
-            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
-              {cashRealPct.toFixed(1)}%
-            </span>
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={3}
-            step={0.1}
-            value={cashRealPct}
-            onChange={(e) => setCashRealPct(parseFloat(e.target.value) || 0)}
-            style={{ width: "100%" }}
-            aria-label="Cash real return"
-          />
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-            What the Cash Pot earns above inflation (0% = treads water)
-          </div>
+        <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          Defensive draw threshold{" "}
+          <span style={{ color: "var(--accent-blue)", fontWeight: 700, fontSize: "0.7rem" }}>
+            · avg {avgDefensiveYears.toFixed(1)} of {yrs} yrs ({defensivePct}%) draw from cash
+          </span>
+        </label>
+        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.2rem" }}>
+          {(
+            [
+              ["strict", "Strict", "draw cash on negative years only"],
+              ["standard", "Standard", "draw cash in flat or weak markets"],
+              ["aggressive", "Aggressive", "draw cash unless markets are clearly strong"],
+            ] as [ThresholdMode, string, string][]
+          ).map(([id, label, tip]) => (
+            <button
+              key={id}
+              type="button"
+              className={threshold === id ? "" : "secondary"}
+              style={{ fontSize: "0.72rem", padding: "0.35rem 0.6rem" }}
+              onClick={() => setThreshold(id)}
+              title={tip}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Defensive draw threshold{" "}
-            <span style={{ color: "var(--accent-blue)", fontWeight: 700, fontSize: "0.7rem" }}>
-              · avg {avgDefensiveYears.toFixed(1)} of {yrs} yrs ({defensivePct}%) draw from cash
-            </span>
-          </label>
-          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.2rem" }}>
-            {(
-              [
-                ["strict", "Strict", "draw cash on negative years only"],
-                ["standard", "Standard", "draw cash in flat or weak markets"],
-                ["aggressive", "Aggressive", "draw cash unless markets are clearly strong"],
-              ] as [ThresholdMode, string, string][]
-            ).map(([id, label, tip]) => (
-              <button
-                key={id}
-                type="button"
-                className={threshold === id ? "" : "secondary"}
-                style={{ fontSize: "0.72rem", padding: "0.35rem 0.6rem" }}
-                onClick={() => setThreshold(id)}
-                title={tip}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-            {threshold === "strict"
-              ? "Strict — spend from cash only when equities post a negative nominal year."
-              : threshold === "standard"
-                ? "Standard — spend from cash in flat or weak equity years. Refill in clearly positive years."
-                : "Aggressive — spend from cash unless equities are clearly above the expected-return hurdle."}
-          </div>
+        <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+          {threshold === "strict"
+            ? "Strict — spend from cash only when equities post a negative nominal year."
+            : threshold === "standard"
+              ? "Standard — spend from cash in flat or weak equity years. Refill in clearly positive years."
+              : "Aggressive — spend from cash unless equities are clearly above the expected-return hurdle."}
         </div>
       </div>
 
