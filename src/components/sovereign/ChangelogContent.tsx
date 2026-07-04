@@ -11,6 +11,42 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 060 — Commit-confirmation modal &amp; alignment polish
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Commit-confirmation modal.</strong> Every ledger commit now pops a review
+                dialog first — label, age/phase, both pots, total, ATH (flagged if it's being
+                raised), drawdown, target draw + WR, legacy target, cash-buffer target, growth
+                rate, and current directive. Cancel returns you to Pane 1 unchanged.
+              </li>
+              <li>
+                <strong>Pane 1 alignment.</strong> Cash Buffer / Legacy Target / Currency labels
+                now fit on a single line each; grid tightened so all three fields align.
+              </li>
+              <li>
+                <strong>Pane 5 alignment.</strong> Pension Start Age column narrowed so the row of
+                sliders (Yearly Withdrawal Increase / Assumed Growth / Cash Real Return / Pension
+                Real Increase) gets more room and lines up cleanly.
+              </li>
+              <li>
+                <strong>Pane 6 wording.</strong> "Nothing is committed" removed — replaced with a
+                two-line explanation that the calculator is hypothetical by default but can be
+                committed as a Special Event.
+              </li>
+              <li>
+                <strong>Docs sync.</strong> Quick Start Guide and Full Manual updated with sections
+                on Legacy Target, Automatic ATH, Special-Event withdrawals, the Commit-confirmation
+                modal, and the Comfortable Amortization override. Manual bumped to Edition X.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 059 — Mirrored growth sliders &amp; comfort-bypass fix
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

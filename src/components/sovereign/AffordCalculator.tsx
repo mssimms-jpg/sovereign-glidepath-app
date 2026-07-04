@@ -163,7 +163,7 @@ export function AffordCalculator(props: Props) {
           6. Can I Afford This? — Instant Impact Calculator
         </h2>
         <span className="shd-sub" style={{ fontSize: "0.75rem" }}>
-          Simulates a one-off expense. Nothing is committed to the ledger.
+          Model a one-off expense first — then optionally commit it as a Special-Event withdrawal below.
         </span>
       </div>
 
@@ -393,8 +393,9 @@ export function AffordCalculator(props: Props) {
               fontStyle: "italic",
             }}
           >
-            Hypothetical only — uses your current Pane 1 inputs and the same guardrail logic as the
-            live directives. Commit a ledger entry to make any change permanent.
+            Hypothetical by default — uses your current Pane 1 inputs and the same guardrail logic
+            as the live directives. To make a real expense permanent, use the purple <em>Commit
+            Special Event</em> panel below.
           </div>
 
           {onCommitSpecialEvent && !result.exhausted && (

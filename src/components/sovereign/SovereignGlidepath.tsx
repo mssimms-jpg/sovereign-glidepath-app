@@ -31,7 +31,7 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "059";
+const APP_BUILD = "060";
 
 
 type CurrencySymbol = "£" | "€" | "$";
@@ -823,7 +823,13 @@ export function SovereignGlidepath() {
   const entryCapActive = !IS_STORE_BUILD && !license.licensed && trial.expired;
   const trialBlocked = entryCapActive && editIndex < 0 && ledger.length >= POST_TRIAL_ENTRY_LIMIT;
 
-  const commit = () => {
+  // Two-stage commit: openCommitConfirm() runs guard checks and pops a review
+  // modal showing exactly what will be written to the ledger; performCommit()
+  // actually writes the row. This gives the user one last sanity check for
+  // typos or a still-armed stress slider.
+  const [showCommitConfirm, setShowCommitConfirm] = useState(false);
+
+  const openCommitConfirm = () => {
     if (stressPct > 0) {
       alert("Reset Stress Test to 0 before committing.");
       return;
@@ -832,7 +838,10 @@ export function SovereignGlidepath() {
       setShowLockout(true);
       return;
     }
+    setShowCommitConfirm(true);
+  };
 
+  const performCommit = () => {
     const trimmedLabel = (label || "Unlabeled").trim().slice(0, 40) || "Unlabeled";
     const eqR = cleanNum(equityVal);
     const mmR = cleanNum(mmVal);
@@ -863,6 +872,7 @@ export function SovereignGlidepath() {
     setLedger(next);
     saveLedger(next);
     setEditIndex(-1);
+    setShowCommitConfirm(false);
     showToast("Entry Committed");
   };
 
@@ -1319,6 +1329,61 @@ export function SovereignGlidepath() {
         </div>
       )}
 
+      {/* Commit-confirmation modal — final sanity check before writing to the ledger */}
+      {showCommitConfirm && (() => {
+        const eqR = cleanNum(equityVal);
+        const mmR = cleanNum(mmVal);
+        const tot = eqR + mmR;
+        const athCur = cleanNum(athVal);
+        const athNew = Math.max(athCur, tot);
+        const athRose = athNew > athCur + 0.005;
+        const wr = tot > 0 ? (cleanNum(targetYearly) / tot) * 100 : 0;
+        const dd = athNew > 0 ? ((athNew - tot) / athNew) * 100 : 0;
+        const cell: React.CSSProperties = { padding: "0.3rem 0.5rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.85rem" };
+        const kcell: React.CSSProperties = { ...cell, color: "var(--text-muted)", width: "45%" };
+        const vcell: React.CSSProperties = { ...cell, color: "var(--text-main)", fontWeight: 600, textAlign: "right" };
+        return (
+          <div className="shd-overlay" role="dialog" aria-modal="true">
+            <div className="shd-modal" style={{ width: 520, maxHeight: "90vh", overflowY: "auto" }}>
+              <h2 style={{ fontSize: "1.15rem", fontWeight: 800, margin: "0 0 0.35rem 0", textTransform: "none", letterSpacing: 0 }}>
+                {editIndex > -1 ? "Confirm Ledger Update" : "Confirm Ledger Entry"}
+              </h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.85rem" }}>
+                Review the values below carefully. Once committed, this row will be written to your Historical Timeline Ledger.
+                Use <em>Cancel</em> to go back and fix any typos.
+              </p>
+              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "0.75rem" }}>
+                <tbody>
+                  <tr><td style={kcell}>Label</td><td style={vcell}>{(label || "Unlabeled").trim().slice(0, 40) || "Unlabeled"}</td></tr>
+                  <tr><td style={kcell}>Age / Phase</td><td style={vcell}>{age} · {phaseFor(age)}</td></tr>
+                  <tr><td style={kcell}>Global Equities</td><td style={vcell}>{formatGBP(eqR)}</td></tr>
+                  <tr><td style={kcell}>Cash Pot</td><td style={vcell}>{formatGBP(mmR)}</td></tr>
+                  <tr><td style={kcell}>Total Capital</td><td style={vcell}>{formatGBP(tot)}</td></tr>
+                  <tr>
+                    <td style={kcell}>Stored ATH{athRose ? " (will be raised)" : ""}</td>
+                    <td style={{ ...vcell, color: athRose ? "var(--accent-green)" : undefined }}>
+                      {formatGBP(athNew)}{athRose ? ` (was ${formatGBP(athCur)})` : ""}
+                    </td>
+                  </tr>
+                  <tr><td style={kcell}>Drawdown vs ATH</td><td style={vcell}>{dd.toFixed(2)}%</td></tr>
+                  <tr><td style={kcell}>Target Annual Draw</td><td style={vcell}>{formatGBP(cleanNum(targetYearly))} ({wr.toFixed(2)}% WR)</td></tr>
+                  <tr><td style={kcell}>Legacy Target</td><td style={vcell}>{legacyTarget > 0 ? formatGBP(legacyTarget) : "—"}</td></tr>
+                  <tr><td style={kcell}>Cash Buffer Target</td><td style={vcell}>{desiredRunwayMonths} months</td></tr>
+                  <tr><td style={kcell}>Assumed Growth</td><td style={vcell}>{growthRate.toFixed(1)}%</td></tr>
+                  <tr><td style={{ ...kcell, borderBottom: 0 }}>Directive</td><td style={{ ...vcell, borderBottom: 0, color: directive.guardrailColor }}>{directive.guardrailText}</td></tr>
+                </tbody>
+              </table>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+                <button className="secondary" onClick={() => setShowCommitConfirm(false)}>Cancel</button>
+                <button onClick={performCommit} style={{ fontWeight: 700 }}>
+                  {editIndex > -1 ? "Update Entry" : "Commit to Ledger"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Entry-limit lockout modal */}
       {showLockout && !IS_STORE_BUILD && (
         <div className="shd-overlay" role="dialog" aria-modal="true">
@@ -1764,9 +1829,9 @@ export function SovereignGlidepath() {
               </div>
 
               <div className="shd-cluster">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.9fr", gap: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.75fr", gap: "0.85rem" }}>
                   <div>
-                    <label>Cash Buffer Target (months)</label>
+                    <label style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>Cash Buffer Target (months)</label>
                     <IntInput
                       min={1}
                       max={120}
@@ -1776,7 +1841,7 @@ export function SovereignGlidepath() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="legacyTargetTop">
+                    <label htmlFor="legacyTargetTop" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
                       Legacy Target ({currency})
                     </label>
                     <MoneyInput
@@ -1787,7 +1852,7 @@ export function SovereignGlidepath() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="currencySel">Currency</label>
+                    <label htmlFor="currencySel" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>Currency</label>
                     <select
                       id="currencySel"
                       value={currency}
@@ -1853,7 +1918,7 @@ export function SovereignGlidepath() {
               </div>
 
               <button
-                onClick={commit}
+                onClick={openCommitConfirm}
                 disabled={trialBlocked}
                 style={{ width: "100%", padding: "1rem", fontWeight: 800, borderRadius: "0.5rem" }}
                 title={trialBlocked ? "Entry limit reached — enter a license key to continue." : ""}

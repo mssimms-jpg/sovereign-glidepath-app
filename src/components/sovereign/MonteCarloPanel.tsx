@@ -800,7 +800,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         className="mc-compact"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr 0.6fr",
           gap: "0.6rem 0.75rem",
           marginBottom: "1rem",
         }}

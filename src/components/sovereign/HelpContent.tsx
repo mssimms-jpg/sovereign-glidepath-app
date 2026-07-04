@@ -100,11 +100,54 @@ export function HelpContent() {
               money. The desk converts it to a quarterly request and applies the Guyton-Klinger
               guardrails from there.
             </li>
+            <li>
+              <strong>Legacy Target</strong> (optional, default <strong>0</strong>).
+              A real-terms amount you want to leave behind — an inheritance or bequest. Set to
+              zero to draw the pot to nothing; any positive figure is held aside from the Fun
+              Bucket and factored into every directive.
+            </li>
           </ol>
           <p style={{ marginTop: "0.75rem" }}>
             Read the <strong>Directive</strong> pane (3) for this quarter's recommendation, click{" "}
-            <strong>Commit</strong> to log it, and scroll to the <strong>Risk Simulator</strong>{" "}
-            (Pane 5) to stress-test the plan against 2,750 possible futures.
+            <strong>Commit</strong> — a confirmation dialog appears so you can spot typos before
+            anything is written — then scroll to the <strong>Risk Simulator</strong> (Pane 5) to
+            stress-test the plan against 2,750 possible futures. Need to record a one-off expense
+            (car, kitchen, gift)? Use the purple <em>Commit Special Event</em> button in Pane 6 —
+            it deducts from your pots and lowers the ATH automatically so the plan's baseline
+            stays honest.
+          </p>
+        </Section>
+
+        <Section title="Legacy Target, Special Events &amp; the auto-ATH">
+          <p>
+            Three related features that make the desk's arithmetic honest at the extremes.
+          </p>
+          <p style={{ marginTop: "0.5rem" }}>
+            <strong>Legacy Target (Pane 1).</strong> A real-terms floor of capital you want left at
+            horizon age. The engine subtracts it from the surplus <em>before</em> computing
+            comfort-years, so directives, the Fun Bucket, and the "Comfortable Amortization"
+            override all respect it automatically. £0 means "draw the pot to zero"; anything
+            positive is protected.
+          </p>
+          <p style={{ marginTop: "0.5rem" }}>
+            <strong>Automatic ATH baseline.</strong> The Stored All-Time High is maintained by the
+            app — when you commit an entry whose Total Capital exceeds the stored ATH, the field
+            is raised for you. Treat the ATH field as read-only for normal quarters. The one time
+            it moves <em>down</em> is on a Special-Event commit (below), which lowers the ATH by
+            the exact expense so next quarter doesn't look like a phantom crash.
+          </p>
+          <p style={{ marginTop: "0.5rem" }}>
+            <strong>Special-Event withdrawals (Pane 6).</strong> Model a one-off expense in the
+            "Can I Afford This?" calculator, then commit it as a real ledger entry with a short
+            description. The pots are reduced, the ATH is reduced by the same amount, and a
+            purple <code>★ EVENT</code> row appears in the ledger with the date, description, and
+            Equities/Cash split. Use it for the car, the kitchen refit, the gift — not for
+            ordinary quarterly draws.
+          </p>
+          <p style={{ marginTop: "0.5rem" }}>
+            <strong>Commit-confirmation modal.</strong> Every ledger commit now pops a review
+            dialog first, listing exactly what will be written (label, balances, ATH, drawdown,
+            target draw, directive). A quick sanity check for typos before anything is stored.
           </p>
         </Section>
 
