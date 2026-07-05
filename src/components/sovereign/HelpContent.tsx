@@ -17,21 +17,7 @@ export function HelpContent() {
     <div className="shd-root">
       <div className="shd-container" style={{ maxWidth: 900 }}>
         <header className="shd-header">
-          <h1>Quick Start Guide &amp; Overview Manual</h1>
-          <p style={{ marginTop: "0.4rem", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-            A short, task-oriented tour of the desk. For chapter-length background,
-            worked examples, and the full mathematics, open the{" "}
-            <a
-              href="/sovereign-glidepath-manual.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--accent-blue)", textDecoration: "underline" }}
-            >
-              Full Manual
-            </a>
-            .
-          </p>
-
+          <h1>Help &amp; User Manual</h1>
         </header>
 
         <Section title="What this app is">
@@ -47,7 +33,7 @@ export function HelpContent() {
           </p>
         </Section>
 
-        <Section title="Quick start (8 steps)">
+        <Section title="Quick start (7 steps)">
           <div
             style={{
               padding: "0.85rem 1rem",
@@ -249,25 +235,7 @@ export function HelpContent() {
           </p>
 
           <p style={{ marginTop: "0.75rem" }}>
-            <strong>Yearly vs Quarterly tick (new in Build 061).</strong> A toggle in the
-            simulator header switches the engine between two modes. <em>Yearly tick</em> is
-            the original engine — one G-K check per year across 2,750 paths. <em>Quarterly
-            tick</em> is a companion mode that steps the same 2,750 paths four times per year
-            and re-applies the Guyton-Klinger ±10% guardrail every quarter against a
-            per-path all-time high, exactly the discipline the live app enforces on your
-            quarterly commits. Flipping between the two shows how much of the p10-floor gap
-            the quarterly discipline actually closes.
-          </p>
-          <p style={{ marginTop: "0.75rem" }}>
-            <strong>Withdrawal-history bar (new in Build 061).</strong> Under the Historical
-            Trend Visualizer sits a slim stacked bar per ledger commit — green for equities
-            drawn, blue for cash drawn, purple for special-event withdrawals. At a glance
-            you can see whether you actually used the Cash Shield in the quarters the desk
-            told you to, versus quietly kept selling equities.
-          </p>
-          <p style={{ marginTop: "0.75rem" }}>
             <strong>Historical vs Parametric.</strong> Historical draws each year at random from
-
             MSCI World (Net Total Return, GBP) annual returns 1970–2024 — a global-tracker proxy
             more appropriate for a typical UK investor than a single-country index. It keeps the fat
             tails (1974, 2002, 2008, 2022). Parametric manufactures returns from a normal curve with
