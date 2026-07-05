@@ -11,6 +11,38 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 061 — Quarterly-tick simulator &amp; withdrawal-history bar
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Quarterly-tick simulator mode.</strong> New Yearly/Quarterly toggle in
+                the Risk Simulator header. Quarterly mode splits each year's return into four
+                equal geometric quarters and re-applies Guyton-Klinger ±10% every quarter
+                against a per-path ATH — matching the live app's quarterly discipline. Flip
+                between the two to see how much of the p10-floor gap the ritual closes.
+              </li>
+              <li>
+                <strong>Withdrawal-history bar.</strong> Slim stacked bar per ledger commit
+                under the Historical Trend Visualizer — green = equities drawn, blue = cash
+                drawn, purple = special event. Hover for exact amounts.
+              </li>
+              <li>
+                <strong>Allocation-bias slider labels fixed.</strong> ← Cash / Equities → now
+                match the direction the slider actually moves the mix.
+              </li>
+              <li>
+                <strong>Docs.</strong> Quick Start Guide renamed to <em>Quick Start Guide &amp;
+                Overview Manual</em> and step count updated to 8. Full Manual bumped to
+                Edition XI with new chapters 32 &amp; 33; TOC updated.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 060 — Commit-confirmation modal &amp; alignment polish
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
