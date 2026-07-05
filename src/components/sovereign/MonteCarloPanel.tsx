@@ -46,6 +46,7 @@ function quantile(sorted: number[], q: number): number {
 }
 
 type ThresholdMode = "strict" | "standard" | "aggressive";
+type TickMode = "yearly" | "quarterly";
 
 type PersistedMC = {
   meanStr?: string;
@@ -56,7 +57,9 @@ type PersistedMC = {
   pensionIncreasePct?: number;
   cashRealPct?: number;
   threshold?: ThresholdMode;
+  tickMode?: TickMode;
 };
+
 
 function loadMC(): PersistedMC {
   try {
@@ -147,6 +150,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     else setCashRealPctLocal(v);
   };
   const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
+  const [tickMode, setTickMode] = useState<TickMode>(p.tickMode ?? "yearly");
+
 
   const pension = cleanNum(pensionStr);
   const pensionAge = Math.max(0, Math.floor(cleanNum(pensionAgeStr)));
@@ -162,6 +167,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       pensionIncreasePct,
       cashRealPct,
       threshold,
+      tickMode,
     });
   }, [
     meanStr,
@@ -172,7 +178,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     pensionIncreasePct,
     cashRealPct,
     threshold,
+    tickMode,
   ]);
+
 
   const [withdrawStr, setWithdrawStr] = useState<string>(
     annualWithdrawal > 0 ? annualWithdrawal.toFixed(2) : "",
@@ -276,9 +284,14 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     const finals: number[] = [];
     let defensiveSum = 0;
 
+    // Target Withdrawal Rate for G-K (used only in quarterly mode).
+    // Anchored to the initial pot so the ATH-based guardrail has a stable reference.
+    const targetWR_gk = start > 0 ? withdraw / start : 0;
+
     for (let r = 0; r < RUNS; r++) {
       let E = E0;
       let C = C0;
+      let ATH = start; // per-path all-time high (nominal, in today's currency after deflation)
       byYear[0].push(E + C);
       for (let y = 1; y <= yrs; y++) {
         let nominal: number;
@@ -294,37 +307,79 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
         const netDraw = Math.max(0, withdraw - pensionThisYear);
 
-        // Apply real growth to both buckets first.
-        let Egrown = E * (1 + realEq);
-        let Cgrown = C * (1 + cashRealReturn);
-
         const defensive = nominal < drawThreshold;
         if (defensive) defensiveSum++;
-        if (defensive) {
-          // Bad/mediocre year — spend from cash before the year's cash return;
-          // fall back to equities if cash is insufficient. This makes the
-          // defensive choice affect the path immediately, not only via a later
-          // bucket-mix drift.
-          let cashBeforeGrowth = C;
-          if (cashBeforeGrowth >= netDraw) {
-            cashBeforeGrowth -= netDraw;
-            Cgrown = cashBeforeGrowth * (1 + cashRealReturn);
-          } else {
-            const rest = netDraw - cashBeforeGrowth;
-            Cgrown = 0;
-            Egrown = Math.max(0, Egrown - rest);
+
+        if (tickMode === "quarterly") {
+          // Quarterly-tick companion. Split the year's nominal return into 4
+          // equal geometric quarters, apply the same defensive-draw decision
+          // for the year, but re-check Guyton-Klinger ±10% every quarter
+          // against the per-path ATH — matching how the live app actually
+          // guides spending.
+          const qEqReal = Math.pow(1 + realEq, 0.25) - 1;
+          const qCashReal = Math.pow(1 + cashRealReturn, 0.25) - 1;
+          const qDraw = netDraw / 4;
+          for (let q = 0; q < 4; q++) {
+            // Guyton-Klinger factor: compare current WR to target WR (initial).
+            const tot = E + C;
+            const currentWR = tot > 0 ? withdraw / tot : 0;
+            let gk = 1.0;
+            if (targetWR_gk > 0) {
+              if (currentWR >= targetWR_gk * 1.2) gk = 0.9;
+              else if (currentWR <= targetWR_gk * 0.8) gk = 1.1;
+            }
+            const spend = qDraw * gk;
+            // Grow buckets this quarter.
+            let Eq = E * (1 + qEqReal);
+            let Cq = C * (1 + qCashReal);
+            if (defensive) {
+              // Draw cash first, fall back to equities.
+              if (C >= spend) {
+                Cq = (C - spend) * (1 + qCashReal);
+              } else {
+                const rest = spend - C;
+                Cq = 0;
+                Eq = Math.max(0, Eq - rest);
+              }
+            } else {
+              Eq = Eq - spend;
+              if (Eq > 0 && Cq < targetCashBuffer) {
+                const refill = Math.min(Eq, targetCashBuffer - Cq);
+                Eq -= refill;
+                Cq += refill;
+              }
+            }
+            E = Math.max(0, Eq);
+            C = Math.max(0, Cq);
+            if (E + C > ATH) ATH = E + C;
           }
         } else {
-          // Good year — spend from equities, then refill cash up to target.
-          Egrown = Egrown - netDraw;
-          if (Egrown > 0 && Cgrown < targetCashBuffer) {
-            const refill = Math.min(Egrown, targetCashBuffer - Cgrown);
-            Egrown -= refill;
-            Cgrown += refill;
+          // Yearly-tick engine (original path).
+          let Egrown = E * (1 + realEq);
+          let Cgrown = C * (1 + cashRealReturn);
+          if (defensive) {
+            let cashBeforeGrowth = C;
+            if (cashBeforeGrowth >= netDraw) {
+              cashBeforeGrowth -= netDraw;
+              Cgrown = cashBeforeGrowth * (1 + cashRealReturn);
+            } else {
+              const rest = netDraw - cashBeforeGrowth;
+              Cgrown = 0;
+              Egrown = Math.max(0, Egrown - rest);
+            }
+          } else {
+            Egrown = Egrown - netDraw;
+            if (Egrown > 0 && Cgrown < targetCashBuffer) {
+              const refill = Math.min(Egrown, targetCashBuffer - Cgrown);
+              Egrown -= refill;
+              Cgrown += refill;
+            }
           }
+          E = Math.max(0, Egrown);
+          C = Math.max(0, Cgrown);
+          if (E + C > ATH) ATH = E + C;
         }
-        E = Math.max(0, Egrown);
-        C = Math.max(0, Cgrown);
+
         byYear[y].push(E + C);
       }
       finals.push(E + C);
@@ -414,9 +469,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     simCash,
     cashRealPct,
     threshold,
+    tickMode,
     years,
     deterministicRatePct,
   ]);
+
 
 
   if (!sim) {
@@ -672,8 +729,37 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           >
             Parametric
           </button>
+          <span
+            style={{
+              display: "inline-flex",
+              gap: 4,
+              padding: 2,
+              border: "1px solid var(--border-color)",
+              borderRadius: 6,
+              marginLeft: "0.25rem",
+            }}
+            title="Yearly = one G-K check per year (original engine). Quarterly = per-quarter G-K ±10%, matching how the live app actually operates."
+          >
+            <button
+              className={tickMode === "yearly" ? "" : "secondary"}
+              style={{ fontSize: "0.72rem", padding: "0.3rem 0.55rem" }}
+              onClick={() => setTickMode("yearly")}
+              aria-pressed={tickMode === "yearly"}
+            >
+              Yearly tick
+            </button>
+            <button
+              className={tickMode === "quarterly" ? "" : "secondary"}
+              style={{ fontSize: "0.72rem", padding: "0.3rem 0.55rem" }}
+              onClick={() => setTickMode("quarterly")}
+              aria-pressed={tickMode === "quarterly"}
+            >
+              Quarterly tick
+            </button>
+          </span>
         </div>
       </div>
+
 
       {showHelp && (
         <div
@@ -700,6 +786,18 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             to avoid forced selling. The <strong>threshold</strong> buttons pick how cautious that
             switch is — Standard = "spend from cash in flat or weak equity markets".
           </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>Yearly vs Quarterly tick (new in Build 061).</strong> The toggle in the
+            header switches the engine between an annual step (one G-K check per year — the
+            original 2,750-run engine) and a <em>quarterly</em> step that re-checks the
+            Guyton-Klinger ±10% guardrail every quarter, exactly like the live app does when
+            you commit a ledger row. The quarterly mode splits each year's nominal return
+            into four equal geometric quarters and evaluates Preservation / Prosperity /
+            Normal against a per-path all-time high, then draws accordingly. Expect the p10
+            floor to lift slightly under quarterly — that lift is the visible value of the
+            live app's quarterly discipline.
+          </p>
+
           <p style={{ margin: "0 0 0.5rem" }}>
             <strong>Modes:</strong> <em>Historical</em> draws each year at random from real MSCI
             World (Net Total Return, GBP) annual returns 1970–2024 — a global-tracker proxy for a
@@ -1156,7 +1254,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>← Equities</span>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>← Cash</span>
                 <input
                   type="range"
                   min={0}
@@ -1174,7 +1272,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   style={{ flex: 1 }}
                   aria-label="Allocation bias"
                 />
-                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Cash →</span>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Equities →</span>
               </div>
               <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
                 Shift the balance between buckets while keeping the total pot ({formatGBP(simCapital)})
@@ -1688,8 +1786,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           ? "Bootstrap from MSCI World NTR (GBP) annual returns 1970–2024"
           : `Normal returns: μ ${meanPct}%, σ ${stdevPct}%`}{" "}
         • Withdrawal escalates {inflationPct.toFixed(1)}%/yr (nominal), pension grows{" "}
-        {pensionIncreasePct.toFixed(1)}%/yr (real, today's {currency}) • Seeded RNG — slider drags
-        are smooth • Hypothetical — not advice.
+        {pensionIncreasePct.toFixed(1)}%/yr (real, today's {currency}) •{" "}
+        {tickMode === "quarterly"
+          ? "Quarterly tick — Guyton-Klinger ±10% re-checked every quarter"
+          : "Yearly tick — one G-K check per year"}{" "}
+        • Seeded RNG — slider drags are smooth • Hypothetical — not advice.
+
       </div>
     </div>
   );
