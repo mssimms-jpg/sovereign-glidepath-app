@@ -259,11 +259,20 @@ export function HelpContent() {
             the quarterly discipline actually closes.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
-            <strong>Withdrawal-history bar (new in Build 061).</strong> Under the Historical
-            Trend Visualizer sits a slim stacked bar per ledger commit — green for equities
-            drawn, blue for cash drawn, purple for special-event withdrawals. At a glance
-            you can see whether you actually used the Cash Shield in the quarters the desk
-            told you to, versus quietly kept selling equities.
+            <strong>Withdrawal Recorded field (new in Build 062).</strong> Pane 1
+            now carries a "Withdrawal Recorded" money input, auto-seeded from the
+            guardrail-adjusted <em>Request</em>. Overwrite it with the actual £
+            that left the pot each quarter; the value is stored on the ledger
+            row and shown in the timeline table so every commit has a clean
+            audit trail of what was withdrawn.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Audit Mode (hidden, Build 062).</strong> Double-click the
+            "5. Risk Simulator" header to freeze the RNG and run a single
+            deterministic path with canonical inputs (Age 64→85, £610k/£90k,
+            £36k draw, £12,700 pension @ 67). A 2-decimal step ledger renders
+            beneath the chart for pocket-calculator reproduction. Double-click
+            again to exit.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Historical vs Parametric.</strong> Historical draws each year at random from

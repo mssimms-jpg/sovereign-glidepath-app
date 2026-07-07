@@ -31,7 +31,7 @@ const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 const APP_VERSION = "1.0";
-const APP_BUILD = "061";
+const APP_BUILD = "063";
 
 
 type CurrencySymbol = "£" | "€" | "$";
@@ -572,200 +572,9 @@ function TrendChart({ ledger, currency }: TrendChartProps) {
   );
 }
 
-// Slim stacked bar-per-commit under the trend chart: green = equities drawn,
-// blue = cash drawn, purple = special-event withdrawal. Read as a snapshot of
-// which bucket actually funded each ledger row versus what the desk directed.
-function WithdrawalHistoryBar({
-  ledger,
-  currency,
-}: {
-  ledger: LedgerEntry[];
-  currency: CurrencySymbol;
-}) {
-  // Chronological (oldest → newest) to match TrendChart's t = reversed.
-  const t = useMemo(() => [...ledger].reverse(), [ledger]);
-  if (ledger.length < 2) return null;
-
-  // Compute per-commit draws.
-  type Draw = { label: string; eq: number; cash: number; event: number };
-  const draws: Draw[] = t.map((d, i) => {
-    const prev = i > 0 ? t[i - 1] : null;
-    if (d.isSpecialEvent) {
-      return {
-        label: String(d.label || ""),
-        eq: Number(d.eventFromEq) || 0,
-        cash: Number(d.eventFromCash) || 0,
-        event: (Number(d.eventFromEq) || 0) + (Number(d.eventFromCash) || 0),
-      };
-    }
-    if (!prev) return { label: String(d.label || ""), eq: 0, cash: 0, event: 0 };
-    const eq = Math.max(0, (Number(prev.equities) || 0) - (Number(d.equities) || 0));
-    const cash = Math.max(0, (Number(prev.mmFund) || 0) - (Number(d.mmFund) || 0));
-    return { label: String(d.label || ""), eq, cash, event: 0 };
-  });
-
-  const w = 1000;
-  const h = 90;
-  const pL = 90;
-  const pR = 30;
-  const pT = 8;
-  const pB = 18;
-
-  const maxV = Math.max(1, ...draws.map((d) => Math.max(d.event, d.eq + d.cash)));
-  const bandH = h - pT - pB;
-  const barW = Math.max(
-    2,
-    Math.min(24, ((w - pL - pR) / Math.max(1, draws.length)) * 0.7),
-  );
-
-  const fmt = (v: number) =>
-    v >= 1_000_000
-      ? `${currency}${(v / 1_000_000).toFixed(2)}M`
-      : `${currency}${(v / 1000).toFixed(1)}k`;
-
-  return (
-    <div style={{ width: "100%", marginTop: "0.4rem" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          fontSize: "0.7rem",
-          color: "var(--text-muted)",
-          marginBottom: 2,
-        }}
-      >
-        <span>
-          <strong style={{ color: "var(--text-main)" }}>Withdrawal history</strong> — per commit,
-          which bucket actually funded the draw
-        </span>
-        <span style={{ display: "inline-flex", gap: 10 }}>
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 10,
-                height: 8,
-                background: "var(--accent-green)",
-                marginRight: 4,
-                borderRadius: 1,
-              }}
-            />
-            Equities drawn
-          </span>
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 10,
-                height: 8,
-                background: "var(--accent-blue)",
-                marginRight: 4,
-                borderRadius: 1,
-              }}
-            />
-            Cash drawn
-          </span>
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 10,
-                height: 8,
-                background: "var(--accent-purple)",
-                marginRight: 4,
-                borderRadius: 1,
-              }}
-            />
-            Special event
-          </span>
-        </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        style={{ width: "100%", height: h, display: "block" }}
-        role="img"
-        aria-label="Withdrawal history per commit"
-      >
-        <line
-          x1={pL}
-          y1={h - pB}
-          x2={w - pR}
-          y2={h - pB}
-          stroke="var(--border-color)"
-          opacity={0.6}
-        />
-        {draws.map((d, i) => {
-          const cx =
-            pL + (draws.length === 1 ? (w - pL - pR) / 2 : (i / (draws.length - 1)) * (w - pL - pR));
-          const x = cx - barW / 2;
-          if (d.event > 0) {
-            const eh = (d.event / maxV) * bandH;
-            return (
-              <g key={i}>
-                <rect
-                  x={x}
-                  y={h - pB - eh}
-                  width={barW}
-                  height={eh}
-                  fill="var(--accent-purple)"
-                  opacity={0.85}
-                >
-                  <title>{`${d.label}\n★ Special event: ${fmt(d.event)}\n  from Equities ${fmt(d.eq)}\n  from Cash ${fmt(d.cash)}`}</title>
-                </rect>
-              </g>
-            );
-          }
-          const eqH = (d.eq / maxV) * bandH;
-          const cashH = (d.cash / maxV) * bandH;
-          const cashY = h - pB - cashH;
-          const eqY = cashY - eqH;
-          return (
-            <g key={i}>
-              {cashH > 0 && (
-                <rect
-                  x={x}
-                  y={cashY}
-                  width={barW}
-                  height={cashH}
-                  fill="var(--accent-blue)"
-                  opacity={0.85}
-                >
-                  <title>{`${d.label}\nDrawn from Cash: ${fmt(d.cash)}`}</title>
-                </rect>
-              )}
-              {eqH > 0 && (
-                <rect
-                  x={x}
-                  y={eqY}
-                  width={barW}
-                  height={eqH}
-                  fill="var(--accent-green)"
-                  opacity={0.85}
-                >
-                  <title>{`${d.label}\nDrawn from Equities: ${fmt(d.eq)}`}</title>
-                </rect>
-              )}
-              {eqH === 0 && cashH === 0 && (
-                <rect
-                  x={x}
-                  y={h - pB - 2}
-                  width={barW}
-                  height={2}
-                  fill="var(--border-color)"
-                  opacity={0.5}
-                >
-                  <title>{`${d.label}\nNo net draw (pot grew)`}</title>
-                </rect>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
+// (WithdrawalHistoryBar removed in Build 062 — replaced by an explicit
+// "Withdrawal recorded" input on Pane 1 that stores the actual £ drawn on
+// each ledger row.)
 
 
 
@@ -831,6 +640,10 @@ export function SovereignGlidepath() {
   // reflects cash drag identically to the simulator).
   const [cashRealPct, setCashRealPct] = useState<number>(1);
   const [editIndex, setEditIndex] = useState(-1);
+  // Actual amount withdrawn this quarter — free-text (pre-filled from the
+  // guardrail-adjusted Request). Empty string = "use the Request as-is".
+  const [withdrawnStr, setWithdrawnStr] = useState<string>("");
+  const [withdrawnTouched, setWithdrawnTouched] = useState<boolean>(false);
 
 
   // --- Ledger ---
@@ -978,6 +791,15 @@ export function SovereignGlidepath() {
     ],
   );
 
+  // Auto-seed the "Withdrawal recorded" input from the live guardrail-adjusted
+  // Request. Once the user edits it, we stop overriding.
+  useEffect(() => {
+    if (withdrawnTouched) return;
+    const req = calc.guardrailAdjustedQuarterly;
+    setWithdrawnStr(req > 0 ? req.toFixed(2) : "");
+  }, [calc.guardrailAdjustedQuarterly, withdrawnTouched]);
+
+
 
   // --- Toast ---
   const [toast, setToast] = useState("");
@@ -1062,6 +884,7 @@ export function SovereignGlidepath() {
       rule: directive.guardrailText,
       phase: phaseFor(age),
       legacyTarget,
+      withdrawnAmount: cleanNum(withdrawnStr),
     };
     const next =
       editIndex > -1 ? ledger.map((e, i) => (i === editIndex ? entry : e)) : [entry, ...ledger];
@@ -1069,6 +892,8 @@ export function SovereignGlidepath() {
     saveLedger(next);
     setEditIndex(-1);
     setShowCommitConfirm(false);
+    // Re-arm the auto-seed so the next quarter's Request pre-fills again.
+    setWithdrawnTouched(false);
     showToast("Entry Committed");
   };
 
@@ -1147,6 +972,12 @@ export function SovereignGlidepath() {
     setDesiredRunwayMonths(d.desiredMonths || 36);
     if (typeof d.growthRate === "number" && !isNaN(d.growthRate)) setGrowthRate(d.growthRate);
     if (typeof d.legacyTarget === "number" && d.legacyTarget >= 0) setLegacyTarget(d.legacyTarget);
+    if (typeof d.withdrawnAmount === "number") {
+      setWithdrawnStr(d.withdrawnAmount ? d.withdrawnAmount.toFixed(2) : "");
+      setWithdrawnTouched(true);
+    } else {
+      setWithdrawnTouched(false);
+    }
     setEditIndex(i);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1566,6 +1397,17 @@ export function SovereignGlidepath() {
                   <tr><td style={kcell}>Legacy Target</td><td style={vcell}>{legacyTarget > 0 ? formatGBP(legacyTarget) : "—"}</td></tr>
                   <tr><td style={kcell}>Cash Buffer Target</td><td style={vcell}>{desiredRunwayMonths} months</td></tr>
                   <tr><td style={kcell}>Assumed Growth</td><td style={vcell}>{growthRate.toFixed(1)}%</td></tr>
+                  <tr>
+                    <td style={kcell}>Withdrawal Recorded</td>
+                    <td style={vcell}>
+                      {cleanNum(withdrawnStr) > 0 ? formatGBP(cleanNum(withdrawnStr)) : "—"}
+                      {cleanNum(withdrawnStr) > 0 && Math.abs(cleanNum(withdrawnStr) - calc.guardrailAdjustedQuarterly) > 0.005 ? (
+                        <span style={{ color: "var(--accent-amber)", fontSize: "0.75rem", marginLeft: 6, fontWeight: 500 }}>
+                          (differs from Request {formatGBP(calc.guardrailAdjustedQuarterly)})
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
                   <tr><td style={{ ...kcell, borderBottom: 0 }}>Directive</td><td style={{ ...vcell, borderBottom: 0, color: directive.guardrailColor }}>{directive.guardrailText}</td></tr>
                 </tbody>
               </table>
@@ -2111,7 +1953,56 @@ export function SovereignGlidepath() {
                     </span>
                   </div>
                 </div>
+
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    borderTop: "1px solid var(--border-color)",
+                    paddingTop: "1rem",
+                  }}
+                >
+                  <label htmlFor="withdrawnAmount">
+                    Withdrawal Recorded ({currency})
+                  </label>
+                  <MoneyInput
+                    id="withdrawnAmount"
+                    value={withdrawnStr}
+                    onChange={(v) => {
+                      setWithdrawnStr(v);
+                      setWithdrawnTouched(true);
+                    }}
+                    currency={currency}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "0.4rem",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <span className="shd-sub" style={{ fontSize: "0.75rem" }}>
+                      Auto-filled from Request. Overwrite with the actual £
+                      that left the pot this quarter — stored on the ledger row.
+                    </span>
+                    <button
+                      className="secondary"
+                      type="button"
+                      style={{ fontSize: "0.7rem", padding: "0.3rem 0.55rem", whiteSpace: "nowrap" }}
+                      onClick={() => {
+                        setWithdrawnTouched(false);
+                        const req = calc.guardrailAdjustedQuarterly;
+                        setWithdrawnStr(req > 0 ? req.toFixed(2) : "");
+                      }}
+                      title="Reset to the current guardrail-adjusted Request value."
+                    >
+                      Reset to Request
+                    </button>
+                  </div>
+                </div>
               </div>
+
 
               <button
                 onClick={openCommitConfirm}
@@ -2394,9 +2285,6 @@ export function SovereignGlidepath() {
                 </div>
               )}
             </div>
-            {ledger.length >= 2 && (
-              <WithdrawalHistoryBar ledger={ledger} currency={currency} />
-            )}
 
           </div>
 
@@ -2466,7 +2354,7 @@ export function SovereignGlidepath() {
                     <th className="text-right">Asset Pools</th>
                     <th className="text-right">Portfolio Total</th>
                     <th className="text-center">Drawdown from ATH</th>
-                    <th className="text-right">Drawdown Income</th>
+                    <th className="text-right">Withdrawal Recorded</th>
                     <th>Status &amp; Controls</th>
                   </tr>
                 </thead>
@@ -2578,9 +2466,15 @@ export function SovereignGlidepath() {
                           ) : (
                             <>
                               <div className="cell-primary">
-                                {formatGBP(Number(d.targetYearly) || 0)}
+                                {typeof d.withdrawnAmount === "number" && d.withdrawnAmount > 0
+                                  ? formatGBP(d.withdrawnAmount)
+                                  : formatGBP(Number(d.targetYearly) || 0)}
                               </div>
-                              <div className="cell-muted">WR {wPct.toFixed(2)}%</div>
+                              <div className="cell-muted">
+                                {typeof d.withdrawnAmount === "number" && d.withdrawnAmount > 0
+                                  ? `Withdrawn this quarter · WR ${wPct.toFixed(2)}%`
+                                  : `WR ${wPct.toFixed(2)}%`}
+                              </div>
                             </>
                           )}
                         </td>

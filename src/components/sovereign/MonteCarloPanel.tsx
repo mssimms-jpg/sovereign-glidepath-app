@@ -151,6 +151,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   };
   const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
   const [tickMode, setTickMode] = useState<TickMode>(p.tickMode ?? "yearly");
+  // Audit Mode — hidden toggle triggered by double-clicking the pane header.
+  // Forces a single deterministic path with canonical inputs so the engine
+  // math can be reproduced with a pocket calculator.
+  const [auditMode, setAuditMode] = useState<boolean>(false);
 
 
   const pension = cleanNum(pensionStr);
@@ -320,13 +324,16 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           const qCashReal = Math.pow(1 + cashRealReturn, 0.25) - 1;
           const qDraw = netDraw / 4;
           for (let q = 0; q < 4; q++) {
-            // Guyton-Klinger factor: compare current WR to target WR (initial).
+            // Guyton-Klinger factor: compare current WR (draw / current total)
+            // to target WR (draw / per-path ATH). This matches how the live
+            // app anchors the guardrail against the peak, not the starting pot.
             const tot = E + C;
             const currentWR = tot > 0 ? withdraw / tot : 0;
+            const athWR = ATH > 0 ? withdraw / ATH : targetWR_gk;
             let gk = 1.0;
-            if (targetWR_gk > 0) {
-              if (currentWR >= targetWR_gk * 1.2) gk = 0.9;
-              else if (currentWR <= targetWR_gk * 0.8) gk = 1.1;
+            if (athWR > 0) {
+              if (currentWR >= athWR * 1.2) gk = 0.9;
+              else if (currentWR <= athWR * 0.8) gk = 1.1;
             }
             const spend = qDraw * gk;
             // Grow buckets this quarter.
@@ -474,12 +481,182 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     deterministicRatePct,
   ]);
 
+  // -------- AUDIT MODE (Build 062) ----------------------------------------
+  // Canonical inputs — every user setting is overridden while auditMode is on.
+  const AUDIT = {
+    age: 64,
+    horizon: 85,          // yrs = 21
+    E0: 610000,
+    C0: 90000,
+    withdraw: 36000,
+    meanNom: 0.07,        // parametric flat equity return
+    cashReal: 0.02,       // cash real return (matches slider convention)
+    infl: 0.025,
+    pensionIncrease: 0.025,
+    pension: 12700,
+    pensionAge: 67,
+  };
+
+  type AuditStep = {
+    interval: string;
+    age: number;
+    startE: number;
+    startC: number;
+    netOutflow: number;
+    equityPct: number;   // nominal, per step
+    cashPct: number;     // real, per step
+    gk: "Normal" | "Preservation (-10%)" | "Prosperity (+10%)";
+    endE: number;
+    endC: number;
+  };
+
+  const auditSim = useMemo(() => {
+    const yrs = AUDIT.horizon - AUDIT.age; // 21
+    const start = AUDIT.E0 + AUDIT.C0;
+    const infl = AUDIT.infl;
+    const targetCashBuffer = AUDIT.C0;
+    const targetWR_gk = AUDIT.withdraw / start;
+    // Audit Mode uses a FLAT real pension (12,700 in today's £) — no
+    // year-on-year compounding — so the Net Outflow reconciles cleanly
+    // (36,000 − 12,700 = 23,300 every year from Age 67 onward).
+    void AUDIT.pensionIncrease;
+
+    // Historical starts at 1973 = index 3 in GLOBAL_ANNUAL (1970,71,72,73...)
+    const HIST_START = 3;
+
+    const totalByYear: number[] = [start];
+    const steps: AuditStep[] = [];
+    let E = AUDIT.E0;
+    let C = AUDIT.C0;
+    let ATH = start;
+
+    for (let y = 1; y <= yrs; y++) {
+      const nominal =
+        mode === "historical"
+          ? GLOBAL_ANNUAL[(HIST_START + (y - 1)) % GLOBAL_ANNUAL.length]
+          : AUDIT.meanNom;
+      const realEq = (1 + nominal) / (1 + infl) - 1;
+
+      const ageThisYear = AUDIT.age + y - 1;
+      const pensionThisYear =
+        AUDIT.pension > 0 && ageThisYear >= AUDIT.pensionAge
+          ? AUDIT.pension
+          : 0;
+      const netDraw = Math.max(0, AUDIT.withdraw - pensionThisYear);
+
+      if (tickMode === "quarterly") {
+        const qEqReal = Math.pow(1 + realEq, 0.25) - 1;
+        // (nominal-quarterly conversion no longer displayed — Eq Ret % shows real)
+        const qCashReal = Math.pow(1 + AUDIT.cashReal, 0.25) - 1;
+        const qDraw = netDraw / 4;
+        for (let q = 0; q < 4; q++) {
+          const startE = E;
+          const startC = C;
+          const tot = E + C;
+          const currentWR = tot > 0 ? AUDIT.withdraw / tot : 0;
+          const athWR = ATH > 0 ? AUDIT.withdraw / ATH : targetWR_gk;
+          let gk = 1.0;
+          let gkLabel: AuditStep["gk"] = "Normal";
+          if (athWR > 0) {
+            if (currentWR >= athWR * 1.2) { gk = 0.9; gkLabel = "Preservation (-10%)"; }
+            else if (currentWR <= athWR * 0.8) { gk = 1.1; gkLabel = "Prosperity (+10%)"; }
+          }
+          const spend = qDraw * gk;
+          let Eq = E * (1 + qEqReal);
+          const Cq0 = C * (1 + qCashReal);
+          let Cq = Cq0;
+          // Simplified draw routing (matches non-defensive branch — every
+          // quarter equities fund the draw and refill the shield).
+          Eq -= spend;
+          if (Eq > 0 && Cq < targetCashBuffer) {
+            const refill = Math.min(Eq, targetCashBuffer - Cq);
+            Eq -= refill;
+            Cq += refill;
+          }
+          E = Math.max(0, Eq);
+          C = Math.max(0, Cq);
+          if (E + C > ATH) ATH = E + C;
+          if (y <= 6) {
+            steps.push({
+              interval: `Y${y} Q${q + 1}`,
+              age: AUDIT.age + y - 1,
+              startE, startC,
+              netOutflow: spend,
+              equityPct: qEqReal * 100,
+              cashPct: qCashReal * 100,
+              gk: gkLabel,
+              endE: E, endC: C,
+            });
+          }
+        }
+      } else {
+        const startE = E;
+        const startC = C;
+        const tot = E + C;
+        const currentWR = tot > 0 ? AUDIT.withdraw / tot : 0;
+        const athWR = ATH > 0 ? AUDIT.withdraw / ATH : targetWR_gk;
+        let gk = 1.0;
+        let gkLabel: AuditStep["gk"] = "Normal";
+        if (athWR > 0) {
+          if (currentWR >= athWR * 1.2) { gk = 0.9; gkLabel = "Preservation (-10%)"; }
+          else if (currentWR <= athWR * 0.8) { gk = 1.1; gkLabel = "Prosperity (+10%)"; }
+        }
+        const spend = netDraw * gk;
+        let Egrown = E * (1 + realEq);
+        let Cgrown = C * (1 + AUDIT.cashReal);
+        Egrown -= spend;
+        if (Egrown > 0 && Cgrown < targetCashBuffer) {
+          const refill = Math.min(Egrown, targetCashBuffer - Cgrown);
+          Egrown -= refill;
+          Cgrown += refill;
+        }
+        E = Math.max(0, Egrown);
+        C = Math.max(0, Cgrown);
+        if (E + C > ATH) ATH = E + C;
+        if (y <= 6) {
+          steps.push({
+            interval: `Y${y}`,
+            age: AUDIT.age + y - 1,
+            startE, startC,
+            netOutflow: spend,
+            equityPct: realEq * 100,
+            cashPct: AUDIT.cashReal * 100,
+            gk: gkLabel,
+            endE: E, endC: C,
+          });
+        }
+      }
+      totalByYear.push(E + C);
+    }
+
+    // Fabricate a "sim"-shaped result so the fan chart collapses to a single line.
+    const bands = totalByYear.map((v) => ({
+      p10: v, p25: v, p50: v, p75: v, p90: v,
+    }));
+    const det = [...totalByYear];
+    return {
+      yrs, bands, det, steps,
+      pctRank: 50, finals: totalByYear,
+      successRate: 100, ruinRate: 0, detRuined: false,
+      avgDefensiveYears: 0, defensivePct: 0,
+    };
+  }, [mode, tickMode, auditMode]);
+  void auditSim.finals;
 
 
-  if (!sim) {
+
+
+
+  if (!sim && !auditMode) {
     return (
       <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
-        <h2 className="shd-h2">5. Risk Simulator — Monte Carlo Fan Chart</h2>
+        <h2
+          className="shd-h2"
+          onDoubleClick={() => setAuditMode((v) => !v)}
+          title="Double-click to toggle Audit Mode"
+        >
+          5. Risk Simulator — Monte Carlo Fan Chart
+        </h2>
         <div style={{ color: "var(--text-muted)", padding: "1rem 0" }}>
           Add a ledger entry with capital to run the simulation.
         </div>
@@ -487,7 +664,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     );
   }
 
-  const { yrs, bands, det, pctRank, finals: _finals, successRate, ruinRate, detRuined, avgDefensiveYears, defensivePct } = sim;
+  const activeSim = auditMode ? auditSim : sim!;
+  const { yrs, bands, det, pctRank, finals: _finals, successRate, ruinRate, detRuined, avgDefensiveYears, defensivePct } = activeSim;
   void _finals;
 
   const w = 1000,
@@ -566,7 +744,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const tickStep = Math.max(1, Math.ceil(span / 8));
   for (let i = z0; i <= z1; i += tickStep) {
     const x = getX(i);
-    const ageLabel = currentAge > 0 ? `${currentAge + i}` : `+${i}y`;
+    const displayAge = auditMode ? AUDIT.age : currentAge;
+    const ageLabel = displayAge > 0 ? `${displayAge + i}` : `+${i}y`;
     xTicks.push(
       <g key={`x${i}`}>
         <line x1={x} y1={h - pB} x2={x} y2={h - pB + 4} stroke="var(--text-muted)" opacity={0.6} />
@@ -693,6 +872,31 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
   return (
     <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+      {auditMode && (
+        <div
+          role="status"
+          style={{
+            background: "rgba(168,85,247,0.12)",
+            border: "1px solid var(--accent-purple)",
+            color: "var(--accent-purple)",
+            padding: "0.6rem 0.85rem",
+            borderRadius: "0.4rem",
+            marginBottom: "0.75rem",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            letterSpacing: 0.2,
+          }}
+        >
+          AUDIT MODE ACTIVE — Randomness Paused (Deterministic Sample Path).
+          Double-click the pane header to exit.
+          <div style={{ fontWeight: 400, fontSize: "0.75rem", marginTop: "0.25rem", color: "var(--text-muted)" }}>
+            Fixed inputs: Age 64 → 85 · Eq {currency}610,000 · Cash {currency}90,000 ·
+            Draw {currency}36,000 · Pension {currency}12,700 @ 67 (flat real) ·
+            Equity {mode === "parametric" ? "flat +7.0% nominal" : "historical from 1973 chronological"} ·
+            Cash real +2.0% · Inflation 2.5%.
+          </div>
+        </div>
+      )}
       <div
         style={{
           display: "flex",
@@ -703,7 +907,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           marginBottom: "0.75rem",
         }}
       >
-        <h2 className="shd-h2" style={{ margin: 0 }}>
+        <h2
+          className="shd-h2"
+          style={{ margin: 0, cursor: "pointer", userSelect: "none" }}
+          onDoubleClick={() => setAuditMode((v) => !v)}
+          title="Double-click to toggle Audit Mode (deterministic sample path)"
+        >
           5. Risk Simulator — Monte Carlo Fan Chart
         </h2>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -1107,7 +1316,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         {/* Row 2: sliders, aligned beneath their related input */}
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Yearly Withdrawal Increase Rate %{" "}
+            Inflation / Escalation %{" "}
             <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
               {inflationPct.toFixed(1)}%
             </span>
@@ -1451,7 +1660,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 }}
               >
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                  {currentAge > 0 ? `Age ${currentAge + hoverAbs}` : `Year +${hoverAbs}`}
+                  {(auditMode ? AUDIT.age : currentAge) > 0 ? `Age ${(auditMode ? AUDIT.age : currentAge) + hoverAbs}` : `Year +${hoverAbs}`}
                 </div>
                 {[
                   {
@@ -1644,7 +1853,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           >
             <span>
               Window:{" "}
-              {currentAge > 0 ? `age ${currentAge + z0}–${currentAge + z1}` : `+${z0}y–+${z1}y`} (
+              {(auditMode ? AUDIT.age : currentAge) > 0 ? `age ${(auditMode ? AUDIT.age : currentAge) + z0}–${(auditMode ? AUDIT.age : currentAge) + z1}` : `+${z0}y–+${z1}y`} (
               {span} yrs)
             </span>
             <span>Double-click brush to reset</span>
@@ -1793,6 +2002,64 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         • Seeded RNG — slider drags are smooth • Hypothetical — not advice.
 
       </div>
+
+      {auditMode && (
+        <div
+          style={{
+            marginTop: "1rem",
+            border: "1px solid var(--accent-purple)",
+            borderRadius: "0.4rem",
+            padding: "0.75rem",
+            background: "rgba(168,85,247,0.05)",
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: "0.5rem", color: "var(--accent-purple)" }}>
+            Audit Ledger — Step-by-step, Age 64 → 70 (2 dp for pocket-calculator reproduction)
+          </div>
+          <div style={{ maxHeight: 380, overflowY: "auto", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", fontVariantNumeric: "tabular-nums" }}>
+              <thead>
+                <tr style={{ background: "var(--bg-2, rgba(255,255,255,0.04))" }}>
+                  <th style={{ textAlign: "left", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Interval / Age</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Start Eq</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Start Cash</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Net Outflow</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Eq Ret %</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>Cash Ret %</th>
+                  <th style={{ textAlign: "left", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>G-K Rule</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>End Eq</th>
+                  <th style={{ textAlign: "right", padding: "0.35rem 0.5rem", borderBottom: "1px solid var(--border-color)" }}>End Cash</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditSim.steps.map((s, i) => {
+                  const cell: React.CSSProperties = { padding: "0.3rem 0.5rem", borderBottom: "1px solid var(--border-color)" };
+                  return (
+                    <tr key={i}>
+                      <td style={cell}>{s.interval} · Age {s.age}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.startE.toFixed(2)}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.startC.toFixed(2)}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.netOutflow.toFixed(2)}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.equityPct.toFixed(4)}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.cashPct.toFixed(4)}</td>
+                      <td style={cell}>{s.gk}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.endE.toFixed(2)}</td>
+                      <td style={{ ...cell, textAlign: "right" }}>{s.endC.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: "0.5rem", fontSize: "0.7rem", color: "var(--text-muted)" }}>
+            {tickMode === "quarterly"
+              ? "24 quarterly steps (6 full years, Age 64 → 70). Eq Ret % = real per-quarter return actually applied to End Eq — i.e. ((1 + nominal)/(1 + 2.5% infl))^0.25 − 1 in parametric mode, or the real historical return compounded to the quarter. Cash Ret % = (1 + 2.0%)^0.25 − 1."
+              : "6 yearly steps shown. Eq Ret % = real return actually applied ((1 + nominal)/(1 + 2.5% infl) − 1). Cash Ret % = 2.0000 real."}
+            {" "}Pension of {currency}12,700 is held FLAT in real terms and offsets the withdrawal from Age 67 onward (Net Outflow = 36,000 − 12,700 = 23,300 yearly / 5,825 quarterly).
+          </div>
+        </div>
+      )}
     </div>
   );
+
 };

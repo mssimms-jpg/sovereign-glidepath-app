@@ -28,6 +28,10 @@ export interface LedgerEntry {
   eventFromEq?: number;
   eventFromCash?: number;
   eventAmount?: number;
+  // Actual amount withdrawn on this quarterly ledger row (Build 062+). Pre-filled
+  // from the guardrail-adjusted "Request" on the input pane but freely editable
+  // so the user can record what really left the pot that quarter.
+  withdrawnAmount?: number;
 }
 
 export interface CalcInputs {

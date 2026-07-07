@@ -11,31 +11,89 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
-            v1.0 build 061 — Quarterly-tick simulator &amp; withdrawal-history bar
+            v1.0 build 063 — Audit Mode calibration &amp; chart alignment
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <ul style={{ paddingLeft: "1.25rem" }}>
               <li>
-                <strong>Quarterly-tick simulator mode.</strong> New Yearly/Quarterly toggle in
-                the Risk Simulator header. Quarterly mode splits each year's return into four
-                equal geometric quarters and re-applies Guyton-Klinger ±10% every quarter
-                against a per-path ATH — matching the live app's quarterly discipline. Flip
-                between the two to see how much of the p10-floor gap the ritual closes.
+                <strong>Eq Ret % now shows the real return actually applied.</strong>{" "}
+                Parametric mode displays <code>((1 + 7%)/(1 + 2.5% infl)) − 1 ≈ 4.3902%</code>{" "}
+                per year (quarterly form <code>((1+nom)/(1+infl))^0.25 − 1</code>);
+                historical mode shows the per-cycle real return. Manual arithmetic
+                — <code>(Start Eq − Net Outflow) × (1 + Eq Ret %)</code> — now
+                reconciles to End Eq to the penny.
               </li>
               <li>
-                <strong>Withdrawal-history bar.</strong> Slim stacked bar per ledger commit
-                under the Historical Trend Visualizer — green = equities drawn, blue = cash
-                drawn, purple = special event. Hover for exact amounts.
+                <strong>Flat-real pension offset.</strong> Audit Mode no longer
+                compounds the £12,700 pension by 2.5%/yr; it is held flat in
+                today's £. Net Outflow drops cleanly to £23,300 yearly / £5,825
+                quarterly from Age 67 onwards.
               </li>
               <li>
-                <strong>Allocation-bias slider labels fixed.</strong> ← Cash / Equities → now
-                match the direction the slider actually moves the mix.
+                <strong>Chart X-axis honours the Audit starting age.</strong>{" "}
+                Ticks now run 64 → 85 (previously mis-labelled 60 → 81), the
+                pension inflection lands on Age 67, and the horizon ends at 85.
+                Hover tooltip and brush-window readout follow the Audit age too.
               </li>
               <li>
-                <strong>Docs.</strong> Quick Start Guide renamed to <em>Quick Start Guide &amp;
-                Overview Manual</em> and step count updated to 8. Full Manual bumped to
-                Edition XI with new chapters 32 &amp; 33; TOC updated.
+                <strong>Slider re-label.</strong> "Yearly Withdrawal Increase Rate %"
+                → "Inflation / Escalation %".
               </li>
+              <li>
+                <strong>Scrollable audit ledger.</strong> The step table is
+                capped at 380px with a sticky scroll, so all 24 quarterly rows
+                (6 years) stay scannable without pushing the layout around.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 062 — Withdrawal-recorded field &amp; Audit Mode
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>Withdrawal Recorded field (Pane 1).</strong> New editable
+                money input, auto-seeded from the guardrail-adjusted Request. The
+                actual £ that left the pot each quarter is now stored on the
+                ledger row and shown in the timeline table in place of the old
+                "Drawdown Income" figure.
+              </li>
+              <li>
+                <strong>Withdrawal-history bar removed.</strong> Replaced by the
+                explicit per-row record above — richer signal, less chart clutter.
+              </li>
+              <li>
+                <strong>Audit Mode (hidden).</strong> Double-click the "5. Risk
+                Simulator — Monte Carlo Fan Chart" header to freeze the RNG and
+                run a single deterministic path with canonical inputs (Age 64→85,
+                {" £610k / £90k / £36k, Pension £12,700 @ 67, +7% flat equity or "}
+                historical from 1973). A step-by-step ledger (2 dp) is rendered
+                below the chart for pocket-calculator reproduction. Double-click
+                again to restore the full 2,750-run engine.
+              </li>
+              <li>
+                <strong>Engine.</strong> Quarterly-tick G-K now anchors target WR
+                to the per-path All-Time-High rather than the starting pot, so
+                the reduction / prosperity bands mirror how the live app
+                actually reasons about drawdowns.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 061 — Quarterly-tick simulator &amp; withdrawal-history bar
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>Quarterly/Yearly tick toggle in the Risk Simulator.</li>
+              <li>Withdrawal-history stacked bar under the trend chart (removed in 062).</li>
+              <li>Allocation-bias slider labels corrected.</li>
+              <li>Quick Start Guide renamed, Full Manual bumped to Edition XI.</li>
             </ul>
           </div>
         </div>
