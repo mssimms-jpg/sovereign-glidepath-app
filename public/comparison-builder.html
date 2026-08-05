@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Comparison Builder — 4% Rule vs Sovereign Glidepath</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <style>
+      :root {
+        --bg-main: #0f172a;
+        --bg-card: #1e293b;
+        --bg-input: #0f172a;
+        --border-color: #334155;
+        --text-main: #f8fafc;
+        --text-muted: #cbd5e1;
+        --accent-green: #10b981;
+        --accent-blue: #3b82f6;
+        --accent-amber: #f59e0b;
+        --accent-red: #ef4444;
+        --accent-purple: #a855f7;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 2rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-main); color: var(--text-main); line-height: 1.5; min-height: 100vh;
+      }
+      .wrap { max-width: 1100px; margin: 0 auto; }
+      header { border-bottom: 1px solid var(--border-color); padding-bottom: 1.25rem; margin-bottom: 1.75rem; }
+      .backlink { color: var(--text-muted); font-size: 0.85rem; text-decoration: none; }
+      .backlink:hover { color: var(--accent-blue); }
+      /* Matches the Sovereign Glidepath app's own nav-pill styling, so this tool's
+         controls look like a native part of the same app rather than a bolt-on. */
+      .sg-nav-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+      .sg-nav-btn {
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        background-color: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main);
+        padding: 0.55rem 1.1rem; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
+        cursor: pointer; text-decoration: none; transition: all 0.15s;
+      }
+      .sg-nav-btn:hover { border-color: var(--accent-blue); background-color: var(--bg-card); }
+      .sg-nav-btn .ic { font-size: 0.95rem; line-height: 1; }
+      h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+      .subtitle { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+      .card {
+        background-color: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+      }
+      .card h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 1rem; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+      .field label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+      .field input[type=number], .field input[type=text] {
+        width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 0.5rem 0.65rem; border-radius: 6px; font-size: 0.95rem;
+      }
+      .field input:focus { outline: 2px solid var(--accent-blue); }
+      .toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .toggle-btn {
+        background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main);
+        padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
+      }
+      .toggle-btn.active { background-color: var(--accent-blue); border-color: var(--accent-blue); color: #fff; font-weight: 600; }
+      .toggle-btn:hover:not(.active) { border-color: var(--accent-blue); }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+      @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+      .col-header { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.75rem; }
+      .col-header.classic { color: var(--accent-amber); }
+      .col-header.sg { color: var(--accent-green); }
+      .run-btn {
+        background-color: var(--accent-blue); color: #fff; border: none; padding: 0.85rem 1.75rem;
+        border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; width: 100%; margin-top: 0.5rem;
+      }
+      .run-btn:hover { background-color: #2563eb; }
+      .run-btn:disabled { background-color: var(--border-color); cursor: not-allowed; }
+      .download-btn {
+        background-color: var(--accent-green); color: #fff; border: none; padding: 0.75rem 1.5rem;
+        border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; margin-top: 1rem;
+      }
+      .download-btn:hover { background-color: #0ea271; }
+      .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+      .stat-box { background: rgba(15,23,42,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.9rem 1rem; }
+      .stat-box .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+      .stat-box .value { font-size: 1.35rem; font-weight: 700; margin-top: 0.2rem; }
+      .stat-box.classic .value { color: var(--accent-amber); }
+      .stat-box.sg .value { color: var(--accent-green); }
+      canvas { width: 100%; height: 320px; display: block; }
+      .note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; line-height: 1.5; }
+      .note strong { color: var(--text-main); }
+      .hidden { display: none; }
+      #resultsCard { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a class="backlink" href="#" onclick="window.close(); return false;">&larr; Back to Sovereign Glidepath</a>
+        <h1>4% Rule vs Sovereign Glidepath — Comparison Builder</h1>
+        <p class="note" style="margin-top:-0.5rem; margin-bottom:0.5rem;">Build 1.0.2</p>
+        <p class="subtitle">
+          Runs a real rolling-historical-cohort test using the same Guyton-Klinger engine and defensive bucket logic as
+          the main app, alongside a faithful classic 4% Rule replica. Generates a downloadable Excel workbook.
+        </p>
+        <div class="sg-nav-row">
+          <button type="button" class="sg-nav-btn" id="openGuideBtn"><span class="ic">📖</span> User Guide</button>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2>1. Your Starting Position</h2>
+        <p class="note" id="prefillNote" style="margin-top:-0.5rem; margin-bottom:1rem;">
+          Pre-filled with example values — replace with your own Pane 1 numbers to match your real plan.
+        </p>
+        <div class="grid">
+          <div class="field">
+            <label>Global Equities Pot (£)</label><input type="number" id="inEquities" value="630000" step="1000" />
+          </div>
+          <div class="field">
+            <label>Cash Pot (£)</label><input type="number" id="inCash" value="100000" step="1000" />
+          </div>
+          <div class="field">
+            <label>Starting Age</label><input type="number" id="inAge" value="64" min="40" max="90" />
+          </div>
+          <div class="field">
+            <label>Horizon (years)</label><input type="number" id="inHorizon" value="30" min="15" max="45" />
+          </div>
+        </div>
+        <div class="grid" style="margin-top:1rem;">
+          <div class="field">
+            <label>Classic 4% Rule Withdrawal (£)</label>
+            <input type="number" id="inClassicWithdrawal" value="29200" step="100" />
+            <p class="note" id="classicWithdrawalNote" style="margin-top:0.3rem;">
+              Auto-fills to 4% of the total pot — edit if you want to test a different baseline rate.
+            </p>
+          </div>
+          <div class="field">
+            <label>SG Target Annual Withdrawal (£)</label>
+            <input type="number" id="inWithdrawal" value="40000" step="500" />
+            <p class="note" id="sgVsClassicNote" style="margin-top:0.3rem;"></p>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:1rem;">
+          <div class="field">
+            <label>State Pension Starts At Age</label>
+            <input type="number" id="inPensionAge" min="50" max="90" placeholder="blank = none" />
+            <p class="note" id="pensionAgeNote" style="margin-top:0.3rem;">
+              Leave blank to run both models with no state pension at all.
+            </p>
+          </div>
+          <div class="field">
+            <label>State Pension Amount (£/yr, today's money)</label>
+            <input type="number" id="inPensionAmount" value="11500" step="100" />
+            <p class="note" id="pensionEffectNote" style="margin-top:0.3rem;"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="col-header classic">CLASSIC 4% RULE</div>
+          <h2>Portfolio Split</h2>
+          <div class="toggle-row" id="splitToggle">
+            <button class="toggle-btn active" data-val="60">60 / 40</button>
+            <button class="toggle-btn" data-val="50">50 / 50</button>
+          </div>
+          <h2 style="margin-top:1.25rem;">Market</h2>
+          <div class="toggle-row" id="classicMarketToggle">
+            <button class="toggle-btn" data-val="us">US Only (S&amp;P 500)</button>
+            <button class="toggle-btn active" data-val="global">Global (MSCI World)</button>
+          </div>
+          <h2 style="margin-top:1.25rem;">Inflation Rule</h2>
+          <div class="toggle-row" id="inflationRuleToggle">
+            <button class="toggle-btn active" data-val="always">Always rises with inflation</button>
+            <button class="toggle-btn" data-val="skip">Skip rise after a down year</button>
+          </div>
+          <p class="note" id="inflationRuleNote">
+            Standard Bengen rule: withdrawal escalates with CPI every year, regardless of performance.
+          </p>
+          <p class="note">
+            Bond side always 10-Year US Treasury Bonds, per Bengen's original methodology — unaffected by the Market
+            choice above.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="col-header sg">SOVEREIGN GLIDEPATH</div>
+          <h2>Market</h2>
+          <div class="toggle-row" id="sgMarketToggle">
+            <button class="toggle-btn" data-val="us">US Only (S&amp;P 500)</button>
+            <button class="toggle-btn active" data-val="global">Global (MSCI World)</button>
+          </div>
+          <h2 style="margin-top:1.25rem;">Cash Buffer</h2>
+          <div class="toggle-row" id="bufferToggle">
+            <button class="toggle-btn" data-val="12">12 months</button>
+            <button class="toggle-btn active" data-val="24">24 months</button>
+            <button class="toggle-btn" data-val="36">36 months</button>
+          </div>
+          <h2 style="margin-top:1.25rem;">Defensive Draw Threshold</h2>
+          <div class="toggle-row" id="thresholdToggle">
+            <button class="toggle-btn" data-val="strict">Strict</button>
+            <button class="toggle-btn active" data-val="standard">Standard</button>
+            <button class="toggle-btn" data-val="aggressive">Aggressive</button>
+          </div>
+          <h2 style="margin-top:1.25rem;">Tick Mode</h2>
+          <div class="toggle-row" id="tickToggle">
+            <button class="toggle-btn" data-val="yearly">Yearly</button>
+            <button class="toggle-btn active" data-val="quarterly">Quarterly</button>
+          </div>
+          <p class="note">
+            Quarterly re-checks the Guyton-Klinger guardrail four times a year, matching how the live app behaves when
+            you commit a ledger row each quarter — usually a slightly firmer worst-case floor.
+          </p>
+          <h2 style="margin-top:1.25rem;">Guardrail Depth</h2>
+          <div class="toggle-row" id="depthToggle">
+            <button class="toggle-btn active" data-val="flat">Flat -10%</button>
+            <button class="toggle-btn" data-val="graduated">Graduated -10% to -20%</button>
+          </div>
+          <p class="note" id="depthNote">
+            Standard: every Preservation cut is exactly -10%, however long the bad stretch lasts — a known, bounded
+            worst case.
+          </p>
+          <p class="note">Cash tracks 3-month US T-Bills (a realistic Money Market Fund proxy), not bonds.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <button class="run-btn" id="runBtn">Run Comparison</button>
+        <p class="note" id="cohortNote"></p>
+      </div>
+
+      <div class="card" id="resultsCard">
+        <h2>Results</h2>
+        <div style="position:relative;">
+          <canvas id="chart"></canvas>
+          <div
+            id="chartFailTooltip"
+            style="position:absolute; display:none; background:var(--bg-card); border:1px solid var(--accent-red); border-radius:6px; padding:0.4rem 0.65rem; font-size:0.78rem; font-weight:600; color:var(--text-main); pointer-events:none; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.4); white-space:nowrap; transform:translate(-50%, calc(-100% - 8px));"
+          ></div>
+        </div>
+        <div class="note" id="chartLegend"></div>
+
+        <h2 style="margin-top:1.75rem;">Spend Trajectory — Real Withdrawal Amount Over Time</h2>
+        <p class="note" id="trajectoryHint" style="margin-top:-0.5rem;">
+          Click any bar in the chart above to inspect that retirement year's spend trajectory.
+        </p>
+        <canvas id="spendChart"></canvas>
+        <div
+          id="spendTooltip"
+          style="position:fixed; display:none; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:0.5rem 0.75rem; font-size:0.8rem; pointer-events:none; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.4);"
+        ></div>
+        <div class="note" id="spendChartLegend"></div>
+        <div class="stat-grid" id="trajectoryStatGrid" style="margin-top:1rem;"></div>
+
+        <h2 style="margin-top:1.75rem;">Overall Comparison — Averaged Across All Cohorts Tested</h2>
+        <p class="note" id="statGridNote" style="margin-top:-0.5rem;"></p>
+        <div class="stat-grid" id="statGrid"></div>
+
+        <button class="download-btn" id="downloadBtn">Download Excel Workbook (.xlsx)</button>
+        <p class="note" id="downloadNote"></p>
+      </div>
+
+      <div class="card">
+        <p class="note">
+          <strong>Data sources:</strong><br />
+          <strong>Equities</strong> — S&amp;P 500 (US, 1928&ndash;2025) or MSCI World gross annual returns (Global,
+          1970&ndash;2025), Aswath Damodaran, NYU Stern / MSCI. Switched independently for each side (Classic and SG
+          have their own Market toggle).<br />
+          <strong>Bonds</strong> (Classic 4% Rule's bond leg only) — always 10-Year US Treasury Bonds, Aswath Damodaran,
+          NYU Stern (1928&ndash;2025), regardless of either Market toggle. No free, reliable UK gilt total-return series
+          was found — see footnote below.<br />
+          <strong>Cash / money-market buffer</strong> (Sovereign Glidepath's cash leg only) — US mode: 3-month US
+          T-Bills, Aswath Damodaran, NYU Stern (1928&ndash;2025). Global mode: a UK proxy chosen to track money-market
+          fund returns rather than bonds, spliced from the Bank of England's own policy rate 1970&ndash;1985 (Bank Rate,
+          then Minimum Lending Rate, then Minimum Band 1 Dealing Rate — successive names for the same rate,
+          date-weighted into an annual average) and the OECD's UK 3-month interbank rate 1986&ndash;2025 (which itself
+          transitions through LIBOR to 2021 and SONIA-based rates from 2022), via FRED series IR3TIB01GBA156N.<br />
+          <strong>Inflation</strong> — US mode: US CPI, usinflationcalculator.com (1928&ndash;2025). Global mode: UK
+          RPI, Office for National Statistics series CZBH (1970&ndash;2025).<br />
+          <strong>When UK figures apply:</strong> inflation and the cash proxy switch to the UK series above
+          automatically whenever <em>either</em> Market toggle (Classic or SG) is set to Global — even if only one side
+          is switched. Each side's own equity leg (and Classic's bond leg) still follows its own toggle
+          independently.<br /><br />
+          <strong>Footnote — why no UK gilts:</strong> the standard free US dataset this tool otherwise relies on
+          (Damodaran's) has no direct UK equivalent. The closest authoritative UK gilt total-return series, the
+          DMS/Credit Suisse Global Investment Returns Yearbook, is a paid product — raw data access runs to roughly
+          &pound;4,000/year — and no free, reliable substitute covering 1928&ndash;2025 could be found. Rather than
+          approximate or fabricate a gilt series, Classic's bond leg stays US Treasury-sourced in both modes; this is a
+          known limitation of the Global option, not an oversight.<br /><br />
+          <strong>Note:</strong> this tool runs entirely in your browser. Opened from Sovereign Glidepath's Companion
+          Apps section, Section 1 above is pre-filled automatically from your live Pane 1 plan — opened directly
+          (outside the main app), it falls back to the example values shown, which you can edit freely either way.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // =====================================================================
+      // EMBEDDED HISTORICAL DATA (real, sourced, verified against the live app
+      // and cross-checked earlier this session)
+      // =====================================================================
+      // Embedded corporate logo (converted from the supplied .ico), used on the
+      // Excel workbook's cover sheet only -- kept out of the HTML page itself.
+      const APP_ICON_BASE64 = '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';
+      const US_YEARS = []; for (let y=1928; y<=2025; y++) US_YEARS.push(y);
+      const SP500_NOMINAL_PCT = [43.81,-8.30,-25.12,-43.84,-8.64,49.98,-1.19,46.74,31.94,-35.34,29.28,-1.10,-10.67,-12.77,19.17,25.06,19.03,35.82,-8.43,5.20,5.70,18.30,30.81,23.68,18.15,-1.21,52.56,32.60,7.44,-10.46,43.72,12.06,0.34,26.64,-8.81,22.61,16.42,12.40,-9.97,23.80,10.81,-8.24,3.56,14.22,18.76,-14.31,-25.90,37.00,23.83,-6.98,6.51,18.52,31.74,-4.70,20.42,22.34,6.15,31.24,18.49,5.81,16.54,31.48,-3.06,30.23,7.49,9.97,1.33,37.20,22.68,33.10,28.34,20.89,-9.03,-11.85,-21.97,28.36,10.74,4.83,15.61,5.48,-36.55,25.94,14.82,2.10,15.89,32.15,13.52,1.38,11.77,21.61,-4.23,31.21,18.02,28.47,-18.04,26.06,24.88,17.78];
+      const TBOND_NOMINAL_PCT = [0.84,4.20,4.54,-2.56,8.79,1.86,7.96,4.47,5.02,1.38,4.21,4.41,5.40,-2.02,2.29,2.49,2.58,3.80,3.13,0.92,1.95,4.66,0.43,-0.30,2.27,4.14,3.29,-1.34,-2.26,6.80,-2.10,-2.65,11.64,2.06,5.69,1.68,3.73,0.72,2.91,-1.58,3.27,-5.01,16.75,9.79,2.82,3.66,1.99,3.61,15.98,1.29,-0.78,0.67,-2.99,8.20,32.81,3.20,13.73,25.71,24.28,-4.96,8.22,17.69,6.24,15.00,9.36,14.21,-8.04,23.48,1.43,9.94,14.92,-8.25,16.66,5.57,15.12,0.38,4.49,2.87,1.96,10.21,20.10,-11.12,8.46,16.04,2.97,-9.10,10.75,1.28,0.69,2.80,-0.02,9.64,11.33,-4.42,-17.83,3.88,-1.64,7.80];
+      const TBILL_NOMINAL_PCT = [3.08,3.16,4.55,2.31,1.07,0.96,0.28,0.17,0.17,0.28,0.07,0.05,0.04,0.13,0.34,0.38,0.38,0.38,0.38,0.60,1.05,1.12,1.20,1.52,1.72,1.89,0.94,1.72,2.62,3.22,1.77,3.39,2.87,2.35,2.77,3.16,3.55,3.95,4.86,4.29,5.34,6.67,6.39,4.33,4.06,7.04,7.85,5.79,4.98,5.26,7.18,10.05,11.39,14.04,11.09,8.95,9.92,7.72,6.15,5.96,6.89,8.39,7.75,5.54,3.51,3.07,4.37,5.66,5.15,5.20,4.91,4.78,6.00,3.48,1.64,1.03,1.40,3.22,4.85,4.48,1.40,0.15,0.14,0.05,0.09,0.06,0.03,0.05,0.32,0.95,1.97,2.11,0.36,0.04,2.09,5.28,5.18,4.21];
+      const CPI_AVE_PCT = [-1.7,0.0,-2.3,-9.0,-9.9,-5.1,3.1,2.2,1.5,3.6,-2.1,-1.4,0.7,5.0,10.9,6.1,1.7,2.3,8.3,14.4,8.1,-1.2,1.3,7.9,1.9,0.8,0.7,-0.4,1.5,3.3,2.8,0.7,1.7,1.0,1.0,1.3,1.3,1.6,2.9,3.1,4.2,5.5,5.7,4.4,3.2,6.2,11.0,9.1,5.8,6.5,7.6,11.3,13.5,10.3,6.2,3.2,4.3,3.6,1.9,3.6,4.1,4.8,5.4,4.2,3.0,3.0,2.6,2.8,3.0,2.3,1.6,2.2,3.4,2.8,1.6,2.3,2.7,3.4,3.2,2.8,3.8,-0.4,1.6,3.2,2.1,1.5,1.6,0.1,1.3,2.1,2.4,1.8,1.2,4.7,8.0,4.1,2.9,2.6];
+      // MSCI World, 1970-2025 (global equity option -- replaces S&P500 for those years only)
+      const MSCI_NOMINAL_PCT = [-1.98,19.56,23.55,-14.51,-24.48,34.50,14.71,5.00,18.22,12.67,27.72,-3.30,11.27,23.28,5.77,41.77,42.80,16.76,23.95,17.19,-16.52,18.97,-4.66,23.13,5.58,21.32,14.00,16.23,24.80,25.34,-12.92,-16.52,-19.54,33.76,15.25,10.02,20.65,9.57,-40.33,30.79,12.34,-5.02,16.54,27.37,5.50,-0.32,8.15,23.07,-8.20,28.40,16.50,22.35,-17.73,24.42,19.19,21.60];
+      const MSCI_START_YEAR = 1970;
+
+      // UK RPI All Items, annual % change, 1970-2025 -- Office for National
+      // Statistics series CZBH (Consumer price inflation time series, MM23),
+      // https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/czbh/mm23
+      // Used in place of CPI_AVE_PCT (US CPI) for both inflation-escalation and
+      // real-return deflation whenever the UK-focus mode is active (see
+      // ukModeActive below).
+      const UK_RPI_PCT = [6.4,9.4,7.1,9.2,16.0,24.2,16.5,15.8,8.3,13.4,18.0,11.9,8.6,4.6,5.0,6.1,3.4,4.2,4.9,7.8,9.5,5.9,3.7,1.6,2.4,3.5,2.4,3.1,3.4,1.5,3.0,1.8,1.7,2.9,3.0,2.8,3.2,4.3,4.0,-0.5,4.6,5.2,3.2,3.0,2.4,1.0,1.8,3.6,3.3,2.6,1.5,4.1,11.6,9.7,3.6,4.1];
+      // UK cash / money-market proxy, annual %, 1970-2025 -- spliced from two
+      // official-data sources rather than one continuous series, because no
+      // single free published series covers the whole period:
+      //  - 1970-1985: date-weighted annual average of the Bank of England's own
+      //    policy rate (Bank Rate to Jun 1972, then Minimum Lending Rate, then
+      //    Minimum Band 1 Dealing Rate -- successive official names for the same
+      //    rate), computed from the Bank's full published list of rate-change
+      //    dates (bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xls,
+      //    cross-checked against the compiled change list at
+      //    clive.semmens.org.uk/Economics/baserate.pdf), weighting each rate by
+      //    the exact number of days it was in effect that calendar year.
+      //  - 1986-2025: OECD "3-Month or 90-Day Interbank Rate, United Kingdom"
+      //    annual series (FRED series IR3TIB01GBA156N, sourced from the OECD),
+      //    which already transitions through LIBOR (to 2021) and SONIA-based
+      //    reference rates (2022 on) as the underlying benchmark itself changed --
+      //    a single continuous series rather than a hand-spliced LIBOR/SONIA join.
+      // Chosen over UK gilts to stay "closely matched to money-market funds"
+      // (Mark's stated preference) rather than to bonds.
+      const UK_CASH_PCT = [7.2,5.9,5.9,9.9,11.9,10.8,11.7,8.5,9.1,13.8,16.3,13.2,12.0,9.9,9.7,12.1,11.0,9.7,10.4,13.9,14.8,11.6,9.7,6.0,5.6,6.8,6.1,6.9,7.4,5.5,6.2,5.0,4.1,3.7,4.6,4.8,4.8,6.0,5.5,1.2,0.7,0.9,0.8,0.5,0.5,0.6,0.5,0.4,0.7,0.8,0.3,0.1,2.0,5.0,5.0,4.1];
+      const UK_START_YEAR = 1970;
+      function ukIdx(y) { return y - UK_START_YEAR; }
+
+      // Set to true for the duration of a single runComparison() pass whenever
+      // EITHER market toggle (Classic or SG) is set to "Global" -- switches
+      // inflation and the cash/money-market proxy to the UK series above.
+      // Equities (S&P 500 vs MSCI World) and bonds (always US Treasury) are
+      // switched independently per-side and are NOT affected by this flag.
+      let ukModeActive = false;
+      function effectiveCpiPct(year) { return ukModeActive ? UK_RPI_PCT[ukIdx(year)] : CPI_AVE_PCT[yearIdx(year)]; }
+      function effectiveCashNominalPct(year) { return ukModeActive ? UK_CASH_PCT[ukIdx(year)] : TBILL_NOMINAL_PCT[yearIdx(year)]; }
+
+      function yearIdx(y) { return y - 1928; }
+      function real(nominalPct, cpiPct) { return (1 + nominalPct/100) / (1 + cpiPct/100) - 1; }
+
+      function equityRealForYear(year, market) {
+        if (market === 'global' && year >= MSCI_START_YEAR) {
+          const nominal = MSCI_NOMINAL_PCT[year - MSCI_START_YEAR];
+          return real(nominal, effectiveCpiPct(year));
+        }
+        return real(SP500_NOMINAL_PCT[yearIdx(year)], effectiveCpiPct(year));
+      }
+      function bondRealForYear(year) { return real(TBOND_NOMINAL_PCT[yearIdx(year)], CPI_AVE_PCT[yearIdx(year)]); }
+      function tbillRealForYear(year) { return real(effectiveCashNominalPct(year), effectiveCpiPct(year)); }
+      // Raw nominal equity return, before any inflation adjustment -- exposed
+      // separately (rather than only the deflated "real" figure above) so the
+      // Excel ledger can show the actual market conditions for that year, not
+      // just their downstream effect on the pot.
+      function equityNominalForYear(year, market) {
+        if (market === 'global' && year >= MSCI_START_YEAR) return MSCI_NOMINAL_PCT[year - MSCI_START_YEAR];
+        return SP500_NOMINAL_PCT[yearIdx(year)];
+      }
+
+      // =====================================================================
+      // SOVEREIGN GLIDEPATH ENGINE -- faithful port of the real app's
+      // phaseFor / gkGuardrail / isDefensiveByTrailingDrawdown / applyPeriod
+      // logic (drawdown.ts / engine.ts), verified extensively against the
+      // live app throughout this project.
+      // =====================================================================
+      function phaseFor(age) { return age <= 75 ? "Go-Go" : age <= 85 ? "Go-Slow" : "No-Go"; }
+      function preservationThresholdPct(phase) { return phase === "Go-Slow" ? 15 : 10; }
+      function severeThresholdPct(phase) { return phase === "Go-Slow" ? 25 : 20; }
+      function defensiveHurdlePct(phase, mode) {
+        if (mode === "strict") return severeThresholdPct(phase);
+        if (mode === "aggressive") return preservationThresholdPct(phase) / 2;
+        return preservationThresholdPct(phase); // standard
+      }
+      function isDefensive(total, ath, phase, mode) {
+        if (ath <= 0) return false;
+        const drawdownPct = ((ath - total) / ath) * 100;
+        return drawdownPct >= defensiveHurdlePct(phase, mode);
+      }
+      function gkGuardrail(currentWR, athWR, baselineWR, phase, graduated, consecutivePres) {
+        // The guardrail is structurally switched off once No-Go phase is reached
+        // (age 86+ by default) -- factor is always 1.0 here. The label says so
+        // explicitly rather than reusing the plain "Normal" label, which would
+        // otherwise be indistinguishable from a genuinely unremarkable in-range
+        // year while the guardrail is actually still live.
+        if (phase === "No-Go") return { factor: 1.0, label: "Normal (No-Go)", consecutivePres: 0 };
+        if (athWR > 0 && currentWR >= athWR * 1.2) {
+          if (!graduated) return { factor: 0.9, label: "Preservation", consecutivePres: (consecutivePres||0) + 1 };
+          const n = (consecutivePres || 0) + 1;
+          const depth = Math.min(0.20, 0.10 + 0.05 * (n - 1)); // -10% -> -15% -> -20%, capped
+          return { factor: 1 - depth, label: `Preservation (-${Math.round(depth*100)}%)`, consecutivePres: n };
+        }
+        if (baselineWR > 0 && currentWR <= baselineWR * 0.8) return { factor: 1.1, label: "Prosperity", consecutivePres: 0 };
+        return { factor: 1.0, label: "Normal", consecutivePres: 0 };
+      }
+      function applyPeriod(state, opts) {
+        const { rEqReal, rCashReal, spendGross, withdrawAnchor, threshold, targetCashBuffer, targetWR_gk, age, graduated, consecutivePres, pensionPerPeriod } = opts;
+        const phase = phaseFor(age);
+        const tot = state.E + state.C;
+        const currentWR = tot > 0 ? withdrawAnchor / tot : 0;
+        const athWR = state.ATH > 0 ? withdrawAnchor / state.ATH : targetWR_gk;
+        const baselineWR = targetWR_gk > 0 ? targetWR_gk : athWR;
+        const g = gkGuardrail(currentWR, athWR, baselineWR, phase, graduated, consecutivePres);
+        // Total target consumption this period, per the GK guardrail -- the state
+        // pension does NOT change what the guardrail decides the retiree should
+        // spend; it only changes where that spending comes from.
+        const targetSpend = spendGross * g.factor;
+        const targetPotDraw = Math.max(0, targetSpend - (pensionPerPeriod || 0)); // what the guardrail WANTS pulled from the E/C pots
+        // The pots can never actually hand over more than they hold. Cap the draw
+        // at what's genuinely available so reported spend/pot-draw can't overstate
+        // what was actually delivered in a near-ruin or ruin period -- previously
+        // only the resulting pot VALUES were floored to zero, while the reported
+        // draw amount stayed at the (impossible) uncapped target.
+        const availablePot = Math.max(0, state.E) + Math.max(0, state.C);
+        const potDraw = Math.min(targetPotDraw, availablePot);
+        const spend = potDraw + (pensionPerPeriod || 0); // what was ACTUALLY delivered this period
+        const defensive = isDefensive(tot, state.ATH, phase, threshold);
+
+        let E = state.E, C = state.C;
+        let fromEquities = 0, fromCash = 0, refillToCash = 0;
+        if (defensive) {
+          fromCash = Math.min(potDraw, C);
+          const shortfall = potDraw - fromCash;
+          fromEquities = Math.min(shortfall, E);
+          C -= fromCash; E -= fromEquities;
+        } else {
+          fromEquities = Math.min(potDraw, E);
+          const shortfall = potDraw - fromEquities;
+          fromCash = Math.min(shortfall, C);
+          E -= fromEquities; C -= fromCash;
+          if (E > 0 && C < targetCashBuffer) {
+            refillToCash = Math.min(E, targetCashBuffer - C);
+            E -= refillToCash; C += refillToCash;
+          }
+        }
+        E = Math.max(0, E) * (1 + rEqReal);
+        C = Math.max(0, C) * (1 + rCashReal);
+        const ATH = Math.max(state.ATH, E + C);
+        return { E, C, ATH, spend, potDraw, targetSpend, fromEquities, fromCash, refillToCash, gkLabel: g.label, defensive, consecutivePres: g.consecutivePres };
+      }
+
+      // =====================================================================
+      // STRATEGY RUNNERS
+      // =====================================================================
+      function runClassic4Percent(startYear, horizon, startingPot, withdrawal, equityWeight, bondWeight, market, skipInflationAfterDownYear, startAge, pensionStartAge, pensionAmount) {
+        let pot = startingPot;
+        let ruinYear = null;
+        // Track nominal withdrawal explicitly so "skip the rise" has something to act on.
+        // Year 1's nominal withdrawal = the real target (they're identical at the reference point).
+        let nominalWithdrawal = withdrawal;
+        let cumulativeInflationFactor = 1; // converts nominal back to real terms for the actual draw
+        let prevYearRealReturnWasNegative = false;
+        const trajectory = [];
+
+        for (let y = 1; y <= horizon; y++) {
+          const year = startYear + y - 1;
+          const age = startAge + y - 1;
+          const eqReal = equityRealForYear(year, market);
+          const bondReal = bondRealForYear(year);
+          const blended = equityWeight * eqReal + bondWeight * bondReal;
+
+          if (y > 1) {
+            const cpiPrevYear = effectiveCpiPct(startYear + y - 2);
+            // Only ever skip a POSITIVE rise. If inflation was actually negative
+            // (deflation), still apply it -- that's a genuine nominal CUT, which
+            // is itself protective and must never be "skipped" (skipping a cut
+            // would perversely INCREASE real spending right after a bad year).
+            if (skipInflationAfterDownYear && prevYearRealReturnWasNegative && cpiPrevYear > 0) {
+              // Skip the inflation rise this year -- nominal withdrawal stays flat,
+              // so its REAL (purchasing-power) value quietly dips.
+            } else {
+              nominalWithdrawal = nominalWithdrawal * (1 + cpiPrevYear / 100);
+            }
+            cumulativeInflationFactor *= (1 + cpiPrevYear / 100);
+          }
+          // What the Classic rule wants the retiree to spend this year, before any
+          // state pension is factored in.
+          const targetSpend = nominalWithdrawal / cumulativeInflationFactor;
+          // The pension itself rises with inflation each year, which in these
+          // real (today's-money) terms means it holds one constant value for
+          // every year it's in payment -- no separate escalation needed here.
+          const pensionThisYear = (pensionStartAge && age >= pensionStartAge) ? pensionAmount : 0;
+          const neededFromPot = Math.max(0, targetSpend - pensionThisYear);
+          const drawnFromPot = Math.min(neededFromPot, pot);
+          const actualSpend = drawnFromPot + pensionThisYear; // total real spending power actually delivered
+
+          pot = Math.max(0, pot - neededFromPot);
+          pot = pot * (1 + blended);
+          trajectory.push({ year, age, realSpend: actualSpend, targetSpend, pension: pensionThisYear, potDraw: drawnFromPot, potValue: pot });
+          if (pot <= 0 && ruinYear === null) { ruinYear = y; break; }
+          prevYearRealReturnWasNegative = blended < 0;
+        }
+        return { finalValue: Math.round(pot * 100) / 100, ruinYear, trajectory };
+      }
+
+      function runSovereignGlidepath(startYear, horizon, startAge, E0, C0, withdrawal, market, threshold, tickMode, graduated, pensionStartAge, pensionAmount) {
+        let state = { E: E0, C: C0, ATH: E0 + C0 };
+        const baselineTotal = E0 + C0;
+        const targetWR_gk = baselineTotal > 0 ? withdrawal / baselineTotal : 0;
+        let ruinYear = null;
+        let consecutivePres = 0;
+        const trajectory = []; // {year, realSpend}
+        for (let y = 1; y <= horizon; y++) {
+          const year = startYear + y - 1;
+          const age = startAge + y - 1;
+          const eqReal = equityRealForYear(year, market);
+          const cashReal = tbillRealForYear(year);
+          // Constant in real terms for every year it's paid, same reasoning as Classic.
+          const pensionThisYear = (pensionStartAge && age >= pensionStartAge) ? pensionAmount : 0;
+          let yearSpend = 0;
+          let yearPotDraw = 0;
+
+          if (tickMode === 'quarterly') {
+            const qEq = Math.pow(1 + eqReal, 0.25) - 1;
+            const qCash = Math.pow(1 + cashReal, 0.25) - 1;
+            const qWithdraw = withdrawal / 4;
+            const qPension = pensionThisYear / 4;
+            for (let q = 0; q < 4; q++) {
+              const result = applyPeriod(state, {
+                rEqReal: qEq, rCashReal: qCash, spendGross: qWithdraw, withdrawAnchor: withdrawal,
+                threshold, targetCashBuffer: C0, targetWR_gk, age, graduated, consecutivePres, pensionPerPeriod: qPension,
+              });
+              state = { E: result.E, C: result.C, ATH: result.ATH };
+              consecutivePres = result.gkLabel.includes('Preservation') ? result.consecutivePres : 0;
+              yearSpend += result.spend;
+              yearPotDraw += result.potDraw;
+            }
+          } else {
+            const result = applyPeriod(state, {
+              rEqReal: eqReal, rCashReal: cashReal, spendGross: withdrawal, withdrawAnchor: withdrawal,
+              threshold, targetCashBuffer: C0, targetWR_gk, age, graduated, consecutivePres, pensionPerPeriod: pensionThisYear,
+            });
+            state = { E: result.E, C: result.C, ATH: result.ATH };
+            consecutivePres = result.gkLabel.includes('Preservation') ? result.consecutivePres : 0;
+            yearSpend = result.spend;
+            yearPotDraw = result.potDraw;
+          }
+          trajectory.push({ year, age, realSpend: yearSpend, pension: pensionThisYear, potDraw: yearPotDraw, potValue: state.E + state.C });
+          const total = state.E + state.C;
+          if (total <= 0 && ruinYear === null) { ruinYear = y; break; }
+        }
+        const finalValue = state.E + state.C;
+        return { finalValue: Math.round(finalValue * 100) / 100, ruinYear, trajectory };
+      }
+
+      // Finds the maximum annual withdrawal SG could have sustained for this
+      // EXACT cohort's real historical return sequence, without ruin -- i.e.
+      // "given how this specific 30 years actually played out, in hindsight,
+      // how much more could I safely have spent?" The cash buffer is re-sized
+      // each iteration to stay at bufferMonths-of-the-TEST-withdrawal, matching
+      // how SG's buffer sizing genuinely behaves (it's defined in months of
+      // current withdrawal, not a fixed £ figure).
+      function findMaxSustainableWithdrawal(startYear, horizon, startAge, totalStartingPot, bufferMonths, market, threshold, tickMode, graduated, actualWithdrawal, pensionStartAge, pensionAmount) {
+        function survives(testWithdrawal) {
+          const c0 = (testWithdrawal / 12) * bufferMonths;
+          const e0 = totalStartingPot - c0;
+          if (e0 < 0) return false; // buffer alone would exceed the whole pot -- not viable
+          const result = runSovereignGlidepath(startYear, horizon, startAge, e0, c0, testWithdrawal, market, threshold, tickMode, graduated, pensionStartAge, pensionAmount);
+          return result.ruinYear === null;
+        }
+
+        // Establish search bounds. If the ACTUAL withdrawal already fails, there's
+        // no spare capacity to find (this cohort is a ruin case, handled elsewhere).
+        if (!survives(actualWithdrawal)) return actualWithdrawal;
+
+        let low = actualWithdrawal;
+        let high = actualWithdrawal * 3;
+        let iterations = 0;
+        while (survives(high) && iterations < 10) { high *= 1.5; iterations++; }
+
+        for (let i = 0; i < 25; i++) {
+          const mid = (low + high) / 2;
+          if (survives(mid)) low = mid; else high = mid;
+          if (high - low < 25) break; // converged to within £25/yr
+        }
+        return Math.round(low);
+      }
+
+      // =====================================================================
+      // UI WIRING
+      // =====================================================================
+      function setupToggle(id) {
+        const el = document.getElementById(id);
+        el.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            el.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+        });
+      }
+      ['splitToggle','classicMarketToggle','sgMarketToggle','bufferToggle','thresholdToggle','inflationRuleToggle','tickToggle','depthToggle'].forEach(setupToggle);
+
+      document.getElementById('openGuideBtn').addEventListener('click', () => {
+        window.open('comparison_builder_guide.html', '_blank');
+      });
+      function getToggleVal(id) { return document.getElementById(id).querySelector('.active').dataset.val; }
+
+      let lastResults = null;
+      let currentTrajectories = null;
+      let barGeometry = []; // [{startYear, x, w}] for click hit-testing on the main chart
+      let spendChartGeometry = null; // { traj, xStep, H, W, maxVal } -- must be declared before the
+                                       // auto-run-on-load call further down, or a temporal-dead-zone
+                                       // ReferenceError aborts the rest of the script (including the
+                                       // bar-click listener registration further below).
+      function computeTrajectoryStats(traj) {
+        const classicSpends = traj.classic.map(p => p.realSpend);
+        const sgSpends = traj.sg.map(p => p.realSpend);
+        const avgClassic = classicSpends.reduce((a, b) => a + b, 0) / classicSpends.length;
+        const avgSg = sgSpends.reduce((a, b) => a + b, 0) / sgSpends.length;
+
+        // Total cumulative difference over the years EITHER strategy was still
+        // drawing (a strategy that ran out simply contributes £0 for its
+        // remaining years, which is the honest real-world comparison).
+        const n = Math.max(traj.classic.length, traj.sg.length);
+        let totalDiff = 0;
+        for (let i = 0; i < n; i++) {
+          const c = traj.classic[i] ? traj.classic[i].realSpend : 0;
+          const s = traj.sg[i] ? traj.sg[i].realSpend : 0;
+          totalDiff += (s - c);
+        }
+
+        function maxDrawdown(points) {
+          let peak = -Infinity, maxDD = 0;
+          points.forEach(p => {
+            if (p.potValue > peak) peak = p.potValue;
+            if (peak > 0) maxDD = Math.max(maxDD, (peak - p.potValue) / peak);
+          });
+          return maxDD * 100;
+        }
+
+        return {
+          avgClassic, avgSg, avgExtra: avgSg - avgClassic, totalDiff,
+          classicYears: traj.classic.length, sgYears: traj.sg.length,
+          ddClassic: maxDrawdown(traj.classic), ddSg: maxDrawdown(traj.sg),
+        };
+      }
+
+      function renderTrajectoryStats(traj, row) {
+        const s = computeTrajectoryStats(traj);
+        const extraLabel = s.avgExtra >= 0 ? 'SG draws extra, on average' : 'SG draws less, on average';
+        const totalLabel = s.totalDiff >= 0 ? 'Total extra spending SG provided' : 'Total spending SG gave up';
+        const spareBox = row
+          ? (row.sgRuinYear !== null
+              ? `<div class="stat-box classic"><div class="label">SG Spare Capacity (this cohort)</div><div class="value">n/a — ran out</div></div>`
+              : `<div class="stat-box sg"><div class="label">SG Could Have Safely Spent</div><div class="value">+${fmtGBP(row.sgSpareCapacity)}/yr</div></div>`)
+          : '';
+        // The pension total is sourced from the fixed age/horizon inputs (see
+        // pensionLifetimeTotal in runComparison), not the trajectory arrays --
+        // the state pension keeps paying for the full horizon even in cohorts
+        // where a pot ran dry early, so it must not be truncated with it.
+        const pensionTotal = lastResults && lastResults.params ? lastResults.params.pensionLifetimeTotal : 0;
+        const pensionBox = pensionTotal > 0
+          ? `<div class="stat-box"><div class="label">State Pension Received (full horizon)</div><div class="value">${fmtGBP(pensionTotal)}</div></div>`
+          : '';
+        document.getElementById('trajectoryStatGrid').innerHTML = `
+          <div class="stat-box classic"><div class="label">Classic Avg Annual Spend</div><div class="value">${fmtGBP(s.avgClassic)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Avg Annual Spend</div><div class="value">${fmtGBP(s.avgSg)}</div></div>
+          <div class="stat-box ${s.avgExtra >= 0 ? 'sg' : 'classic'}"><div class="label">${extraLabel}</div><div class="value">${fmtGBP(Math.abs(s.avgExtra))}/yr</div></div>
+          <div class="stat-box ${s.totalDiff >= 0 ? 'sg' : 'classic'}"><div class="label">${totalLabel} (this cohort)</div><div class="value">${fmtGBP(Math.abs(s.totalDiff))}</div></div>
+          <div class="stat-box classic"><div class="label">Classic Peak Drawdown</div><div class="value">${s.ddClassic.toFixed(1)}%</div></div>
+          <div class="stat-box sg"><div class="label">SG Peak Drawdown</div><div class="value">${s.ddSg.toFixed(1)}%</div></div>
+          ${spareBox}
+          ${pensionBox}
+        `;
+      }
+
+      function updateCohortNote() {
+        const market = getToggleVal('classicMarketToggle') === 'global' || getToggleVal('sgMarketToggle') === 'global' ? 'global' : 'us';
+        const horizon = parseInt(document.getElementById('inHorizon').value, 10);
+        const dataStart = market === 'global' ? MSCI_START_YEAR : 1928;
+        const dataEnd = 2025;
+        const lastStart = dataEnd - horizon + 1;
+        const n = Math.max(0, lastStart - dataStart + 1);
+        document.getElementById('cohortNote').textContent =
+          `Will test ${n} rolling ${horizon}-year retirement cohorts, starting every year from ${dataStart} to ${lastStart}.` +
+          (market === 'global' ? ' (Global option in play on at least one side — limited to MSCI World\'s 1970-2025 data range.)' : '');
+      }
+      document.getElementById('inHorizon').addEventListener('input', updateCohortNote);
+      document.getElementById('classicMarketToggle').addEventListener('click', updateCohortNote);
+      document.getElementById('sgMarketToggle').addEventListener('click', updateCohortNote);
+      updateCohortNote();
+
+      // Classic 4% Rule Withdrawal auto-fills to 4% of the total pot whenever the
+      // pot fields change -- but stays editable, so a different baseline rate can
+      // still be tested deliberately.
+      let classicWithdrawalManuallyEdited = false;
+      function autoFillClassicWithdrawal() {
+        if (classicWithdrawalManuallyEdited) return;
+        const eq = parseFloat(document.getElementById('inEquities').value) || 0;
+        const cash = parseFloat(document.getElementById('inCash').value) || 0;
+        document.getElementById('inClassicWithdrawal').value = Math.round((eq + cash) * 0.04);
+        updateSgVsClassicNote();
+      }
+      document.getElementById('inEquities').addEventListener('input', autoFillClassicWithdrawal);
+      document.getElementById('inCash').addEventListener('input', autoFillClassicWithdrawal);
+      document.getElementById('inClassicWithdrawal').addEventListener('input', () => {
+        classicWithdrawalManuallyEdited = true;
+        document.getElementById('classicWithdrawalNote').textContent = 'Manually set — no longer auto-following 4% of the pot. Change either pot field to re-sync.';
+        updateSgVsClassicNote();
+      });
+      document.getElementById('inEquities').addEventListener('input', () => {
+        classicWithdrawalManuallyEdited = false;
+        document.getElementById('classicWithdrawalNote').textContent = 'Auto-fills to 4% of the total pot — edit if you want to test a different baseline rate.';
+      });
+      document.getElementById('inCash').addEventListener('input', () => {
+        classicWithdrawalManuallyEdited = false;
+        document.getElementById('classicWithdrawalNote').textContent = 'Auto-fills to 4% of the total pot — edit if you want to test a different baseline rate.';
+      });
+
+      function updateSgVsClassicNote() {
+        const sgW = parseFloat(document.getElementById('inWithdrawal').value) || 0;
+        const classicW = parseFloat(document.getElementById('inClassicWithdrawal').value) || 0;
+        if (classicW <= 0) { document.getElementById('sgVsClassicNote').textContent = ''; return; }
+        const pct = (sgW / classicW) * 100;
+        const diff = sgW - classicW;
+        const diffLabel = diff >= 0 ? `+£${Math.round(diff).toLocaleString()} above` : `£${Math.round(Math.abs(diff)).toLocaleString()} below`;
+        document.getElementById('sgVsClassicNote').textContent = `${pct.toFixed(0)}% of the Classic 4% baseline (${diffLabel} it).`;
+      }
+      document.getElementById('inWithdrawal').addEventListener('input', updateSgVsClassicNote);
+      autoFillClassicWithdrawal(); // set initial values on load
+
+      // State pension: blank/zero start age means "no pension" -- entirely optional.
+      // It rises with inflation once claimed, which in this model's real-terms
+      // bookkeeping means it holds one constant real (today's-money) value for
+      // every year it's paid -- so there's no year-by-year escalation to compute.
+      function updatePensionNote() {
+        const ageRaw = parseInt(document.getElementById('inPensionAge').value, 10);
+        const pensionAge = Number.isFinite(ageRaw) && ageRaw > 0 ? ageRaw : null;
+        const pensionAmount = parseFloat(document.getElementById('inPensionAmount').value) || 0;
+        const note = document.getElementById('pensionEffectNote');
+        if (!pensionAge || pensionAmount <= 0) {
+          note.textContent = 'No pension configured — both models draw their full target from the pot(s) every year.';
+          return;
+        }
+        const classicW = parseFloat(document.getElementById('inClassicWithdrawal').value) || 0;
+        const sgW = parseFloat(document.getElementById('inWithdrawal').value) || 0;
+        const classicPct = classicW > 0 ? Math.min(100, (pensionAmount / classicW) * 100) : 0;
+        const sgPct = sgW > 0 ? Math.min(100, (pensionAmount / sgW) * 100) : 0;
+        note.textContent = `From age ${pensionAge}, this covers about ${classicPct.toFixed(0)}% of the Classic target and ${sgPct.toFixed(0)}% of the SG target each year — the rest still comes from the pot(s). It rises with inflation, so this coverage ratio holds steady for the rest of retirement.`;
+      }
+      ['inPensionAge', 'inPensionAmount', 'inClassicWithdrawal', 'inWithdrawal'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updatePensionNote);
+      });
+      updatePensionNote(); // set initial note on load
+
+      document.getElementById('inflationRuleToggle').addEventListener('click', () => {
+        const val = getToggleVal('inflationRuleToggle');
+        document.getElementById('inflationRuleNote').textContent = val === 'skip'
+          ? "Modified rule: if the portfolio had a negative real return last year, this year's withdrawal stays the same £ amount (no CPI rise) -- a small, one-condition simplification of Bengen's original 'Inflation Rule', without abandoning the classic rule's fixed-dollar spirit."
+          : "Standard Bengen rule: withdrawal escalates with CPI every year, regardless of performance.";
+      });
+      document.getElementById('depthToggle').addEventListener('click', () => {
+        const val = getToggleVal('depthToggle');
+        document.getElementById('depthNote').textContent = val === 'graduated'
+          ? "Experimental: cuts deepen the longer Preservation stays active consecutively (-10% -> -15% -> -20%, capped at -20%), rather than staying flat forever -- still a known, bounded worst case, just a more responsive one during extended bad stretches."
+          : "Standard: every Preservation cut is exactly -10%, however long the bad stretch lasts -- a known, bounded worst case.";
+      });
+
+      function runComparison(isInitialLoad = false) {
+        const startingEquities = parseFloat(document.getElementById('inEquities').value) || 0;
+        const startingCash = parseFloat(document.getElementById('inCash').value) || 0;
+        const startingPot = startingEquities + startingCash;
+        const withdrawal = parseFloat(document.getElementById('inWithdrawal').value) || 0; // SG's withdrawal
+        const classicWithdrawal = parseFloat(document.getElementById('inClassicWithdrawal').value) || 0; // Classic's own baseline
+        const age = parseInt(document.getElementById('inAge').value, 10);
+        const horizon = parseInt(document.getElementById('inHorizon').value, 10);
+        const pensionAgeRaw = parseInt(document.getElementById('inPensionAge').value, 10);
+        const pensionStartAge = Number.isFinite(pensionAgeRaw) && pensionAgeRaw > 0 ? pensionAgeRaw : null; // blank/0 = no pension
+        const pensionAmount = pensionStartAge ? (parseFloat(document.getElementById('inPensionAmount').value) || 0) : 0;
+
+        const split = parseInt(getToggleVal('splitToggle'), 10);
+        const equityWeight = split / 100, bondWeight = 1 - equityWeight;
+        const classicMarket = getToggleVal('classicMarketToggle');
+        const sgMarket = getToggleVal('sgMarketToggle');
+        const bufferMonths = parseInt(getToggleVal('bufferToggle'), 10);
+        const threshold = getToggleVal('thresholdToggle');
+        const inflationRule = getToggleVal('inflationRuleToggle'); // 'always' | 'skip'
+        const tickMode = getToggleVal('tickToggle'); // 'yearly' | 'quarterly'
+        const graduated = getToggleVal('depthToggle') === 'graduated';
+
+        const sgC0 = (withdrawal / 12) * bufferMonths;
+        const sgE0 = startingPot - sgC0;
+
+        const anyGlobal = classicMarket === 'global' || sgMarket === 'global';
+        ukModeActive = anyGlobal;
+        const dataStart = anyGlobal ? MSCI_START_YEAR : 1928;
+        const lastStart = 2025 - horizon + 1;
+
+        const results = [];
+        const trajectories = {}; // startYear -> { classic: [...], sg: [...] }
+        for (let sy = dataStart; sy <= lastStart; sy++) {
+          const classic = runClassic4Percent(sy, horizon, startingPot, classicWithdrawal, equityWeight, bondWeight, classicMarket, inflationRule === 'skip', age, pensionStartAge, pensionAmount);
+          const sg = runSovereignGlidepath(sy, horizon, age, sgE0, sgC0, withdrawal, sgMarket, threshold, tickMode, graduated, pensionStartAge, pensionAmount);
+          const totalClassicSpend = classic.trajectory.reduce((a, p) => a + p.realSpend, 0);
+          const totalSgSpend = sg.trajectory.reduce((a, p) => a + p.realSpend, 0);
+          const worstClassic = Math.min(...classic.trajectory.map(p => p.realSpend));
+          const worstSg = Math.min(...sg.trajectory.map(p => p.realSpend));
+          const hardshipThresholdClassic = classicWithdrawal * 0.8;
+          const hardshipThresholdSg = withdrawal * 0.8;
+          const hardshipClassic = classic.trajectory.filter(p => p.realSpend < hardshipThresholdClassic).length;
+          const hardshipSg = sg.trajectory.filter(p => p.realSpend < hardshipThresholdSg).length;
+          const maxSustainableWithdrawal = findMaxSustainableWithdrawal(sy, horizon, age, startingPot, bufferMonths, sgMarket, threshold, tickMode, graduated, withdrawal, pensionStartAge, pensionAmount);
+          const sgSpareCapacity = Math.max(0, maxSustainableWithdrawal - withdrawal);
+
+          results.push({
+            startYear: sy, classicFinal: classic.finalValue, classicRuinYear: classic.ruinYear, sgFinal: sg.finalValue, sgRuinYear: sg.ruinYear,
+            advantage: Math.round((sg.finalValue - classic.finalValue) * 100) / 100,
+            totalClassicSpend, totalSgSpend, spendAdvantage: totalSgSpend - totalClassicSpend,
+            worstClassic, worstSg, hardshipClassic, hardshipSg,
+            classicYears: classic.trajectory.length, sgYears: sg.trajectory.length,
+            maxSustainableWithdrawal, sgSpareCapacity,
+          });
+          trajectories[sy] = { classic: classic.trajectory, sg: sg.trajectory };
+        }
+
+        // State pension is age/horizon-driven only -- identical for every cohort
+        // regardless of market history -- so it's computed once, not per-cohort.
+        let pensionLifetimeTotal = 0;
+        if (pensionStartAge) {
+          for (let y = 1; y <= horizon; y++) {
+            if (age + y - 1 >= pensionStartAge) pensionLifetimeTotal += pensionAmount;
+          }
+        }
+
+        lastResults = { results, trajectories, params: { startingEquities, startingCash, startingPot, withdrawal, classicWithdrawal, age, horizon, split, classicMarket, sgMarket, bufferMonths, threshold, sgE0, sgC0, inflationRule, tickMode, graduated, pensionStartAge, pensionAmount, pensionLifetimeTotal } };
+        renderResults(lastResults);
+      }
+      document.getElementById('runBtn').addEventListener('click', () => runComparison());
+
+      // Companion Apps integration — prefill Section 1 from Sovereign Glidepath's
+      // live Pane 1 values when launched from the main app via URL query params
+      // (?eq=&cash=&age=&horizon=&withdrawal=&pensionAge=&pensionAmount=).
+      // Falls back to the example values already in the fields when opened
+      // directly with no query string.
+      (function prefillFromPane1() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('eq')) return; // opened directly — keep example values
+        const setVal = (id, v) => {
+          if (v !== null && v !== undefined && v !== '') document.getElementById(id).value = v;
+        };
+        setVal('inEquities', params.get('eq'));
+        setVal('inCash', params.get('cash'));
+        setVal('inAge', params.get('age'));
+        setVal('inHorizon', params.get('horizon'));
+        setVal('inWithdrawal', params.get('withdrawal'));
+        // pensionAge is only sent by the main app when a pension is actually
+        // configured there (amount > 0) — blank here correctly means "no pension",
+        // matching this tool's own "blank = none" convention.
+        if (params.has('pensionAge')) setVal('inPensionAge', params.get('pensionAge'));
+        if (params.has('pensionAmount')) setVal('inPensionAmount', params.get('pensionAmount'));
+
+        const note = document.getElementById('prefillNote');
+        if (note) {
+          note.textContent = 'Pulled automatically from your live Sovereign Glidepath Pane 1 plan — edit any figure below to test a different scenario without touching your real plan.';
+        }
+
+        // Setting .value programmatically doesn't fire 'input' events, so re-run
+        // the dependent auto-fills/notes explicitly now that the fields changed.
+        classicWithdrawalManuallyEdited = false;
+        autoFillClassicWithdrawal();
+        updateCohortNote();
+        updatePensionNote();
+      })();
+
+      // Show something at startup rather than requiring a click first (and this
+      // also naturally sidesteps the old "canvas hidden on first draw" issue).
+      // Pass isInitialLoad=true so this pass doesn't scroll the page -- otherwise
+      // opening Comparison Builder (including from the SG launcher) lands the
+      // user on the results card instead of the top of the page.
+      runComparison(true);
+
+      function fmtGBP(n) { return '£' + Math.round(n).toLocaleString(); }
+
+      function renderResults({ results, trajectories, params }) {
+        const n = results.length;
+        const classicRuins = results.filter(r => r.classicRuinYear !== null).length;
+        const sgRuins = results.filter(r => r.sgRuinYear !== null).length;
+
+        const avgClassicFinal = results.reduce((a, r) => a + r.classicFinal, 0) / n;
+        const avgSgFinal = results.reduce((a, r) => a + r.sgFinal, 0) / n;
+
+        const avgClassicSpend = results.reduce((a, r) => a + r.totalClassicSpend, 0) / n;
+        const avgSgSpend = results.reduce((a, r) => a + r.totalSgSpend, 0) / n;
+        const spendWins = results.filter(r => r.spendAdvantage > 0).length;
+
+        const avgWorstClassic = results.reduce((a, r) => a + r.worstClassic, 0) / n;
+        const avgWorstSg = results.reduce((a, r) => a + r.worstSg, 0) / n;
+        const avgSgSpareCapacity = results.reduce((a, r) => a + r.sgSpareCapacity, 0) / n;
+        const cohortsWithSpareCapacity = results.filter(r => r.sgSpareCapacity > 0).length;
+
+        const totalClassicYears = results.reduce((a, r) => a + r.classicYears, 0);
+        const totalSgYears = results.reduce((a, r) => a + r.sgYears, 0);
+        const totalHardshipClassic = results.reduce((a, r) => a + r.hardshipClassic, 0);
+        const totalHardshipSg = results.reduce((a, r) => a + r.hardshipSg, 0);
+        const hardshipPctClassic = (totalHardshipClassic / totalClassicYears) * 100;
+        const hardshipPctSg = (totalHardshipSg / totalSgYears) * 100;
+
+        document.getElementById('statGridNote').textContent = `This tests ${n} different possible retirement start years, each living through a genuinely different real ${params.horizon}-year stretch of market history — so every figure below is necessarily an average across all ${n} of them, not a single "the" answer.`;
+        document.getElementById('statGrid').innerHTML = `
+          <p class="note" style="grid-column:1/-1; margin:0 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">Safety — did it run out?</p>
+          <div class="stat-box classic"><div class="label">Classic Ran Out</div><div class="value">${classicRuins} / ${n}</div></div>
+          <div class="stat-box sg"><div class="label">SG Ran Out</div><div class="value">${sgRuins} / ${n}</div></div>
+
+          <p class="note" style="grid-column:1/-1; margin:1rem 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">What you actually got to spend, in total</p>
+          <div class="stat-box classic"><div class="label">Classic Avg Lifetime Spend</div><div class="value">${fmtGBP(avgClassicSpend)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Avg Lifetime Spend</div><div class="value">${fmtGBP(avgSgSpend)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Delivered More Spending In</div><div class="value">${spendWins} / ${n} cohorts</div></div>
+
+          <p class="note" style="grid-column:1/-1; margin:1rem 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">How rough did the worst years get</p>
+          <div class="stat-box classic"><div class="label">Classic Avg Worst Year</div><div class="value">${fmtGBP(avgWorstClassic)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Avg Worst Year</div><div class="value">${fmtGBP(avgWorstSg)}</div></div>
+          <div class="stat-box classic"><div class="label">Classic Hardship Years (&lt;80% of target)</div><div class="value">${hardshipPctClassic.toFixed(1)}%</div></div>
+          <div class="stat-box sg"><div class="label">SG Hardship Years (&lt;80% of target)</div><div class="value">${hardshipPctSg.toFixed(1)}%</div></div>
+
+          <p class="note" style="grid-column:1/-1; margin:1rem 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">Spare capacity left over — the ability to have spent even more</p>
+          <div class="stat-box classic"><div class="label">Classic Avg Final Value</div><div class="value">${fmtGBP(avgClassicFinal)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Avg Final Value</div><div class="value">${fmtGBP(avgSgFinal)}</div></div>
+          <div class="stat-box sg"><div class="label">SG Could Have Safely Spent (Avg/yr)</div><div class="value">+${fmtGBP(avgSgSpareCapacity)}</div></div>
+          <div class="stat-box sg"><div class="label">Cohorts With Room to Spend More</div><div class="value">${cohortsWithSpareCapacity} / ${n}</div></div>
+          ${params.pensionStartAge ? `
+          <p class="note" style="grid-column:1/-1; margin:1rem 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">State pension impact — same for every cohort, since it only depends on age, not market history</p>
+          <div class="stat-box"><div class="label">Pension Starts At Age</div><div class="value">${params.pensionStartAge}</div></div>
+          <div class="stat-box"><div class="label">Pension Amount (today's £, rises with inflation)</div><div class="value">${fmtGBP(params.pensionAmount)}/yr</div></div>
+          <div class="stat-box"><div class="label">Total Received Over Full ${params.horizon}-Year Horizon</div><div class="value">${fmtGBP(params.pensionLifetimeTotal)}</div></div>
+          ` : ''}
+        `;
+
+        document.getElementById('resultsCard').style.display = 'block';
+
+        currentTrajectories = trajectories;
+        const earliestYear = results[0].startYear;
+        drawChart(results, earliestYear);
+        document.getElementById('chartLegend').innerHTML = `<span style="color:var(--accent-amber);">■</span> Classic 4% Rule &nbsp; <span style="color:var(--accent-green);">■</span> Sovereign Glidepath &nbsp;— total real £ actually spent over the full retirement, by start year (not final pot value). A dashed red border means that strategy ran out of money in that cohort; click the bar to see exactly when. Click a bar to inspect its year-by-year spend trajectory below.`;
+
+        // Default the trajectory chart to the EARLIEST cohort -- a neutral,
+        // always-available starting point. Clicking any bar above switches it.
+        document.getElementById('trajectoryHint').textContent = `Showing retirement year ${earliestYear} (the earliest available). ${describeCohort(results[0])} Click any bar in the chart above to inspect a different year.`;
+        drawSpendChart(trajectories[earliestYear]);
+        renderTrajectoryStats(trajectories[earliestYear], results[0]);
+
+        document.getElementById('downloadNote').textContent = `Workbook will include a styled Overview sheet, a Summary sheet (all ${results.length} cohorts, with Best/Median/Worst rank tags), and year-by-year ledgers for the best, median and worst historical cohort of each strategy.`;
+        // Only auto-scroll to results for a user-triggered run (button click).
+        // The automatic run-on-load pass must never scroll the page, or launching
+        // Comparison Builder from Sovereign Glidepath lands the user mid-page
+        // instead of at the top.
+        if (!isInitialLoad) {
+          document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      function drawSpendChart(traj, hoverIndex) {
+        const canvas = document.getElementById('spendChart');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = 280 * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = 280;
+        ctx.clearRect(0, 0, W, H);
+
+        const allSpends = [...traj.classic.map(p => p.realSpend), ...traj.sg.map(p => p.realSpend)];
+        const maxVal = Math.max(...allSpends) * 1.1;
+        const n = Math.max(traj.classic.length, traj.sg.length);
+        const xStep = W / (n - 1 || 1);
+        spendChartGeometry = { traj, xStep, H, W, maxVal, n };
+
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, H - 20); ctx.lineTo(W, H - 20); ctx.stroke();
+
+        function drawLine(points, color) {
+          ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.beginPath();
+          points.forEach((p, i) => {
+            const x = i * xStep;
+            const y = (H - 20) - (p.realSpend / maxVal) * (H - 30);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        }
+        drawLine(traj.classic, '#f59e0b');
+        drawLine(traj.sg, '#10b981');
+
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '11px -apple-system, sans-serif';
+        const step = Math.max(1, Math.floor(n / 8));
+        for (let i = 0; i < n; i += step) {
+          const year = traj.classic[i] ? traj.classic[i].year : (traj.sg[i] ? traj.sg[i].year : '');
+          if (year !== '') ctx.fillText(year, i * xStep, H - 4);
+        }
+
+        // Crosshair + point markers on hover
+        if (hoverIndex !== undefined && hoverIndex >= 0 && hoverIndex < n) {
+          const x = hoverIndex * xStep;
+          ctx.strokeStyle = 'rgba(248,250,252,0.35)'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H - 20); ctx.stroke();
+          [['classic', '#f59e0b'], ['sg', '#10b981']].forEach(([key, color]) => {
+            const p = traj[key][hoverIndex];
+            if (p) {
+              const y = (H - 20) - (p.realSpend / maxVal) * (H - 30);
+              ctx.fillStyle = color;
+              ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+            }
+          });
+        }
+      }
+
+      const spendCanvas = document.getElementById('spendChart');
+      const spendTooltip = document.getElementById('spendTooltip');
+      spendCanvas.addEventListener('mousemove', (e) => {
+        if (!spendChartGeometry) return;
+        const rect = spendCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const idx = Math.max(0, Math.min(spendChartGeometry.n - 1, Math.round(mouseX / spendChartGeometry.xStep)));
+        const { traj } = spendChartGeometry;
+        const classicPt = traj.classic[idx], sgPt = traj.sg[idx];
+        const yearIntoRetirement = idx + 1;
+        const calendarYear = classicPt ? classicPt.year : (sgPt ? sgPt.year : '');
+        const startAge = lastResults && lastResults.params ? lastResults.params.age : null;
+        const currentAge = startAge !== null ? startAge + idx : null;
+        const ageLabel = currentAge !== null ? `, age ${currentAge}` : '';
+
+        // Running cumulative difference (SG minus Classic) up to and including this year
+        let runningDiff = 0;
+        for (let i = 0; i <= idx; i++) {
+          const c = traj.classic[i] ? traj.classic[i].realSpend : 0;
+          const s = traj.sg[i] ? traj.sg[i].realSpend : 0;
+          runningDiff += (s - c);
+        }
+        const diffLabel = runningDiff >= 0 ? 'SG ahead by' : 'SG behind by';
+
+        // Same age/year applies to both strategies, so the pension figure itself
+        // is identical for classicPt and sgPt -- only the pot draw split differs.
+        const pensionAmt = (classicPt && classicPt.pension) || (sgPt && sgPt.pension) || 0;
+        const pensionLine = pensionAmt > 0
+          ? `<div style="color:var(--text-muted); margin-bottom:4px;">State pension in payment: <b style="color:var(--text-main);">£${Math.round(pensionAmt).toLocaleString()}/yr</b></div>`
+          : '';
+        function spendLine(pt, color, name) {
+          if (!pt) return `<div style="color:${color};">${name}: (ended)</div>`;
+          const total = Math.round(pt.realSpend).toLocaleString();
+          if (pt.pension > 0) {
+            const draw = Math.round(pt.potDraw).toLocaleString();
+            return `<div style="color:${color};">${name}: £${total} total <span style="color:var(--text-muted);">(£${draw} from the pot)</span></div>`;
+          }
+          return `<div style="color:${color};">${name}: £${total}</div>`;
+        }
+
+        spendTooltip.innerHTML = `
+          <div style="font-weight:700; margin-bottom:4px;">Year ${yearIntoRetirement} into retirement${ageLabel} (${calendarYear})</div>
+          ${pensionLine}
+          ${spendLine(classicPt, '#f59e0b', 'Classic 4% Rule')}
+          ${spendLine(sgPt, '#10b981', 'Sovereign Glidepath')}
+          <div style="margin-top:4px; padding-top:4px; border-top:1px solid var(--border-color); color:var(--text-muted);">Cumulative to year ${yearIntoRetirement}: <b style="color:var(--text-main);">${diffLabel} £${Math.round(Math.abs(runningDiff)).toLocaleString()}</b></div>
+        `;
+        spendTooltip.style.display = 'block';
+        spendTooltip.style.left = (e.clientX + 14) + 'px';
+        spendTooltip.style.top = (e.clientY + 14) + 'px';
+        drawSpendChart(traj, idx);
+      });
+      spendCanvas.addEventListener('mouseleave', () => {
+        spendTooltip.style.display = 'none';
+        if (spendChartGeometry) drawSpendChart(spendChartGeometry.traj);
+      });
+
+      // Failed cohorts used to get a rotated, vertical text label squeezed next to
+      // the bar -- readable in theory but cramped and easy to misread in practice.
+      // Replaced with a normal horizontal tooltip-style popup, positioned above the
+      // selected bar using the canvas's on-page location, matching the hover
+      // tooltip style already used on the spend trajectory chart below.
+      function updateChartFailTooltip(canvas, label) {
+        const tooltip = document.getElementById('chartFailTooltip');
+        if (!label) { tooltip.style.display = 'none'; return; }
+        // Positioned relative to the canvas's own offsetParent (the wrapping div),
+        // not the viewport -- so it stays correctly anchored to the bar even if
+        // the page is scrolled after it's shown, unlike a position:fixed tooltip.
+        tooltip.textContent = label.text;
+        tooltip.style.left = (canvas.offsetLeft + label.x) + 'px';
+        tooltip.style.top = (canvas.offsetTop + label.y) + 'px';
+        tooltip.style.display = 'block';
+      }
+
+      function drawChart(results, selectedYear) {
+        const canvas = document.getElementById('chart');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = 320 * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = 320;
+        ctx.clearRect(0, 0, W, H);
+        canvas.style.cursor = 'pointer';
+
+        const maxVal = Math.max(...results.map(r => Math.max(r.totalClassicSpend, r.totalSgSpend))) * 1.05;
+        const n = results.length;
+        const barGroupW = W / n;
+        const barW = Math.max(1, barGroupW / 2.4);
+        const FAIL_BORDER = '#ef4444'; // dashed border only -- fill colour stays amber/green
+
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, H - 20); ctx.lineTo(W, H - 20); ctx.stroke();
+
+        barGeometry = [];
+        // Only the selected bar's failure(s) get a tooltip, to avoid pile-up across
+        // all cohorts -- but now both Classic and SG can show at once if both
+        // failed, joined into one readable popup instead of a single cramped label.
+        let selectedFailLines = [];
+        let selectedGroupX = null;
+        results.forEach((r, i) => {
+          const x = i * barGroupW;
+          barGeometry.push({ startYear: r.startYear, x, w: barGroupW });
+          const isSelected = r.startYear === selectedYear;
+          const classicH = (r.totalClassicSpend / maxVal) * (H - 30);
+          const sgH = (r.totalSgSpend / maxVal) * (H - 30);
+          const classicFailed = r.classicRuinYear !== null;
+          const sgFailed = r.sgRuinYear !== null;
+
+          ctx.fillStyle = isSelected ? '#fbbf24' : '#f59e0b';
+          ctx.fillRect(x + 2, H - 20 - classicH, barW, classicH);
+          ctx.fillStyle = isSelected ? '#34d399' : '#10b981';
+          ctx.fillRect(x + 2 + barW, H - 20 - sgH, barW, sgH);
+
+          // Failed bars get a dashed red border overlay instead of a solid red fill --
+          // keeps the amber/green identity visible while still flagging failure clearly.
+          ctx.setLineDash([3, 2]);
+          ctx.strokeStyle = FAIL_BORDER; ctx.lineWidth = 1.5;
+          if (classicFailed) ctx.strokeRect(x + 2, H - 20 - classicH, barW, classicH);
+          if (sgFailed) ctx.strokeRect(x + 2 + barW, H - 20 - sgH, barW, sgH);
+          ctx.setLineDash([]);
+
+          if (isSelected) {
+            ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(x + 1, 0, barGroupW - 2, H - 20);
+            selectedGroupX = x + barGroupW / 2;
+            if (classicFailed) selectedFailLines.push({ y: H - 20 - classicH, text: `Classic ran out in year ${r.classicRuinYear}` });
+            if (sgFailed) selectedFailLines.push({ y: H - 20 - sgH, text: `SG ran out in year ${r.sgRuinYear}` });
+          }
+        });
+        if (selectedFailLines.length) {
+          const topY = Math.max(8, Math.min(...selectedFailLines.map(l => l.y)));
+          updateChartFailTooltip(canvas, { x: selectedGroupX, y: topY, text: selectedFailLines.map(l => l.text).join('  ·  ') });
+        } else {
+          updateChartFailTooltip(canvas, null);
+        }
+
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '11px -apple-system, sans-serif';
+        const step = Math.max(1, Math.floor(n / 10));
+        results.forEach((r, i) => {
+          if (i % step === 0) ctx.fillText(r.startYear, i * barGroupW, H - 4);
+        });
+      }
+
+      function describeCohort(r) {
+        const classicDesc = r.classicRuinYear !== null
+          ? `ran out in year ${r.classicRuinYear}`
+          : `ended with ${fmtGBP(r.classicFinal)}`;
+        const sgDesc = r.sgRuinYear !== null
+          ? `ran out in year ${r.sgRuinYear}`
+          : `ended with ${fmtGBP(r.sgFinal)}`;
+        return `Classic ${classicDesc}; SG ${sgDesc}.`;
+      }
+
+      document.getElementById('chart').addEventListener('click', (e) => {
+        if (!lastResults || barGeometry.length === 0) return;
+        const rect = e.target.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const hit = barGeometry.find(b => clickX >= b.x && clickX < b.x + b.w);
+        if (!hit) return;
+        const row = lastResults.results.find(r => r.startYear === hit.startYear);
+        document.getElementById('trajectoryHint').textContent = `Showing retirement year ${hit.startYear}. ${describeCohort(row)} Click any bar above to inspect a different year.`;
+        drawSpendChart(currentTrajectories[hit.startYear]);
+        renderTrajectoryStats(currentTrajectories[hit.startYear], row);
+        drawChart(lastResults.results, hit.startYear);
+      });
+
+      // =====================================================================
+      // EXCEL WORKBOOK EXPORT -- built with ExcelJS (not the community SheetJS
+      // build used previously) because it supports real cell colours, fonts,
+      // borders and embedded images in the browser, which is what lets this
+      // workbook look like the app itself rather than a bare data dump.
+      // =====================================================================
+      // Light theme -- a dark navy workbook looked sharp on screen but would be
+      // brutal (and expensive) to print, and printability was the whole point of
+      // raising it. Kept the same brand colours, just darkened where needed for
+      // real print contrast on white/light paper, and let the logo (which already
+      // carries its own navy badge background) be the one thing that still hints
+      // at the corporate colours.
+      const XLS = {
+        bgMain: 'FFFFFFFF', bgCard: 'FFE5E9F0', bgZebra: 'FFF3F4F6', border: 'FFCBD5E1',
+        textMain: 'FF1E293B', textMuted: 'FF64748B',
+        green: 'FF059669', blue: 'FF1D4ED8', amber: 'FFB45309', red: 'FFDC2626',
+      };
+      const XLS_FONT = 'Calibri';
+      const thinBorder = { style: 'thin', color: { argb: XLS.border } };
+      const fullBorder = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder };
+      const dashedRedBorder = { style: 'dashed', color: { argb: XLS.red } };
+
+      function fillCell(cell, argb) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }; }
+
+      // Best / median / worst cohort per model. A ruin always ranks worse than any
+      // surviving cohort; among survivors, ranked by total real lifetime spend
+      // delivered -- the tool's own "honest" headline metric, not final pot value
+      // (see the app's own stat-grid ordering: Safety first, then spend delivered).
+      function rankCohorts(results, ruinKey, spendKey, finalKey) {
+        // Ruin always ranks worst. Otherwise rank by total real lifetime spend
+        // delivered. Final pot value is folded in as a tiny tiebreaker (scaled
+        // down to well under £1) rather than a primary factor -- it matters
+        // because under "always rises with inflation", Classic's real withdrawal
+        // is the same fixed amount every single year regardless of market returns
+        // as long as the pot never runs dry, so every surviving cohort delivers
+        // an IDENTICAL total lifetime spend. Without a tiebreaker, "best/median/
+        // worst" would be an arbitrary pick among ties; final value (how much
+        // extra cushion was left over) is the only thing that still genuinely
+        // differs between those cohorts, so it's what actually distinguishes them.
+        const scored = results.map(r => ({
+          r, score: r[ruinKey] !== null ? (-1e9 + r[ruinKey]) : (r[spendKey] + r[finalKey] * 1e-9),
+        })).sort((a, b) => a.score - b.score);
+        const n = scored.length;
+        return { worst: scored[0].r, median: scored[Math.floor((n - 1) / 2)].r, best: scored[n - 1].r };
+      }
+
+      function buildCoverSheet(wb, params, results, classicRank, sgRank) {
+        const sheet = wb.addWorksheet('Overview', { views: [{ showGridLines: false }] });
+        const widths = [5, 5, 5, 14, 14, 14, 14, 14, 14, 14];
+        sheet.columns = widths.map(w => ({ width: w }));
+
+        const totalRows = 34;
+        for (let r = 1; r <= totalRows; r++) {
+          for (let c = 1; c <= widths.length; c++) fillCell(sheet.getCell(r, c), XLS.bgMain);
+        }
+
+        if (typeof APP_ICON_BASE64 !== 'undefined') {
+          const imgId = wb.addImage({ base64: APP_ICON_BASE64, extension: 'png' });
+          sheet.addImage(imgId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 68, height: 68 } });
+        }
+
+        sheet.mergeCells('D2:J2');
+        const title = sheet.getCell('D2');
+        title.value = '4% Rule vs Sovereign Glidepath';
+        title.font = { name: XLS_FONT, size: 22, bold: true, color: { argb: XLS.amber } };
+        title.alignment = { vertical: 'middle' };
+
+        sheet.mergeCells('D3:J3');
+        const subtitle = sheet.getCell('D3');
+        subtitle.value = 'Historical Cohort Retirement-Drawdown Analysis — Comparison Builder';
+        subtitle.font = { name: XLS_FONT, size: 11, italic: true, color: { argb: XLS.textMuted } };
+
+        sheet.mergeCells('D4:J4');
+        const genLine = sheet.getCell('D4');
+        const today = new Date();
+        genLine.value = `Generated ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        genLine.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMuted } };
+
+        sheet.mergeCells('A6:J6');
+        fillCell(sheet.getCell('A6'), XLS.border);
+        sheet.getRow(6).height = 3;
+
+        sheet.mergeCells('A8:J8');
+        const sectionHeader = sheet.getCell('A8');
+        sectionHeader.value = 'SCENARIO PARAMETERS';
+        sectionHeader.font = { name: XLS_FONT, size: 11, bold: true, color: { argb: XLS.amber } };
+
+        const pensionLine = params.pensionStartAge
+          ? `£${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; £${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the horizon)`
+          : 'Not configured -- both models draw their full target from the pot(s)';
+        const boxes = [
+          ['Starting Pot', `£${Math.round(params.startingPot).toLocaleString()}  (Equities £${Math.round(params.startingEquities).toLocaleString()} / Cash £${Math.round(params.startingCash).toLocaleString()})`, null],
+          ['Starting Age & Horizon', `Age ${params.age}, for ${params.horizon} years (to age ${params.age + params.horizon})`, null],
+          ['Classic 4% Rule', `£${Math.round(params.classicWithdrawal).toLocaleString()}/yr  ·  ${params.split}/${100-params.split} split  ·  ${params.classicMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.inflationRule === 'skip' ? 'Skips rise after a down year' : 'Always rises with inflation'}`, XLS.amber],
+          ['Sovereign Glidepath', `£${Math.round(params.withdrawal).toLocaleString()}/yr  ·  ${params.sgMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.bufferMonths}mo cash buffer  ·  ${params.threshold} threshold  ·  ${params.tickMode} tick  ·  ${params.graduated ? 'Graduated' : 'Flat'} -10% guardrail`, XLS.green],
+          ['State Pension', pensionLine, null],
+          ['Cohorts Tested', `${results.length} rolling ${params.horizon}-year retirements, starting years ${results[0].startYear}–${results[results.length-1].startYear}`, null],
+        ];
+
+        let row = 9;
+        boxes.forEach(([label, value, accent]) => {
+          sheet.mergeCells(`A${row}:J${row + 1}`);
+          const cell = sheet.getCell(`A${row}`);
+          cell.value = { richText: [
+            { font: { name: XLS_FONT, size: 8, color: { argb: XLS.textMuted } }, text: label.toUpperCase() + '\n' },
+            { font: { name: XLS_FONT, size: 11, bold: true, color: { argb: accent || XLS.textMain } }, text: value },
+          ] };
+          cell.alignment = { wrapText: true, vertical: 'middle', indent: 1 };
+          fillCell(cell, XLS.bgCard);
+          cell.border = fullBorder;
+          sheet.getRow(row).height = 30;
+          row += 2;
+        });
+
+        row += 1;
+        sheet.mergeCells(`A${row}:J${row}`);
+        const headlineHeader = sheet.getCell(`A${row}`);
+        headlineHeader.value = 'HEADLINE RESULTS — BEST, MEDIAN & WORST HISTORICAL COHORTS';
+        headlineHeader.font = { name: XLS_FONT, size: 11, bold: true, color: { argb: XLS.amber } };
+        row += 1;
+
+        function cohortLine(r, spendKey) {
+          const ruinKey = spendKey === 'totalClassicSpend' ? 'classicRuinYear' : 'sgRuinYear';
+          const finalKey = spendKey === 'totalClassicSpend' ? 'classicFinal' : 'sgFinal';
+          if (r[ruinKey] !== null) return `${r.startYear} — ran out of money in year ${r[ruinKey]}`;
+          // Final value is shown alongside spend because Classic's lifetime spend
+          // is identical across every surviving cohort under "always rises with
+          // inflation" (a fixed real withdrawal every year, market returns aside)
+          // -- final value is what actually distinguishes best/median/worst then.
+          return `${r.startYear} — £${Math.round(r[spendKey]).toLocaleString()} total lifetime spend delivered (final value £${Math.round(r[finalKey]).toLocaleString()})`;
+        }
+        const headlineRows = [
+          ['Classic 4% Rule', 'Best', cohortLine(classicRank.best, 'totalClassicSpend'), XLS.amber],
+          ['Classic 4% Rule', 'Median', cohortLine(classicRank.median, 'totalClassicSpend'), XLS.amber],
+          ['Classic 4% Rule', 'Worst', cohortLine(classicRank.worst, 'totalClassicSpend'), XLS.amber],
+          ['Sovereign Glidepath', 'Best', cohortLine(sgRank.best, 'totalSgSpend'), XLS.green],
+          ['Sovereign Glidepath', 'Median', cohortLine(sgRank.median, 'totalSgSpend'), XLS.green],
+          ['Sovereign Glidepath', 'Worst', cohortLine(sgRank.worst, 'totalSgSpend'), XLS.green],
+        ];
+        headlineRows.forEach(([model, tagLabel, line, accent]) => {
+          // Model name needs room for "Sovereign Glidepath" (20 chars), so it spans
+          // 4 columns (A-D) rather than the narrower 2 used elsewhere on this sheet.
+          sheet.mergeCells(`A${row}:D${row}`);
+          const c1 = sheet.getCell(`A${row}`);
+          c1.value = model; c1.font = { name: XLS_FONT, size: 10, bold: true, color: { argb: accent } };
+          sheet.mergeCells(`E${row}:F${row}`);
+          const c2 = sheet.getCell(`E${row}`);
+          c2.value = tagLabel; c2.font = { name: XLS_FONT, size: 10, bold: true, color: { argb: XLS.textMain } };
+          sheet.mergeCells(`G${row}:J${row}`);
+          const c3 = sheet.getCell(`G${row}`);
+          c3.value = line; c3.font = { name: XLS_FONT, size: 10, color: { argb: XLS.textMuted } };
+          [c1, c2, c3].forEach(c => { fillCell(c, XLS.bgCard); c.border = fullBorder; c.alignment = { vertical: 'middle', indent: 1 }; });
+          sheet.getRow(row).height = 18;
+          row += 1;
+        });
+
+        row += 1;
+        sheet.mergeCells(`A${row}:J${row + 3}`);
+        const footer = sheet.getCell(`A${row}`);
+        const ukModeThisExport = params.classicMarket === 'global' || params.sgMarket === 'global';
+        const classicEquitySrc = params.classicMarket === 'global' ? 'MSCI World (1970-2025)' : 'S&P 500 (1928-2025)';
+        const sgEquitySrc = params.sgMarket === 'global' ? 'MSCI World (1970-2025)' : 'S&P 500 (1928-2025)';
+        const inflationSrc = ukModeThisExport ? 'UK RPI, ONS series CZBH (1970-2025)' : 'US CPI, usinflationcalculator.com (1928-2025)';
+        const cashSrc = ukModeThisExport
+          ? 'UK proxy: Bank of England policy rate 1970-1985 (date-weighted) + OECD UK 3-month interbank rate 1986-2025 (FRED IR3TIB01GBA156N, spans LIBOR then SONIA)'
+          : 'US 3-month T-Bills (1928-2025)';
+        footer.value = 'Data sources -- Classic equities: ' + classicEquitySrc + '. SG equities: ' + sgEquitySrc + '. Bonds (Classic leg, always US regardless of Market toggle -- no free reliable UK gilt series was found): 10-Year US Treasury Bonds (1928-2025). Cash/MM buffer (SG leg): ' + cashSrc + '. Inflation: ' + inflationSrc + '. All US series -- Aswath Damodaran, NYU Stern. UK inflation/cash apply automatically whenever either Market toggle is set to Global.' +
+          '\n\nThis workbook is a personal planning illustration generated from historical data. It is not financial advice, and past performance is not a guide to future returns.';
+        footer.font = { name: XLS_FONT, size: 8, italic: true, color: { argb: XLS.textMuted } };
+        footer.alignment = { wrapText: true, vertical: 'top' };
+
+        sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+      }
+
+      function buildSummarySheet(wb, results, params, tagsByYear) {
+        const headers = [
+          'Start Year', 'Classic Final (£)', 'SG Final (£)', 'Classic Ran Out (Yr)', 'SG Ran Out (Yr)',
+          'Classic Lifetime Spend (£)', 'SG Lifetime Spend (£)', 'Spend Advantage SG (£)',
+          'Classic Worst Year (£)', 'SG Worst Year (£)', 'Classic Hardship Yrs (<80%)', 'SG Hardship Yrs (<80%)',
+          'SG Max Sustainable WD (£/yr)', 'SG Spare Capacity (£/yr)', 'Classic Rank', 'SG Rank',
+        ];
+        const widths = [11, 15, 13, 13, 11, 17, 15, 15, 14, 12, 15, 12, 17, 15, 13, 13];
+        const sheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 5, showGridLines: false }] });
+        sheet.columns = headers.map((h, i) => ({ width: widths[i] }));
+
+        sheet.mergeCells(1, 1, 1, headers.length);
+        const title = sheet.getCell(1, 1);
+        title.value = 'All Cohorts Tested — Summary';
+        title.font = { name: XLS_FONT, size: 15, bold: true, color: { argb: XLS.amber } };
+        fillCell(title, XLS.bgMain);
+        sheet.getRow(1).height = 24;
+
+        const pensionSummaryText = params.pensionStartAge
+          ? `State Pension: £${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; £${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the full horizon)`
+          : 'State Pension: none';
+        sheet.mergeCells(2, 1, 2, headers.length);
+        const paramLine = sheet.getCell(2, 1);
+        paramLine.value = `Starting pot £${Math.round(params.startingPot).toLocaleString()} | Classic ${params.split}/${100-params.split} ${params.classicMarket}, ${params.inflationRule === 'skip' ? 'skips rise after down year' : 'always rises'}, £${Math.round(params.classicWithdrawal).toLocaleString()}/yr | SG ${params.sgMarket}, ${params.bufferMonths}mo buffer, ${params.threshold}, ${params.tickMode}, £${Math.round(params.withdrawal).toLocaleString()}/yr | Age ${params.age}, Horizon ${params.horizon}yrs | ${pensionSummaryText}`;
+        paramLine.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMuted }, italic: true };
+        paramLine.alignment = { wrapText: true };
+        fillCell(paramLine, XLS.bgMain);
+        sheet.getRow(2).height = 30;
+
+        sheet.mergeCells(3, 1, 3, headers.length);
+        const noteLine = sheet.getCell(3, 1);
+        noteLine.value = 'Note: "Final Value" is spare capacity left over (the ability to have spent even more), not a measure of a better retirement on its own. "Lifetime Spend" and "Hardship Years" better reflect what was actually lived through. Rank tags mark the best, median and worst historical cohort for each strategy by lifetime spend delivered (a ruin always ranks worst).';
+        noteLine.font = { name: XLS_FONT, size: 8, color: { argb: XLS.textMuted }, italic: true };
+        noteLine.alignment = { wrapText: true };
+        fillCell(noteLine, XLS.bgMain);
+        sheet.getRow(3).height = 30;
+
+        sheet.getRow(4).height = 3;
+        for (let c = 1; c <= headers.length; c++) fillCell(sheet.getCell(4, c), XLS.border);
+
+        const headerRowIdx = 5;
+        headers.forEach((h, i) => {
+          const cell = sheet.getCell(headerRowIdx, i + 1);
+          cell.value = h;
+          cell.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.textMain } };
+          fillCell(cell, XLS.bgCard);
+          cell.border = fullBorder;
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        });
+        sheet.getRow(headerRowIdx).height = 32;
+        sheet.autoFilter = { from: { row: headerRowIdx, column: 1 }, to: { row: headerRowIdx, column: headers.length } };
+
+        const moneyCols = [2, 3, 6, 7, 8, 9, 10, 13, 14];
+        results.forEach((r, i) => {
+          const rowIdx = headerRowIdx + 1 + i;
+          const zebra = i % 2 === 0 ? XLS.bgMain : XLS.bgZebra;
+          const tags = tagsByYear[r.startYear] || [];
+          const classicTag = tags.find(t => t.indexOf('Classic') === 0);
+          const sgTag = tags.find(t => t.indexOf('SG') === 0);
+          const classicRanOut = r.classicRuinYear !== null;
+          const sgRanOut = r.sgRuinYear !== null;
+
+          const rowVals = [
+            r.startYear, Math.round(r.classicFinal), Math.round(r.sgFinal), r.classicRuinYear || '', r.sgRuinYear || '',
+            Math.round(r.totalClassicSpend), Math.round(r.totalSgSpend), Math.round(r.spendAdvantage),
+            Math.round(r.worstClassic), Math.round(r.worstSg), r.hardshipClassic, r.hardshipSg,
+            r.sgRuinYear !== null ? '' : Math.round(r.maxSustainableWithdrawal),
+            r.sgRuinYear !== null ? '' : Math.round(r.sgSpareCapacity),
+            classicTag ? classicTag.replace('Classic ', '') : '',
+            sgTag ? sgTag.replace('SG ', '') : '',
+          ];
+          rowVals.forEach((v, c) => {
+            const cell = sheet.getCell(rowIdx, c + 1);
+            cell.value = v;
+            cell.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMain } };
+            fillCell(cell, zebra);
+            cell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+          });
+          moneyCols.forEach(c => { sheet.getCell(rowIdx, c).numFmt = '£#,##0'; });
+          [1, 4, 5, 11, 12, 15, 16].forEach(c => { sheet.getCell(rowIdx, c).alignment = { horizontal: 'center' }; });
+
+          // Ran-out flags: dashed red border + bold red text, echoing the dashed
+          // red bar-border the app itself uses to flag a failed cohort on its chart.
+          if (classicRanOut) {
+            const c = sheet.getCell(rowIdx, 4);
+            c.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.red } };
+            c.border = { top: dashedRedBorder, bottom: dashedRedBorder, left: dashedRedBorder, right: dashedRedBorder };
+            sheet.getCell(rowIdx, 2).border = { top: dashedRedBorder, bottom: dashedRedBorder, left: dashedRedBorder, right: dashedRedBorder };
+          }
+          if (sgRanOut) {
+            const c = sheet.getCell(rowIdx, 5);
+            c.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.red } };
+            c.border = { top: dashedRedBorder, bottom: dashedRedBorder, left: dashedRedBorder, right: dashedRedBorder };
+            sheet.getCell(rowIdx, 3).border = { top: dashedRedBorder, bottom: dashedRedBorder, left: dashedRedBorder, right: dashedRedBorder };
+          }
+          if (classicTag) {
+            sheet.getCell(rowIdx, 15).font = { name: XLS_FONT, size: 9, bold: true, color: { argb: classicTag.indexOf('Worst') >= 0 ? XLS.red : classicTag.indexOf('Best') >= 0 ? XLS.amber : XLS.blue } };
+          }
+          if (sgTag) {
+            sheet.getCell(rowIdx, 16).font = { name: XLS_FONT, size: 9, bold: true, color: { argb: sgTag.indexOf('Worst') >= 0 ? XLS.red : sgTag.indexOf('Best') >= 0 ? XLS.green : XLS.blue } };
+          }
+        });
+      }
+
+      function buildLedgerSheet(wb, startYear, params, tagLabel) {
+        let classicPot = params.startingPot;
+        let nominalWithdrawal = params.classicWithdrawal;
+        let cumulativeInflationFactor = 1;
+        let prevYearRealReturnWasNegative = false;
+
+        let state = { E: params.sgE0, C: params.sgC0, ATH: params.startingPot };
+        const baselineTotal = params.startingPot;
+        const targetWR_gk = params.withdrawal / baselineTotal;
+        let consecutivePres = 0;
+
+        const headers = ['Year', 'Age', 'Inflation (CPI) %', 'Classic Equity Return %', 'Bond Return %', 'SG Equity Return %', 'Cash (T-Bill) Return %', 'State Pension (£)', 'Classic Nominal Spend (£)', 'Classic Pot Draw (£, real)', 'Classic Pot (£)', 'SG Nominal Spend (£)', 'SG Guardrail', 'SG Pot Draw (£)', 'SG Drawn From Equities (£)', 'SG Drawn From Cash (£)', 'SG Cash Refill (£)', 'SG Equities (£)', 'SG Cash (£)', 'SG Total (£)'];
+        const rows = [];
+        for (let y = 1; y <= params.horizon; y++) {
+          const year = startYear + y - 1;
+          const age = params.age + y - 1;
+          const pensionThisYear = (params.pensionStartAge && age >= params.pensionStartAge) ? params.pensionAmount : 0;
+
+          // Raw nominal market conditions for this calendar year, purely for
+          // display -- lets the ledger show what the market actually did, not
+          // just the resulting real pot movement.
+          const cpiThisYear = effectiveCpiPct(year);
+          const classicEquityNominal = equityNominalForYear(year, params.classicMarket);
+          const bondNominal = TBOND_NOMINAL_PCT[yearIdx(year)];
+          const sgEquityNominal = equityNominalForYear(year, params.sgMarket);
+          const cashNominal = effectiveCashNominalPct(year);
+
+          const eqRealClassic = equityRealForYear(year, params.classicMarket);
+          const bondReal = bondRealForYear(year);
+          const blended = (params.split/100) * eqRealClassic + (1 - params.split/100) * bondReal;
+          if (y > 1) {
+            const cpiPrevYear = effectiveCpiPct(startYear + y - 2);
+            if (params.inflationRule === 'skip' && prevYearRealReturnWasNegative && cpiPrevYear > 0) {
+              // skip the rise (never skip a deflationary cut)
+            } else {
+              nominalWithdrawal = nominalWithdrawal * (1 + cpiPrevYear / 100);
+            }
+            cumulativeInflationFactor *= (1 + cpiPrevYear / 100);
+          }
+          const classicTargetSpend = nominalWithdrawal / cumulativeInflationFactor;
+          const classicPotDrawTarget = Math.max(0, classicTargetSpend - pensionThisYear);
+          // Cap at what the pot actually holds -- mirrors runClassic4Percent's own
+          // Math.min(neededFromPot, pot) so this duplicate ledger loop can never
+          // report a bigger draw than the pot could actually deliver.
+          const classicPotDraw = Math.min(classicPotDrawTarget, classicPot);
+          classicPot = Math.max(0, classicPot - classicPotDraw);
+          classicPot = classicPot * (1 + blended);
+          prevYearRealReturnWasNegative = blended < 0;
+
+          const eqRealSg = equityRealForYear(year, params.sgMarket);
+          const cashReal = tbillRealForYear(year);
+          let lastGkLabel = '';
+          let sgPotDrawThisYear = 0, sgSpendThisYear = 0, sgFromEquitiesThisYear = 0, sgFromCashThisYear = 0, sgRefillThisYear = 0;
+          if (params.tickMode === 'quarterly') {
+            const qEq = Math.pow(1 + eqRealSg, 0.25) - 1;
+            const qCash = Math.pow(1 + cashReal, 0.25) - 1;
+            const qWithdraw = params.withdrawal / 4;
+            const qPension = pensionThisYear / 4;
+            for (let q = 0; q < 4; q++) {
+              const result = applyPeriod(state, { rEqReal: qEq, rCashReal: qCash, spendGross: qWithdraw, withdrawAnchor: params.withdrawal, threshold: params.threshold, targetCashBuffer: params.sgC0, targetWR_gk, age, graduated: params.graduated, consecutivePres, pensionPerPeriod: qPension });
+              consecutivePres = result.gkLabel.includes('Preservation') ? result.consecutivePres : 0;
+              state = { E: result.E, C: result.C, ATH: result.ATH };
+              lastGkLabel = result.gkLabel;
+              sgPotDrawThisYear += result.potDraw;
+              sgSpendThisYear += result.spend;
+              sgFromEquitiesThisYear += result.fromEquities;
+              sgFromCashThisYear += result.fromCash;
+              sgRefillThisYear += result.refillToCash;
+            }
+          } else {
+            const result = applyPeriod(state, { rEqReal: eqRealSg, rCashReal: cashReal, spendGross: params.withdrawal, withdrawAnchor: params.withdrawal, threshold: params.threshold, targetCashBuffer: params.sgC0, targetWR_gk, age, graduated: params.graduated, consecutivePres, pensionPerPeriod: pensionThisYear });
+            consecutivePres = result.gkLabel.includes('Preservation') ? result.consecutivePres : 0;
+            state = { E: result.E, C: result.C, ATH: result.ATH };
+            lastGkLabel = result.gkLabel;
+            sgPotDrawThisYear = result.potDraw;
+            sgSpendThisYear = result.spend;
+            sgFromEquitiesThisYear = result.fromEquities;
+            sgFromCashThisYear = result.fromCash;
+            sgRefillThisYear = result.refillToCash;
+          }
+          // Same inflation path as the Classic side (shared calendar years) --
+          // shows what SG's actually-delivered real spend this year would look
+          // like in that year's own money, exactly parallel to "Classic Nominal
+          // Spend (£)".
+          const sgNominalSpend = sgSpendThisYear * cumulativeInflationFactor;
+
+          rows.push([
+            year, age,
+            Math.round(cpiThisYear*100)/100, Math.round(classicEquityNominal*100)/100, Math.round(bondNominal*100)/100, Math.round(sgEquityNominal*100)/100, Math.round(cashNominal*100)/100,
+            Math.round(pensionThisYear*100)/100, Math.round(nominalWithdrawal*100)/100, Math.round(classicPotDraw*100)/100, Math.round(classicPot*100)/100,
+            Math.round(sgNominalSpend*100)/100, lastGkLabel, Math.round(sgPotDrawThisYear*100)/100, Math.round(sgFromEquitiesThisYear*100)/100, Math.round(sgFromCashThisYear*100)/100, Math.round(sgRefillThisYear*100)/100,
+            Math.round(state.E*100)/100, Math.round(state.C*100)/100, Math.round((state.E+state.C)*100)/100,
+          ]);
+          if (classicPot <= 0 && state.E + state.C <= 0) break;
+        }
+
+        // Excel tab names are capped at 31 chars -- use a compact "C"/"SG" form
+        // for the tab itself so multi-tag years (e.g. both models' worst cohort
+        // landing on the same year) don't get chopped off mid-word; the full,
+        // readable label still appears in the sheet's own title cell below.
+        const compactTag = tagLabel.split(' \u00b7 ').map(t => t.replace('Classic ', 'C ')).join('+');
+        let safeName = `${startYear} ${compactTag}`.replace(/[:\\\/\?\*\[\]]/g, '-');
+        if (safeName.length > 31) safeName = safeName.slice(0, 31);
+        const sheet = wb.addWorksheet(safeName, { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
+        const widths = [7, 6, 11, 12, 10, 11, 12, 13, 17, 17, 13, 15, 15, 13, 14, 14, 13, 13, 11, 13];
+        sheet.columns = headers.map((h, i) => ({ width: widths[i] }));
+
+        sheet.mergeCells(1, 1, 1, headers.length);
+        const title = sheet.getCell(1, 1);
+        title.value = `Year-by-Year Ledger — Retirement Starting ${startYear} (${tagLabel})`;
+        title.font = { name: XLS_FONT, size: 13, bold: true, color: { argb: XLS.amber } };
+        fillCell(title, XLS.bgMain);
+        sheet.getRow(1).height = 22;
+
+        sheet.mergeCells(2, 1, 2, headers.length);
+        const sub = sheet.getCell(2, 1);
+        sub.value = `Full real (today's-money) year-by-year breakdown for this single historical cohort — ages ${params.age} to ${params.age + params.horizon - 1}, calendar years ${startYear}-${startYear + params.horizon - 1}.`;
+        sub.font = { name: XLS_FONT, size: 9, italic: true, color: { argb: XLS.textMuted } };
+        fillCell(sub, XLS.bgMain);
+        sheet.getRow(2).height = 16;
+
+        const headerRowIdx = 3;
+        headers.forEach((h, i) => {
+          const cell = sheet.getCell(headerRowIdx, i + 1);
+          cell.value = h;
+          cell.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.textMain } };
+          fillCell(cell, XLS.bgCard);
+          cell.border = fullBorder;
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        });
+        sheet.getRow(headerRowIdx).height = 26;
+
+        rows.forEach((rowVals, i) => {
+          const rowIdx = headerRowIdx + 1 + i;
+          const zebra = i % 2 === 0 ? XLS.bgMain : XLS.bgZebra;
+          rowVals.forEach((v, c) => {
+            const cell = sheet.getCell(rowIdx, c + 1);
+            cell.value = v;
+            fillCell(cell, zebra);
+            cell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+            cell.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMain } };
+          });
+          [3, 4, 5, 6, 7].forEach(c => { sheet.getCell(rowIdx, c).numFmt = '0.00"%"'; });
+          [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20].forEach(c => { sheet.getCell(rowIdx, c).numFmt = '£#,##0'; });
+          sheet.getCell(rowIdx, 1).alignment = { horizontal: 'center' };
+          sheet.getCell(rowIdx, 2).alignment = { horizontal: 'center' };
+          // Centre the market-condition columns, and pick out negative years in
+          // red -- an at-a-glance echo of the guardrail colouring, so a bad market
+          // year and the guardrail/pot-draw response to it are easy to line up.
+          [3, 4, 5, 6, 7].forEach(c => {
+            const cell = sheet.getCell(rowIdx, c);
+            cell.alignment = { horizontal: 'center' };
+            if (typeof cell.value === 'number' && cell.value < 0) {
+              cell.font = { name: XLS_FONT, size: 9, color: { argb: XLS.red } };
+            }
+          });
+          const gkCell = sheet.getCell(rowIdx, 13);
+          gkCell.alignment = { horizontal: 'center' };
+          const label = rowVals[12];
+          if (label.indexOf('Preservation') >= 0) gkCell.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.red } };
+          else if (label === 'Prosperity') gkCell.font = { name: XLS_FONT, size: 9, bold: true, color: { argb: XLS.green } };
+          else gkCell.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMuted } };
+        });
+      }
+
+      document.getElementById('downloadBtn').addEventListener('click', async () => {
+        if (!lastResults) return;
+        if (typeof ExcelJS === 'undefined') {
+          alert('The Excel-writing library failed to load (check your internet connection) -- please try again.');
+          return;
+        }
+        const { results, params } = lastResults;
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'Comparison Builder';
+        wb.created = new Date();
+
+        const classicRank = rankCohorts(results, 'classicRuinYear', 'totalClassicSpend', 'classicFinal');
+        const sgRank = rankCohorts(results, 'sgRuinYear', 'totalSgSpend', 'sgFinal');
+
+        const tagsByYear = {};
+        function tag(year, label) { (tagsByYear[year] = tagsByYear[year] || []).push(label); }
+        tag(classicRank.best.startYear, 'Classic Best');
+        tag(classicRank.median.startYear, 'Classic Median');
+        tag(classicRank.worst.startYear, 'Classic Worst');
+        tag(sgRank.best.startYear, 'SG Best');
+        tag(sgRank.median.startYear, 'SG Median');
+        tag(sgRank.worst.startYear, 'SG Worst');
+
+        buildCoverSheet(wb, params, results, classicRank, sgRank);
+        buildSummarySheet(wb, results, params, tagsByYear);
+        Object.keys(tagsByYear).map(Number).sort((a, b) => a - b).forEach(year => {
+          buildLedgerSheet(wb, year, params, tagsByYear[year].join(' · '));
+        });
+
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `4pct_vs_sovereign_glidepath_${params.horizon}yr.xlsx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>

@@ -7,6 +7,13 @@ interface Props {
   athVal: string;
   targetYearly: string;
   growthRate: number;
+  /** Build 112 — was missing; engine silently defaulted it to 1.0%. */
+  cashRealPct?: number;
+  /** Build 112 — Guyton-Klinger Prosperity reference, same value Pane 2 uses. */
+  baselineTotal?: number;
+  pensionAmount?: number;
+  pensionStartAge?: number;
+  pensionIncreasePct?: number;
   age: number;
   cappingAge: number;
   stressPct: number;
@@ -28,6 +35,11 @@ export function AffordCalculator(props: Props) {
     athVal,
     targetYearly,
     growthRate,
+    cashRealPct,
+    baselineTotal,
+    pensionAmount,
+    pensionStartAge,
+    pensionIncreasePct,
     age,
     cappingAge,
     stressPct,
@@ -88,6 +100,11 @@ export function AffordCalculator(props: Props) {
       growthRatePct: growthRate,
       desiredRunwayMonths,
       legacyTarget,
+      cashRealPct,
+      baselineTotal,
+      pensionAmount,
+      pensionStartAge,
+      pensionIncreasePct,
     };
 
 
@@ -125,6 +142,11 @@ export function AffordCalculator(props: Props) {
     stressPct,
     desiredRunwayMonths,
     legacyTarget,
+    cashRealPct,
+    baselineTotal,
+    pensionAmount,
+    pensionStartAge,
+    pensionIncreasePct,
     source,
   ]);
 

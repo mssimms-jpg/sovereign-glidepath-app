@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SovereignGlidepath } from "@/components/sovereign/SovereignGlidepath";
 import { MobileGate } from "@/components/sovereign/MobileGate";
+import { AppLockGate } from "@/components/sovereign/AppLockGate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,9 +26,9 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <>
+    <AppLockGate>
       <SovereignGlidepath />
       <MobileGate />
-    </>
+    </AppLockGate>
   );
 }

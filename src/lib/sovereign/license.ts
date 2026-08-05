@@ -5,10 +5,16 @@
 // bundle, so a determined user can derive keys — that is an accepted trade-off
 // for the v1 trial gate. Durable revocation arrives with online activation.
 //
+// Build 117 — the stored licence record (which contains the registered name or
+// email, i.e. PII) now lives inside the encrypted vault, not plain-text
+// localStorage. The install date stays plain: it is not personal data, and the
+// trial clock must survive/precede unlock.
+//
 // 30-day evaluation clock + 5-entry post-expiry ledger cap. See build-flags.ts
 // for the Windows Store bypass.
 
-const LICENSE_STORAGE = "sgp_license_v2";
+import { LICENSE_STORAGE_KEY, secureRead, secureRemove, secureWrite } from "./secureStore";
+
 const INSTALL_DATE_STORAGE = "sgp_installation_date";
 
 // Internal salt — phase-1 only. Rotate when online activation ships.
@@ -80,7 +86,7 @@ export async function verifyLicense(
 
 export async function loadLicense(): Promise<LicenseState> {
   try {
-    const raw = localStorage.getItem(LICENSE_STORAGE);
+    const raw = secureRead(LICENSE_STORAGE_KEY);
     if (!raw) return { licensed: false, name: null };
     const rec = JSON.parse(raw) as LicenseRecord;
     if (!rec?.name || !rec?.key) return { licensed: false, name: null };
@@ -93,19 +99,11 @@ export async function loadLicense(): Promise<LicenseState> {
 }
 
 export function saveLicense(record: LicenseRecord): void {
-  try {
-    localStorage.setItem(LICENSE_STORAGE, JSON.stringify(record));
-  } catch {
-    /* storage disabled */
-  }
+  secureWrite(LICENSE_STORAGE_KEY, JSON.stringify(record));
 }
 
 export function clearLicense(): void {
-  try {
-    localStorage.removeItem(LICENSE_STORAGE);
-  } catch {
-    /* ignore */
-  }
+  secureRemove(LICENSE_STORAGE_KEY);
 }
 
 /**
