@@ -116,9 +116,10 @@ export function HelpContent() {
           <p style={{ marginTop: "0.75rem" }}>
             Read the <strong>Directive</strong> pane (3) for this quarter's recommendation, click{" "}
             <strong>Commit</strong> — a confirmation dialog appears so you can spot typos before anything is written —
-            then scroll to the <strong>Risk Simulator</strong> (Pane 5) to stress-test the plan against 10,000 possible
+            then launch the <strong>Risk Simulator</strong> from <em>Companion Apps</em> at the foot of Pane 2 to
+            stress-test the plan against 10,000 possible
             futures. Need to record a one-off expense (car, kitchen, gift)? Use the purple <em>Commit Special Event</em>{" "}
-            button in Pane 6 — it deducts from your pots and lowers the ATH automatically so the plan's baseline stays
+            button in Pane 5 — it deducts from your pots and lowers the ATH automatically so the plan's baseline stays
             honest.
           </p>
         </Section>
@@ -138,7 +139,7 @@ export function HelpContent() {
             which lowers the ATH by the exact expense so next quarter doesn't look like a phantom crash.
           </p>
           <p style={{ marginTop: "0.5rem" }}>
-            <strong>Special-Event withdrawals (Pane 6).</strong> Model a one-off expense in the "Can I Afford This?"
+            <strong>Special-Event withdrawals (Pane 5).</strong> Model a one-off expense in the "Can I Afford This?"
             calculator, then commit it as a real ledger entry with a short description. The pots are reduced, the ATH is
             reduced by the same amount, and a purple <code>★ EVENT</code> row appears in the ledger with the date,
             description, and Equities/Cash split. Use it for the car, the kitchen refit, the gift — not for ordinary

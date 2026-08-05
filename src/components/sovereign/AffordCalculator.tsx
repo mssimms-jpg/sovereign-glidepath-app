@@ -182,7 +182,7 @@ export function AffordCalculator(props: Props) {
         }}
       >
         <h2 className="shd-h2" style={{ margin: 0 }}>
-          6. Can I Afford This? — Instant Impact Calculator
+          5. Can I Afford This? — Instant Impact Calculator
         </h2>
         <span className="shd-sub" style={{ fontSize: "0.75rem" }}>
           Model a one-off expense first — then optionally commit it as a Special-Event withdrawal below.

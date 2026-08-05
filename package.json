@@ -1,6 +1,6 @@
 {
   "name": "sovereign-glidepath",
-  "version": "1.0.119",
+  "version": "1.0.120",
   "overrides": {
     "undici": "^8.5.0"
   },

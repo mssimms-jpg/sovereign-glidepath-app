@@ -11,6 +11,21 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 120 — Risk Simulator moves to its own page
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li><strong>The Risk Simulator has left the main scroll.</strong> It now opens as a standalone page at <code>/risk-simulator</code>, launched from a new card in Pane 2's <em>Companion Apps</em> section, seeded with a fresh snapshot of your live Pane 1 figures (pots, age, horizon, gross target, growth rate, cash real return, pension).</li>
+              <li><strong>Panes renumbered:</strong> "Can I Afford This?" is now Pane 5, "Extraordinary Inflow" Pane 6, and the "Historical Timeline Ledger" Pane 7. Every user-facing reference — including the ledger's Special-Event provenance tag and the Quick Start Guide — was updated to match.</li>
+              <li><strong>Confirmed sandbox-only.</strong> Three dead write-back props (pension amount / start age / escalation setters) were removed from the simulator; the pension values remain seed-only, exactly like the growth and cash-return seeds. The stale docstring claiming the panel writes back is gone.</li>
+              <li><strong>Build-084 "Push to Risk Simulator" retired.</strong> With the simulator on its own page always opening from a live snapshot, the one-shot push button on Pane 2's hypothetical stress preview no longer has a target and has been removed.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 119 — Tidy-up: growth rate label in Pane 1
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RiskSimulatorRouteImport } from './routes/risk-simulator'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as IndexRouteImport } from './routes/index'
 
+const RiskSimulatorRoute = RiskSimulatorRouteImport.update({
+  id: '/risk-simulator',
+  path: '/risk-simulator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
@@ -33,34 +39,45 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
+  '/risk-simulator': typeof RiskSimulatorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
+  '/risk-simulator': typeof RiskSimulatorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
+  '/risk-simulator': typeof RiskSimulatorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/changelog' | '/help'
+  fullPaths: '/' | '/changelog' | '/help' | '/risk-simulator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/changelog' | '/help'
-  id: '__root__' | '/' | '/changelog' | '/help'
+  to: '/' | '/changelog' | '/help' | '/risk-simulator'
+  id: '__root__' | '/' | '/changelog' | '/help' | '/risk-simulator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChangelogRoute: typeof ChangelogRoute
   HelpRoute: typeof HelpRoute
+  RiskSimulatorRoute: typeof RiskSimulatorRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/risk-simulator': {
+      id: '/risk-simulator'
+      path: '/risk-simulator'
+      fullPath: '/risk-simulator'
+      preLoaderRoute: typeof RiskSimulatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/help': {
       id: '/help'
       path: '/help'
@@ -89,17 +106,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChangelogRoute: ChangelogRoute,
   HelpRoute: HelpRoute,
+  RiskSimulatorRoute: RiskSimulatorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

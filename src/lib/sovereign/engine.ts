@@ -21,7 +21,7 @@ export interface LedgerEntry {
   // Real-terms legacy / inheritance target held aside from the "Fun Bucket".
   legacyTarget?: number;
   // Special-event marker: a one-off withdrawal (e.g. car purchase) committed
-  // from Pane 6. Carries a plain-text note and an ISO date.
+  // from Pane 5. Carries a plain-text note and an ISO date.
   isSpecialEvent?: boolean;
   eventNote?: string;
   eventDate?: string;

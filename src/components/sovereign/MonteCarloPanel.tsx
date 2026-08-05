@@ -102,7 +102,7 @@ export interface MonteCarloPanelProps {
   cashCapital?: number;
   years: number;
   /**
-   * Build 101 — seed only. Pane 5's Assumed Real Growth Rate slider is fully
+   * Build 101 — seed only. The simulator's Assumed Real Growth Rate slider is fully
    * independent of Pane 1; this prop is used only as the initial value the
    * first time the pane is used (no stored value yet).
    */
@@ -110,28 +110,16 @@ export interface MonteCarloPanelProps {
   /** Build 101 — seed only, same rules as deterministicRatePct. */
   cashRealPct?: number;
   /**
-   * Build 092 — pension is app-wide state owned by the dashboard. When these
-   * are supplied they are the SINGLE SOURCE OF TRUTH; the panel writes back
-   * through the setters so Pane 1/2/3 and the simulator can never drift.
+   * Build 120 — seed only, exactly like deterministicRatePct and cashRealPct.
+   * The panel is a sandbox: it never writes back to the dashboard.
    */
   pensionAmount?: number;
-  onPensionAmountChange?: (v: number) => void;
   pensionStartAge?: number;
-  onPensionStartAgeChange?: (v: number) => void;
   pensionIncreasePct?: number;
-  onPensionIncreasePctChange?: (v: number) => void;
 
   annualWithdrawal?: number;
   currentAge?: number;
   currency?: "£" | "€" | "$";
-  /**
-   * Build 084 — one-shot push from Pane 2's Hypothetical Stress preview.
-   * When `nonce` changes to a new value, the panel force-overwrites its
-   * editable Equities / Cash Pot inputs with the supplied values ONCE and
-   * then behaves independently again. NOT a live sync — subsequent changes
-   * to the stress slider must have no effect on these fields.
-   */
-  pushOverride?: { equities: number; cash: number; nonce: number };
 }
 
 export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
@@ -142,16 +130,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   deterministicRatePct: deterministicRatePctSeed,
   cashRealPct: cashRealPctSeed,
   pensionAmount: pensionAmountProp,
-  onPensionAmountChange,
   pensionStartAge: pensionStartAgeProp,
-  onPensionStartAgeChange,
   pensionIncreasePct: pensionIncreasePctProp,
-  onPensionIncreasePctChange,
 
   annualWithdrawal = 0,
   currentAge = 0,
   currency = "£",
-  pushOverride,
 }) => {
   // Resolve equities & cash. New callers pass equitiesCapital + cashCapital;
   // legacy callers passing only startingCapital are treated as 100% equities.
@@ -329,26 +313,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     return tot > 0 ? (e * deterministicRatePct + c * cashRealPct) / tot : deterministicRatePct;
   })();
 
-  // Build 084 — one-shot push from Pane 2's Hypothetical Stress preview.
-  // Rewrite equitiesStr/cashStr and re-seed the seed refs whenever the parent
-  // hands us a fresh nonce. After this fires the fields behave normally again
-  // — no live link back to the stress slider.
-  const pushNonceRef = React.useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (!pushOverride) return;
-    if (pushNonceRef.current === pushOverride.nonce) return;
-    pushNonceRef.current = pushOverride.nonce;
-    const eq = Math.max(0, pushOverride.equities);
-    const ca = Math.max(0, pushOverride.cash);
-    setEquitiesStr(eq > 0 ? eq.toFixed(2) : "0.00");
-    setCashStr(ca > 0 ? ca.toFixed(2) : "0.00");
-    equitiesSeedRef.current = eq;
-    cashSeedRef.current = ca;
-  }, [pushOverride]);
-
   const simCapital = simEquities + simCash;
 
-  // Pane 5 zoom brush + crosshair tooltip state.
+  // Zoom brush + crosshair tooltip state.
   // zoom = [startYear, endYear] in absolute year-indices into bands[].
   const [zoom, setZoom] = useState<[number, number]>([0, 9999]);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -843,7 +810,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     return (
       <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
         <h2 className="shd-h2" onDoubleClick={() => setAuditMode((v) => !v)} title="Double-click to toggle Audit Mode">
-          5. Risk Simulator — Monte Carlo Fan Chart
+          Risk Simulator — Monte Carlo Fan Chart
         </h2>
         <div style={{ color: "var(--text-muted)", padding: "1rem 0" }}>
           Add a ledger entry with capital to run the simulation.
@@ -1084,7 +1051,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           onDoubleClick={() => setAuditMode((v) => !v)}
           title="Double-click to toggle Audit Mode (deterministic sample path)"
         >
-          5. Risk Simulator — Monte Carlo Fan Chart
+          Risk Simulator — Monte Carlo Fan Chart
         </h2>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button

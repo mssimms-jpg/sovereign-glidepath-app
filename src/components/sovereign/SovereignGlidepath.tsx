@@ -35,7 +35,6 @@ import {
 } from "@/lib/sovereign/secureStore";
 import sgLogoUrl from "@/assets/sg-logo.svg?url";
 import "./desk.css";
-import { MonteCarloPanel } from "./MonteCarloPanel";
 import { AffordCalculator } from "./AffordCalculator";
 import { StateTestPresets, type PresetValues } from "./StateTestPresets";
 import { exportLedgerCSV, localTimestamp } from "@/lib/sovereign/csvExport";
@@ -75,7 +74,7 @@ function ExtraordinaryInflowPane({
   const amt = cleanNum(amtStr);
   return (
     <div className="shd-card">
-      <h2 className="shd-h2">7. Extraordinary Inflow — Windfall / Property Sale / Inheritance</h2>
+      <h2 className="shd-h2">6. Extraordinary Inflow — Windfall / Property Sale / Inheritance</h2>
       <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.85rem" }}>
         Log a one-off lump sum landing in your accounts. This immediately increases the chosen pot and re-anchors the
         Stored ATH Baseline so future Guyton-Klinger guardrails treat it as a new permanent peak. A purple ★ EVENT row
@@ -772,15 +771,12 @@ export function SovereignGlidepath() {
   const [growthRate, setGrowthRate] = useState(4);
   const [desiredRunwayMonths, setDesiredRunwayMonths] = useState(36);
   const [stressPct, setStressPct] = useState(0);
-  // Build 084 — one-shot push signal for the Pane 5 Risk Simulator. Bump
-  // `nonce` when the user clicks "Push to Risk Simulator" in the Pane 2
-  // Hypothetical preview; MonteCarloPanel forcibly re-seeds its editable
-  // Equities / Cash fields to `values` exactly once, and then remains
-  // independent (no live link back to `stressPct`).
-  const [rsPush, setRsPush] = useState<{ equities: number; cash: number; nonce: number } | undefined>(undefined);
+  // Build 120 — the Build-084 "push to Risk Simulator" one-shot signal is gone.
+  // The simulator now opens as its own page seeded from a fresh live snapshot.
+
   const [currency, setCurrency] = useState<CurrencySymbol>("£");
   const [legacyTarget, setLegacyTarget] = useState<number>(0);
-  // Cash Pot real return — lifted from the Risk Simulator so Pane 1 and Pane 5
+  // Cash Pot real return — lifted from the Risk Simulator so Pane 1 and the simulator
   // share the same slider (and the Fun Bucket / Amortization Matrix now
   // reflects cash drag identically to the simulator).
   const [cashRealPct, setCashRealPct] = useState<number>(1);
@@ -1483,7 +1479,7 @@ export function SovereignGlidepath() {
     showToast("Entry Committed");
   };
 
-  // Commit a Special-Event withdrawal from Pane 6. Reduces both pots by the
+  // Commit a Special-Event withdrawal from Pane 5. Reduces both pots by the
   // supplied split, reduces ATH by the total expense (so the plan's peak
   // baseline reflects the drawdown), and creates a flagged ledger entry.
   const commitSpecialEvent = (opts: { description: string; fromEq: number; fromCash: number }): string | null => {
@@ -3128,14 +3124,14 @@ export function SovereignGlidepath() {
                   </div>
                   <div className="shd-sub" style={{ marginTop: "0.35rem" }}>
                     {calc.pensionActive
-                      ? "Pension is netted off automatically — the values below drive this pane and the Risk Simulator (Pane 5)."
+                      ? "Pension is netted off automatically — the values below drive this pane and the Risk Simulator."
                       : pensionAmount > 0
                         ? `Pension of ${formatGBP(pensionAmount)}/yr starts at age ${pensionStartAge} — until then the full gross target is funded from the pot.`
                         : "No pension set. Add one below and it will be netted off this target automatically once it starts."}
                   </div>
 
                   {/* Build 099 — pension inputs live here (Pane 1) as the single
-                      real, app-wide source. Pane 5 reads these live, or can run
+                      real, app-wide source. The Risk Simulator reads these live, or can run
                       its own hypothetical without ever writing back. */}
                   <div
                     style={{
@@ -3218,7 +3214,7 @@ export function SovereignGlidepath() {
                         fontStyle: "italic",
                       }}
                     >
-                      Growth above inflation (0% = tracks CPI exactly). These are your real figures — Pane 5 reads them
+                      Growth above inflation (0% = tracks CPI exactly). These are your real figures — the Risk Simulator reads them
                       live unless you switch it to Hypothetical.
                     </div>
                   </div>
@@ -3662,15 +3658,11 @@ export function SovereignGlidepath() {
                 />
                 {/* Build 084 — hypothetical preview now runs the SAME
                     pipeline (defensiveRec → bucketOverride → generateDirectives)
-                    as the real Pane 3, so the narrative-state classification,
-                    Fun Bucket figure, and "Sell £X from …" wording are all
-                    genuine re-evaluations under the hypothetical inputs, not
-                    £-figure recalcs pinned to today's real state label. All
-                    strictly local to this box — no writeback to real state.
-                    A one-click "Push to Risk Simulator" button copies the
-                    hypothetical Equities / Cash into Pane 5 exactly once
-                    (via a nonce-signalled prop) — subsequent slider moves
-                    have no further effect on Pane 5. */}
+                    as the real Pane 3, so the narrative-state classification and
+                    Fun Bucket figure are genuine re-evaluations under the
+                    hypothetical inputs. All strictly local to this box — no
+                    writeback to real state. */}
+
                 {stressPreview &&
                   (() => {
                     const { hypEq, hypCalc, hypRec, hypDirective, hypBucket } = stressPreview;
@@ -3679,7 +3671,7 @@ export function SovereignGlidepath() {
                     const stateChanged = realState !== hypState;
                     const realBucketLabel = directiveBucket === "cash" ? "Cash Pot" : "Global Equities";
                     const hypBucketLabel = hypBucket === "cash" ? "Cash Pot" : "Global Equities";
-                    const hypCashUnchanged = cleanNum(mmVal);
+
                     return (
                       <div
                         style={{
@@ -3770,33 +3762,18 @@ export function SovereignGlidepath() {
                             </ul>
                           </div>
                         )}
-                        <div style={{ marginTop: "0.6rem" }}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setRsPush({
-                                equities: hypEq,
-                                cash: hypCashUnchanged,
-                                nonce: Date.now(),
-                              })
-                            }
-                            style={{ fontSize: "0.78rem" }}
-                            title="One-time copy of the hypothetical Equities and current Cash Pot into the Risk Simulator's editable fields. After the copy, Pane 5 is independent again — moving this slider won't affect it further."
-                          >
-                            Push to Risk Simulator
-                          </button>
-                        </div>
                         <div
                           style={{
-                            marginTop: "0.4rem",
+                            marginTop: "0.6rem",
                             color: "var(--text-muted)",
                             fontStyle: "italic",
                             fontSize: "0.72rem",
                           }}
                         >
                           Preview only — Pane 1's real values, Pane 3's directive, and every committed calculation still
-                          use the unstressed baseline. The push button is a one-time copy, not a live link.
+                          use the unstressed baseline.
                         </div>
+
                       </div>
                     );
                   })()}
@@ -3863,6 +3840,50 @@ export function SovereignGlidepath() {
                       this app. Opens with your live Pane 1 figures already filled in.
                     </div>
                   </div>
+
+                  <div
+                    style={{
+                      padding: "0.9rem",
+                      background: "var(--bg-main)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "0.5rem",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          eq: String(Math.round(cleanNum(equityVal))),
+                          cash: String(Math.round(cleanNum(mmVal))),
+                          age: String(age),
+                          horizon: String(cappingAge - age),
+                          withdrawal: String(Math.round(calc.grossTargetYearly)),
+                          growth: String(growthRate),
+                          cashReal: String(cashRealPct),
+                        });
+                        const pen = cleanNum(pensionAmountStr);
+                        if (pen > 0) {
+                          params.set("pensionAge", String(pensionStartAge));
+                          params.set("pensionAmount", String(Math.round(pen)));
+                        }
+                        window.open(`/risk-simulator?${params.toString()}`, "_blank", "noopener");
+                      }}
+                    >
+                      🎲 Risk Simulator (Monte Carlo)
+                    </button>
+                    <div
+                      style={{
+                        marginTop: "0.55rem",
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Stress-tests your plan across 10,000 possible market paths and plots the fan chart of outcomes.
+                      Opens in its own tab as a sandbox, seeded from your live Pane 1 figures — nothing you change there
+                      writes back.
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -4158,24 +4179,9 @@ export function SovereignGlidepath() {
             </div>
           </div>
 
-          {/* Monte Carlo Risk Simulator */}
-          <MonteCarloPanel
-            equitiesCapital={Number(ledger[0]?.equities) || cleanNum(equityVal)}
-            cashCapital={Number(ledger[0]?.mmFund) || cleanNum(mmVal)}
-            years={Math.max(1, cappingAge - age)}
-            deterministicRatePct={growthRate}
-            cashRealPct={cashRealPct}
-            pensionAmount={pensionAmount}
-            onPensionAmountChange={setPensionAmount}
-            pensionStartAge={pensionStartAge}
-            onPensionStartAgeChange={setPensionStartAge}
-            pensionIncreasePct={pensionIncreasePct}
-            onPensionIncreasePctChange={setPensionIncreasePct}
-            annualWithdrawal={cleanNum(targetYearly)}
-            currentAge={age}
-            currency={currency}
-            pushOverride={rsPush}
-          />
+          {/* Build 120 — the Risk Simulator now lives on its own /risk-simulator
+              route, launched from Pane 2's Companion Apps section. */}
+
 
           {/* Can I Afford This? — Instant Impact Calculator */}
           <AffordCalculator
@@ -4219,7 +4225,7 @@ export function SovereignGlidepath() {
               }}
             >
               <h2 className="shd-h2" style={{ margin: 0 }}>
-                8. Historical Timeline Ledger
+                7. Historical Timeline Ledger
               </h2>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                 <button
@@ -4332,7 +4338,7 @@ export function SovereignGlidepath() {
                                   title={
                                     d.isInflowEvent
                                       ? "Extraordinary inflow — one-off addition and ATH re-anchor"
-                                      : "One-off special-event withdrawal recorded from Pane 6"
+                                      : "One-off special-event withdrawal recorded from Pane 5"
                                   }
                                 >
                                   {d.isInflowEvent ? "★ Event: Inflow" : "★ Event: Outflow"}
