@@ -833,7 +833,7 @@
         }
 
         lastResults = { results, trajectories, params: { startingEquities, startingCash, startingPot, withdrawal, classicWithdrawal, age, horizon, split, classicMarket, sgMarket, bufferMonths, threshold, sgE0, sgC0, inflationRule, tickMode, graduated, pensionStartAge, pensionAmount, pensionLifetimeTotal } };
-        renderResults(lastResults);
+        renderResults(lastResults, isInitialLoad);
       }
       document.getElementById('runBtn').addEventListener('click', () => runComparison());
 
@@ -881,7 +881,7 @@
 
       function fmtGBP(n) { return '£' + Math.round(n).toLocaleString(); }
 
-      function renderResults({ results, trajectories, params }) {
+      function renderResults({ results, trajectories, params }, isInitialLoad) {
         const n = results.length;
         const classicRuins = results.filter(r => r.classicRuinYear !== null).length;
         const sgRuins = results.filter(r => r.sgRuinYear !== null).length;
