@@ -34,11 +34,11 @@
       .sg-nav-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
       .sg-nav-btn {
         display: inline-flex; align-items: center; gap: 0.45rem;
-        background-color: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main);
+        background-color: var(--accent-blue); border: none; color: #fff;
         padding: 0.55rem 1.1rem; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
         cursor: pointer; text-decoration: none; transition: all 0.15s;
       }
-      .sg-nav-btn:hover { border-color: var(--accent-blue); background-color: var(--bg-card); }
+      .sg-nav-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
       .sg-nav-btn .ic { font-size: 0.95rem; line-height: 1; }
       h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
       .subtitle { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
@@ -54,6 +54,12 @@
         color: var(--text-main); padding: 0.5rem 0.65rem; border-radius: 6px; font-size: 0.95rem;
       }
       .field input:focus { outline: 2px solid var(--accent-blue); }
+      .money-input-wrap { position: relative; }
+      .money-input-wrap .money-prefix {
+        position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%);
+        color: var(--text-muted); font-size: 0.95rem; pointer-events: none;
+      }
+      .money-input-wrap input[type=number] { padding-left: 1.5rem; }
       .toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
       .toggle-btn {
         background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main);
@@ -112,10 +118,16 @@
         </p>
         <div class="grid">
           <div class="field">
-            <label>Global Equities Pot (£)</label><input type="number" id="inEquities" value="630000" step="1000" />
+            <label>Global Equities Pot (<span class="cur-symbol">£</span>)</label>
+            <div class="money-input-wrap">
+              <span class="money-prefix cur-symbol">£</span><input type="number" id="inEquities" value="630000" step="1000" />
+            </div>
           </div>
           <div class="field">
-            <label>Cash Pot (£)</label><input type="number" id="inCash" value="100000" step="1000" />
+            <label>Cash Pot (<span class="cur-symbol">£</span>)</label>
+            <div class="money-input-wrap">
+              <span class="money-prefix cur-symbol">£</span><input type="number" id="inCash" value="100000" step="1000" />
+            </div>
           </div>
           <div class="field">
             <label>Starting Age</label><input type="number" id="inAge" value="64" min="40" max="90" />
@@ -126,15 +138,20 @@
         </div>
         <div class="grid" style="margin-top:1rem;">
           <div class="field">
-            <label>Classic 4% Rule Withdrawal (£)</label>
-            <input type="number" id="inClassicWithdrawal" value="29200" step="100" />
+            <label>Classic 4% Rule Withdrawal (<span class="cur-symbol">£</span>)</label>
+            <div class="money-input-wrap">
+              <span class="money-prefix cur-symbol">£</span
+              ><input type="number" id="inClassicWithdrawal" value="29200" step="100" />
+            </div>
             <p class="note" id="classicWithdrawalNote" style="margin-top:0.3rem;">
               Auto-fills to 4% of the total pot — edit if you want to test a different baseline rate.
             </p>
           </div>
           <div class="field">
-            <label>SG Target Annual Withdrawal (£)</label>
-            <input type="number" id="inWithdrawal" value="40000" step="500" />
+            <label>SG Target Annual Withdrawal (<span class="cur-symbol">£</span>)</label>
+            <div class="money-input-wrap">
+              <span class="money-prefix cur-symbol">£</span><input type="number" id="inWithdrawal" value="40000" step="500" />
+            </div>
             <p class="note" id="sgVsClassicNote" style="margin-top:0.3rem;"></p>
           </div>
         </div>
@@ -147,8 +164,10 @@
             </p>
           </div>
           <div class="field">
-            <label>State Pension Amount (£/yr, today's money)</label>
-            <input type="number" id="inPensionAmount" value="11500" step="100" />
+            <label>State Pension Amount (<span class="cur-symbol">£</span>/yr, today's money)</label>
+            <div class="money-input-wrap">
+              <span class="money-prefix cur-symbol">£</span><input type="number" id="inPensionAmount" value="11500" step="100" />
+            </div>
             <p class="note" id="pensionEffectNote" style="margin-top:0.3rem;"></p>
           </div>
         </div>
@@ -293,6 +312,26 @@
     </div>
 
     <script>
+      // Currency symbol (£/€/$) — set from the ?currency= query param when
+      // launched from Sovereign Glidepath's Companion Apps section, so this
+      // tool matches whatever currency is selected on the live Pane 1.
+      // Defaults to £ when opened directly or with no/invalid currency param.
+      // Read synchronously here (not inside prefillFromPane1 below) so it
+      // applies even if the tool is opened with only a currency param and no
+      // plan figures. syncCurrencySymbols() (defined further down, called at
+      // the end of this block) pushes it out to every label/prefix in the DOM.
+      let CURRENCY = '£';
+      (function initCurrency() {
+        const c = new URLSearchParams(window.location.search).get('currency');
+        if (c === '£' || c === '€' || c === '$') CURRENCY = c;
+        // Script runs at end of <body>, so the DOM (including every
+        // .cur-symbol label/prefix span, all hardcoded as '£' in the markup)
+        // already exists -- push the resolved symbol out to them now.
+        if (CURRENCY !== '£') {
+          document.querySelectorAll('.cur-symbol').forEach(el => { el.textContent = CURRENCY; });
+        }
+      })();
+
       // =====================================================================
       // EMBEDDED HISTORICAL DATA (real, sourced, verified against the live app
       // and cross-checked earlier this session)
@@ -723,7 +762,7 @@
         if (classicW <= 0) { document.getElementById('sgVsClassicNote').textContent = ''; return; }
         const pct = (sgW / classicW) * 100;
         const diff = sgW - classicW;
-        const diffLabel = diff >= 0 ? `+£${Math.round(diff).toLocaleString()} above` : `£${Math.round(Math.abs(diff)).toLocaleString()} below`;
+        const diffLabel = diff >= 0 ? `+${CURRENCY}${Math.round(diff).toLocaleString()} above` : `${CURRENCY}${Math.round(Math.abs(diff)).toLocaleString()} below`;
         document.getElementById('sgVsClassicNote').textContent = `${pct.toFixed(0)}% of the Classic 4% baseline (${diffLabel} it).`;
       }
       document.getElementById('inWithdrawal').addEventListener('input', updateSgVsClassicNote);
@@ -756,7 +795,7 @@
       document.getElementById('inflationRuleToggle').addEventListener('click', () => {
         const val = getToggleVal('inflationRuleToggle');
         document.getElementById('inflationRuleNote').textContent = val === 'skip'
-          ? "Modified rule: if the portfolio had a negative real return last year, this year's withdrawal stays the same £ amount (no CPI rise) -- a small, one-condition simplification of Bengen's original 'Inflation Rule', without abandoning the classic rule's fixed-dollar spirit."
+          ? `Modified rule: if the portfolio had a negative real return last year, this year's withdrawal stays the same ${CURRENCY} amount (no CPI rise) -- a small, one-condition simplification of Bengen's original 'Inflation Rule', without abandoning the classic rule's fixed-dollar spirit.`
           : "Standard Bengen rule: withdrawal escalates with CPI every year, regardless of performance.";
       });
       document.getElementById('depthToggle').addEventListener('click', () => {
@@ -879,7 +918,11 @@
       // user on the results card instead of the top of the page.
       runComparison(true);
 
-      function fmtGBP(n) { return '£' + Math.round(n).toLocaleString(); }
+      // Name kept as fmtGBP for minimal diff footprint (18 call sites) even
+      // though it's now currency-aware — reads the module-level CURRENCY set
+      // near the top of this script, same pattern as engine.ts's
+      // formatGBP()/CURRENCY_SYMBOL in the main app.
+      function fmtGBP(n) { return CURRENCY + Math.round(n).toLocaleString(); }
 
       function renderResults({ results, trajectories, params }, isInitialLoad) {
         const n = results.length;
@@ -930,7 +973,7 @@
           ${params.pensionStartAge ? `
           <p class="note" style="grid-column:1/-1; margin:1rem 0 0.25rem; font-weight:700; color:var(--text-main); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.04em;">State pension impact — same for every cohort, since it only depends on age, not market history</p>
           <div class="stat-box"><div class="label">Pension Starts At Age</div><div class="value">${params.pensionStartAge}</div></div>
-          <div class="stat-box"><div class="label">Pension Amount (today's £, rises with inflation)</div><div class="value">${fmtGBP(params.pensionAmount)}/yr</div></div>
+          <div class="stat-box"><div class="label">Pension Amount (today's ${CURRENCY}, rises with inflation)</div><div class="value">${fmtGBP(params.pensionAmount)}/yr</div></div>
           <div class="stat-box"><div class="label">Total Received Over Full ${params.horizon}-Year Horizon</div><div class="value">${fmtGBP(params.pensionLifetimeTotal)}</div></div>
           ` : ''}
         `;
@@ -940,7 +983,7 @@
         currentTrajectories = trajectories;
         const earliestYear = results[0].startYear;
         drawChart(results, earliestYear);
-        document.getElementById('chartLegend').innerHTML = `<span style="color:var(--accent-amber);">■</span> Classic 4% Rule &nbsp; <span style="color:var(--accent-green);">■</span> Sovereign Glidepath &nbsp;— total real £ actually spent over the full retirement, by start year (not final pot value). A dashed red border means that strategy ran out of money in that cohort; click the bar to see exactly when. Click a bar to inspect its year-by-year spend trajectory below.`;
+        document.getElementById('chartLegend').innerHTML = `<span style="color:var(--accent-amber);">■</span> Classic 4% Rule &nbsp; <span style="color:var(--accent-green);">■</span> Sovereign Glidepath &nbsp;— total real ${CURRENCY} actually spent over the full retirement, by start year (not final pot value). A dashed red border means that strategy ran out of money in that cohort; click the bar to see exactly when. Click a bar to inspect its year-by-year spend trajectory below.`;
 
         // Default the trajectory chart to the EARLIEST cohort -- a neutral,
         // always-available starting point. Clicking any bar above switches it.
@@ -1040,16 +1083,16 @@
         // is identical for classicPt and sgPt -- only the pot draw split differs.
         const pensionAmt = (classicPt && classicPt.pension) || (sgPt && sgPt.pension) || 0;
         const pensionLine = pensionAmt > 0
-          ? `<div style="color:var(--text-muted); margin-bottom:4px;">State pension in payment: <b style="color:var(--text-main);">£${Math.round(pensionAmt).toLocaleString()}/yr</b></div>`
+          ? `<div style="color:var(--text-muted); margin-bottom:4px;">State pension in payment: <b style="color:var(--text-main);">${CURRENCY}${Math.round(pensionAmt).toLocaleString()}/yr</b></div>`
           : '';
         function spendLine(pt, color, name) {
           if (!pt) return `<div style="color:${color};">${name}: (ended)</div>`;
           const total = Math.round(pt.realSpend).toLocaleString();
           if (pt.pension > 0) {
             const draw = Math.round(pt.potDraw).toLocaleString();
-            return `<div style="color:${color};">${name}: £${total} total <span style="color:var(--text-muted);">(£${draw} from the pot)</span></div>`;
+            return `<div style="color:${color};">${name}: ${CURRENCY}${total} total <span style="color:var(--text-muted);">(${CURRENCY}${draw} from the pot)</span></div>`;
           }
-          return `<div style="color:${color};">${name}: £${total}</div>`;
+          return `<div style="color:${color};">${name}: ${CURRENCY}${total}</div>`;
         }
 
         spendTooltip.innerHTML = `
@@ -1057,7 +1100,7 @@
           ${pensionLine}
           ${spendLine(classicPt, '#f59e0b', 'Classic 4% Rule')}
           ${spendLine(sgPt, '#10b981', 'Sovereign Glidepath')}
-          <div style="margin-top:4px; padding-top:4px; border-top:1px solid var(--border-color); color:var(--text-muted);">Cumulative to year ${yearIntoRetirement}: <b style="color:var(--text-main);">${diffLabel} £${Math.round(Math.abs(runningDiff)).toLocaleString()}</b></div>
+          <div style="margin-top:4px; padding-top:4px; border-top:1px solid var(--border-color); color:var(--text-muted);">Cumulative to year ${yearIntoRetirement}: <b style="color:var(--text-main);">${diffLabel} ${CURRENCY}${Math.round(Math.abs(runningDiff)).toLocaleString()}</b></div>
         `;
         spendTooltip.style.display = 'block';
         spendTooltip.style.left = (e.clientX + 14) + 'px';
@@ -1267,13 +1310,13 @@
         sectionHeader.font = { name: XLS_FONT, size: 11, bold: true, color: { argb: XLS.amber } };
 
         const pensionLine = params.pensionStartAge
-          ? `£${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; £${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the horizon)`
+          ? `${CURRENCY}${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; ${CURRENCY}${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the horizon)`
           : 'Not configured -- both models draw their full target from the pot(s)';
         const boxes = [
-          ['Starting Pot', `£${Math.round(params.startingPot).toLocaleString()}  (Equities £${Math.round(params.startingEquities).toLocaleString()} / Cash £${Math.round(params.startingCash).toLocaleString()})`, null],
+          ['Starting Pot', `${CURRENCY}${Math.round(params.startingPot).toLocaleString()}  (Equities ${CURRENCY}${Math.round(params.startingEquities).toLocaleString()} / Cash ${CURRENCY}${Math.round(params.startingCash).toLocaleString()})`, null],
           ['Starting Age & Horizon', `Age ${params.age}, for ${params.horizon} years (to age ${params.age + params.horizon})`, null],
-          ['Classic 4% Rule', `£${Math.round(params.classicWithdrawal).toLocaleString()}/yr  ·  ${params.split}/${100-params.split} split  ·  ${params.classicMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.inflationRule === 'skip' ? 'Skips rise after a down year' : 'Always rises with inflation'}`, XLS.amber],
-          ['Sovereign Glidepath', `£${Math.round(params.withdrawal).toLocaleString()}/yr  ·  ${params.sgMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.bufferMonths}mo cash buffer  ·  ${params.threshold} threshold  ·  ${params.tickMode} tick  ·  ${params.graduated ? 'Graduated' : 'Flat'} -10% guardrail`, XLS.green],
+          ['Classic 4% Rule', `${CURRENCY}${Math.round(params.classicWithdrawal).toLocaleString()}/yr  ·  ${params.split}/${100-params.split} split  ·  ${params.classicMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.inflationRule === 'skip' ? 'Skips rise after a down year' : 'Always rises with inflation'}`, XLS.amber],
+          ['Sovereign Glidepath', `${CURRENCY}${Math.round(params.withdrawal).toLocaleString()}/yr  ·  ${params.sgMarket === 'global' ? 'Global (MSCI World)' : 'US Only (S&P 500)'}  ·  ${params.bufferMonths}mo cash buffer  ·  ${params.threshold} threshold  ·  ${params.tickMode} tick  ·  ${params.graduated ? 'Graduated' : 'Flat'} -10% guardrail`, XLS.green],
           ['State Pension', pensionLine, null],
           ['Cohorts Tested', `${results.length} rolling ${params.horizon}-year retirements, starting years ${results[0].startYear}–${results[results.length-1].startYear}`, null],
         ];
@@ -1308,7 +1351,7 @@
           // is identical across every surviving cohort under "always rises with
           // inflation" (a fixed real withdrawal every year, market returns aside)
           // -- final value is what actually distinguishes best/median/worst then.
-          return `${r.startYear} — £${Math.round(r[spendKey]).toLocaleString()} total lifetime spend delivered (final value £${Math.round(r[finalKey]).toLocaleString()})`;
+          return `${r.startYear} — ${CURRENCY}${Math.round(r[spendKey]).toLocaleString()} total lifetime spend delivered (final value ${CURRENCY}${Math.round(r[finalKey]).toLocaleString()})`;
         }
         const headlineRows = [
           ['Classic 4% Rule', 'Best', cohortLine(classicRank.best, 'totalClassicSpend'), XLS.amber],
@@ -1355,10 +1398,10 @@
 
       function buildSummarySheet(wb, results, params, tagsByYear) {
         const headers = [
-          'Start Year', 'Classic Final (£)', 'SG Final (£)', 'Classic Ran Out (Yr)', 'SG Ran Out (Yr)',
-          'Classic Lifetime Spend (£)', 'SG Lifetime Spend (£)', 'Spend Advantage SG (£)',
-          'Classic Worst Year (£)', 'SG Worst Year (£)', 'Classic Hardship Yrs (<80%)', 'SG Hardship Yrs (<80%)',
-          'SG Max Sustainable WD (£/yr)', 'SG Spare Capacity (£/yr)', 'Classic Rank', 'SG Rank',
+          'Start Year', `Classic Final (${CURRENCY})`, `SG Final (${CURRENCY})`, 'Classic Ran Out (Yr)', 'SG Ran Out (Yr)',
+          `Classic Lifetime Spend (${CURRENCY})`, `SG Lifetime Spend (${CURRENCY})`, `Spend Advantage SG (${CURRENCY})`,
+          `Classic Worst Year (${CURRENCY})`, `SG Worst Year (${CURRENCY})`, 'Classic Hardship Yrs (<80%)', 'SG Hardship Yrs (<80%)',
+          `SG Max Sustainable WD (${CURRENCY}/yr)`, `SG Spare Capacity (${CURRENCY}/yr)`, 'Classic Rank', 'SG Rank',
         ];
         const widths = [11, 15, 13, 13, 11, 17, 15, 15, 14, 12, 15, 12, 17, 15, 13, 13];
         const sheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 5, showGridLines: false }] });
@@ -1372,11 +1415,11 @@
         sheet.getRow(1).height = 24;
 
         const pensionSummaryText = params.pensionStartAge
-          ? `State Pension: £${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; £${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the full horizon)`
+          ? `State Pension: ${CURRENCY}${Math.round(params.pensionAmount).toLocaleString()}/yr from age ${params.pensionStartAge} (rises with inflation; ${CURRENCY}${Math.round(params.pensionLifetimeTotal).toLocaleString()} total over the full horizon)`
           : 'State Pension: none';
         sheet.mergeCells(2, 1, 2, headers.length);
         const paramLine = sheet.getCell(2, 1);
-        paramLine.value = `Starting pot £${Math.round(params.startingPot).toLocaleString()} | Classic ${params.split}/${100-params.split} ${params.classicMarket}, ${params.inflationRule === 'skip' ? 'skips rise after down year' : 'always rises'}, £${Math.round(params.classicWithdrawal).toLocaleString()}/yr | SG ${params.sgMarket}, ${params.bufferMonths}mo buffer, ${params.threshold}, ${params.tickMode}, £${Math.round(params.withdrawal).toLocaleString()}/yr | Age ${params.age}, Horizon ${params.horizon}yrs | ${pensionSummaryText}`;
+        paramLine.value = `Starting pot ${CURRENCY}${Math.round(params.startingPot).toLocaleString()} | Classic ${params.split}/${100-params.split} ${params.classicMarket}, ${params.inflationRule === 'skip' ? 'skips rise after down year' : 'always rises'}, ${CURRENCY}${Math.round(params.classicWithdrawal).toLocaleString()}/yr | SG ${params.sgMarket}, ${params.bufferMonths}mo buffer, ${params.threshold}, ${params.tickMode}, ${CURRENCY}${Math.round(params.withdrawal).toLocaleString()}/yr | Age ${params.age}, Horizon ${params.horizon}yrs | ${pensionSummaryText}`;
         paramLine.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMuted }, italic: true };
         paramLine.alignment = { wrapText: true };
         fillCell(paramLine, XLS.bgMain);
@@ -1431,7 +1474,7 @@
             fillCell(cell, zebra);
             cell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
           });
-          moneyCols.forEach(c => { sheet.getCell(rowIdx, c).numFmt = '£#,##0'; });
+          moneyCols.forEach(c => { sheet.getCell(rowIdx, c).numFmt = `"${CURRENCY}"#,##0`; });
           [1, 4, 5, 11, 12, 15, 16].forEach(c => { sheet.getCell(rowIdx, c).alignment = { horizontal: 'center' }; });
 
           // Ran-out flags: dashed red border + bold red text, echoing the dashed
@@ -1468,7 +1511,7 @@
         const targetWR_gk = params.withdrawal / baselineTotal;
         let consecutivePres = 0;
 
-        const headers = ['Year', 'Age', 'Inflation (CPI) %', 'Classic Equity Return %', 'Bond Return %', 'SG Equity Return %', 'Cash (T-Bill) Return %', 'State Pension (£)', 'Classic Nominal Spend (£)', 'Classic Pot Draw (£, real)', 'Classic Pot (£)', 'SG Nominal Spend (£)', 'SG Guardrail', 'SG Pot Draw (£)', 'SG Drawn From Equities (£)', 'SG Drawn From Cash (£)', 'SG Cash Refill (£)', 'SG Equities (£)', 'SG Cash (£)', 'SG Total (£)'];
+        const headers = ['Year', 'Age', 'Inflation (CPI) %', 'Classic Equity Return %', 'Bond Return %', 'SG Equity Return %', 'Cash (T-Bill) Return %', `State Pension (${CURRENCY})`, `Classic Nominal Spend (${CURRENCY})`, `Classic Pot Draw (${CURRENCY}, real)`, `Classic Pot (${CURRENCY})`, `SG Nominal Spend (${CURRENCY})`, 'SG Guardrail', `SG Pot Draw (${CURRENCY})`, `SG Drawn From Equities (${CURRENCY})`, `SG Drawn From Cash (${CURRENCY})`, `SG Cash Refill (${CURRENCY})`, `SG Equities (${CURRENCY})`, `SG Cash (${CURRENCY})`, `SG Total (${CURRENCY})`];
         const rows = [];
         for (let y = 1; y <= params.horizon; y++) {
           const year = startYear + y - 1;
@@ -1600,7 +1643,7 @@
             cell.font = { name: XLS_FONT, size: 9, color: { argb: XLS.textMain } };
           });
           [3, 4, 5, 6, 7].forEach(c => { sheet.getCell(rowIdx, c).numFmt = '0.00"%"'; });
-          [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20].forEach(c => { sheet.getCell(rowIdx, c).numFmt = '£#,##0'; });
+          [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20].forEach(c => { sheet.getCell(rowIdx, c).numFmt = `"${CURRENCY}"#,##0`; });
           sheet.getCell(rowIdx, 1).alignment = { horizontal: 'center' };
           sheet.getCell(rowIdx, 2).alignment = { horizontal: 'center' };
           // Centre the market-condition columns, and pick out negative years in

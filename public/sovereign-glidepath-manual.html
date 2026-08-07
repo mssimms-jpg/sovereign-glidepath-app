@@ -139,7 +139,7 @@
           <li class="toc-part"><a href="#part-8">Part VIII — Recent additions</a></li>
           <li class="toc-chap"><a href="#ch-27">27. Legacy / Inheritance Target</a></li>
           <li class="toc-chap"><a href="#ch-28">28. Automatic ATH baseline</a></li>
-          <li class="toc-chap"><a href="#ch-29">29. Special-Event withdrawals (Pane 6)</a></li>
+          <li class="toc-chap"><a href="#ch-29">29. Special-Event withdrawals (Pane 5)</a></li>
           <li class="toc-chap"><a href="#ch-30">30. Commit-confirmation modal</a></li>
           <li class="toc-chap"><a href="#ch-31">31. Comfortable Amortization override</a></li>
           <li class="toc-chap"><a href="#ch-32">32. Quarterly-tick simulator mode</a></li>
@@ -302,8 +302,9 @@
       <h3 class="chapter" id="ch-4">4. Anatomy of the dashboard</h3>
       <p>
         The desk is divided into seven numbered panes arranged top-to-bottom, plus two hidden panes reached by
-        double-click shortcuts. Everything you ever do happens in pane 1; everything else is the machine reasoning about
-        what you typed.
+        double-click shortcuts, plus a set of standalone <b>Companion Apps</b> (the Risk Simulator and the Comparison
+        Builder) that open in their own tab or window, launched from Pane 2. Everything you ever do happens in pane 1;
+        everything else is the machine reasoning about what you typed.
       </p>
       <p>
         <b>1. Parameters.</b> Your inputs. Target Horizon Age, current Modeling Age, the two pot balances, Assumed Real
@@ -317,10 +318,12 @@
         <b>2. Intelligence Diagnostics.</b> The engine's reading of your inputs: total capital, peak drawdown vs ATH,
         the Fun Bucket surplus, Guyton-Klinger target vs realised withdrawal rate, current guardrail state, actual cash
         shield runway, actuarial amortisation matrix, and market momentum vector. The Scenario Stress Test slider lives
-        at the bottom of this pane — see chapter 9 for what it now shows. Double-clicking this pane's header (Pane 2
-        title) opens the hidden <b>State Test Presets</b> pane — eight one-click buttons that populate Pane 1 with a
-        canonical recipe for each directive state, for testing and verification without touching your real ledger.
-        Closing it (double-click again) automatically reverts Pane 1 back to your real committed values.
+        at the bottom of this pane — see chapter 9 for what it now shows. Below that sits the <b>Companion Apps</b>
+        section, from which the Risk Simulator and Comparison Builder both launch, each pre-filled with a live snapshot
+        of your Pane 1 figures. Double-clicking this pane's header (Pane 2 title) opens the hidden <b>State Test
+        Presets</b> pane — eight one-click buttons that populate Pane 1 with a canonical recipe for each directive
+        state, for testing and verification without touching your real ledger. Closing it (double-click again)
+        automatically reverts Pane 1 back to your real committed values.
       </p>
       <p>
         <b>3. Actionable Brokerage Desk Directives.</b> A plain-English instruction, refreshed every keystroke, telling
@@ -335,12 +338,13 @@
         stored ATH baseline, and money-market balance, with period labels on the X axis.
       </p>
       <p>
-        <b>5. Risk Simulator — Monte Carlo Fan Chart.</b> See Part VII. Double-clicking this pane's header enters the
-        hidden, deterministic <b>Audit Mode</b> (chapter 34).
+        <b>5. Can I Afford This?</b> A hypothetical, non-committing "Instant Impact Calculator" for a one-off expense,
+        plus a Commit as Special-Event Withdrawal flow when the spend is real (chapter 29).
       </p>
       <p>
-        <b>6. Can I Afford This?</b> A hypothetical, non-committing "Instant Impact Calculator" for a one-off expense,
-        plus a Commit as Special-Event Withdrawal flow when the spend is real (chapter 29).
+        <b>6. Extraordinary Inflow.</b> Logs a one-off lump sum landing in your accounts — a property sale, an
+        inheritance, a windfall — adding it to the chosen pot and re-anchoring the Stored ATH Baseline upward
+        (chapter 40).
       </p>
       <p>
         <b>7. Historical Timeline Ledger.</b> Every committed snapshot. You can re-open any row to edit it, and the
@@ -575,10 +579,10 @@
       </p>
       <p>
         Nothing here writes back to your real state — Pane 1's actual values, Pane 3's live directive, and every
-        committed calculation continue to use your real, unstressed figures throughout. The one exception is the
-        <b>Push to Risk Simulator</b> button inside the preview box, which performs a one-time copy of the hypothetical
-        Equities/Cash figures into the Risk Simulator's own override fields (Pane 5) when clicked — it is not a live
-        link, and moving the stress slider afterward has no further effect on the Risk Simulator.
+        committed calculation continue to use your real, unstressed figures throughout. To stress-test a hypothetical
+        position properly, open the <b>Risk Simulator</b> from the Companion Apps section at the foot of Pane 2 — it
+        opens with its own live snapshot of your real plan, and its Equities/Cash fields can be edited independently
+        there without touching this slider or your real figures.
       </p>
       <p>
         It is the cheapest, fastest financial education available. Drag to 30% and watch the guardrail flip from
@@ -1429,7 +1433,7 @@
         <thead>
           <tr style="text-align:left; background:rgba(0,0,0,0.04);">
             <th style="padding:0.35rem;">Aspect</th>
-            <th style="padding:0.35rem;">Simulator (Pane 5)</th>
+            <th style="padding:0.35rem;">Risk Simulator (standalone page)</th>
             <th style="padding:0.35rem;">Live app (Panes 1–3)</th>
           </tr>
         </thead>
@@ -1652,7 +1656,7 @@
         you. In practice you should treat the ATH field as read-only.
       </p>
 
-      <h3 class="chapter" id="ch-29">29. Special-Event withdrawals (Pane 6)</h3>
+      <h3 class="chapter" id="ch-29">29. Special-Event withdrawals (Pane 5)</h3>
       <p>
         The "Can I Afford This?" calculator has long modelled a one-off expense hypothetically. From Build 058 onward it
         can also <b>commit</b> that expense as a real ledger row. Type the amount, pick the source (Equities / Cash /
@@ -1796,7 +1800,8 @@
 
       <h3 class="chapter" id="ch-34">34. Audit Mode (hidden)</h3>
       <p>
-        Double-click the "5. Risk Simulator — Monte Carlo Fan Chart" header to toggle <b>Audit Mode</b>. In this mode
+        Double-click the "Risk Simulator — Monte Carlo Fan Chart" header (inside the standalone Risk Simulator page) to
+        toggle <b>Audit Mode</b>. In this mode
         the RNG is paused and the simulator runs a single deterministic path with canonical inputs: Age 64 → 85,
         Equities £610,000, Cash £90,000, Withdrawal £36,000, Pension £12,700 starting at Age 67 with 2.5% real growth,
         cash real return +2.0%, inflation 2.5%. In Parametric mode the equity return is a flat +7.0% nominal every step;
@@ -1835,7 +1840,7 @@
         <b>Cash Real Return</b> and <b>Inflation / CPI Assumption</b> are now two independent sliders on Pane 1, sitting
         beneath Global Equities / Cash Pot and Assumed Real Growth Rate respectively. The Inflation / CPI Assumption
         slider feeds Pane 3's annualised-real-return calculation specifically; it is deliberately kept separate from the
-        Risk Simulator's own Inflation / Escalation slider on Pane 5, so you can hold a different short-term CPI view
+        Risk Simulator's own Inflation / Escalation slider, so you can hold a different short-term CPI view
         for live directives than for long-run Monte Carlo planning. Moving one does not move the other.
       </p>
 
@@ -1905,7 +1910,7 @@
 
       <h3 class="chapter" id="ch-40">40. Extraordinary Inflow &mdash; windfalls, property sale, inheritance</h3>
       <p>
-        Pane 7, <b>Extraordinary Inflow</b>, logs a one-off lump sum landing in your accounts &mdash; a property sale,
+        Pane 6, <b>Extraordinary Inflow</b>, logs a one-off lump sum landing in your accounts &mdash; a property sale,
         an inheritance, a windfall, a bonus you want to hold apart from the plan's normal quarterly draws. Type the
         amount, choose a <b>Destination</b> (Equities or Cash), and add a short description (e.g. &ldquo;House sale
         proceeds&rdquo;).

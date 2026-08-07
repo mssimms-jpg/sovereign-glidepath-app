@@ -11,6 +11,32 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 122 — Currency now follows through to the companion apps
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li><strong>Risk Simulator: field values now match your selected currency, not just the labels.</strong> The simulator's actual input values, "Reset to actual" links, and fan chart bands were still hardcoded to £ regardless of your Pane 1 currency choice.</li>
+              <li><strong>Risk Simulator: launch link now carries your currency choice.</strong> Previously only your figures were handed over; the simulator always opened defaulting to £.</li>
+              <li><strong>Comparison Builder: fully currency-aware for the first time.</strong> Labels, input prefixes, results, the trajectory tooltip, and the downloadable Excel workbook (column headers and cell formats) all now follow whichever currency is set on Pane 1, instead of being fixed to £ throughout.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 121 — Comparison Builder fixes, desktop hand-off fix, editable simulator age
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li><strong>Comparison Builder: picking a year in the results chart and "Download Excel Workbook" work again.</strong> A stray out-of-scope variable reference in a top-level script statement threw on every comparison run, which stopped every event listener declared later in the file from ever registering — so both controls looked alive but did nothing.</li>
+              <li><strong>Risk Simulator: live plan values now reach the simulator in the desktop app.</strong> A query-parameter helper had been added but never wired in, so in the desktop's hash-routed window it kept reading an empty value and the simulator opened unseeded.</li>
+              <li><strong>Risk Simulator: new editable "Current Age" field.</strong> Seeded from your live plan but freely editable — model the same plan at a different age, or for someone else entirely. Carries the usual "✎ what-if" badge and a "Reset to actual" link, and never writes back to your real plan.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 120 — Risk Simulator moves to its own page
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

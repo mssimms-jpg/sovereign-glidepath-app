@@ -303,6 +303,20 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const simCash = cleanNum(cashStr);
   const cashOverridden = Math.abs(simCash - livCash) > 0.005;
 
+  // Current Age (override) — seeded from the live plan but freely editable,
+  // e.g. to model this simulation for someone else's age. Never written back.
+  const [ageStr, setAgeStr] = useState<string>(currentAge > 0 ? String(currentAge) : "");
+  const ageSeedRef = React.useRef<number>(currentAge);
+  useEffect(() => {
+    if (cleanNum(ageStr) === ageSeedRef.current) {
+      ageSeedRef.current = currentAge;
+      setAgeStr(currentAge > 0 ? String(currentAge) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAge]);
+  const simAge = Math.max(0, Math.floor(cleanNum(ageStr)));
+  const ageOverridden = simAge !== currentAge;
+
   // Build 103 — pot-weighted blended real rate, using the SAME formula as
   // Pane 2's Actuarial Amortization Matrix (engine.ts blendedRealG):
   //   (equities x equityReturn + cash x cashReturn) / (equities + cash)
@@ -338,7 +352,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       pension,
       pensionAge,
       pensionIncreasePct,
-      currentAge,
+      currentAge: simAge,
       simEquities,
       simCash,
       cashRealPct,
@@ -360,7 +374,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       pension,
       pensionAge,
       pensionIncreasePct,
-      currentAge,
+      simAge,
       simEquities,
       simCash,
       cashRealPct,
@@ -891,7 +905,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const tickStep = Math.max(1, Math.ceil(span / 8));
   for (let i = z0; i <= z1; i += tickStep) {
     const x = getX(i);
-    const displayAge = auditMode ? AUDIT.age : currentAge;
+    const displayAge = auditMode ? AUDIT.age : simAge;
     const ageLabel = displayAge > 0 ? `${displayAge + i}` : `+${i}y`;
     xTicks.push(
       <g key={`x${i}`}>
@@ -1254,7 +1268,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr",
             gap: "0.6rem 0.75rem",
             alignContent: "start",
           }}
@@ -1305,13 +1319,58 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               aria-label="Pension start age used by the simulation"
             />
             <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-              {currentAge > 0
+              {simAge > 0
                 ? pension > 0
-                  ? pensionAge > currentAge
-                    ? `Starts in ${pensionAge - currentAge} year${pensionAge - currentAge === 1 ? "" : "s"}`
+                  ? pensionAge > simAge
+                    ? `Starts in ${pensionAge - simAge} year${pensionAge - simAge === 1 ? "" : "s"}`
                     : "Already in payment"
                   : "Enter pension amount to activate"
-                : "Set your age in the ledger above"}
+                : "Enter your current age above"}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Current Age{" "}
+              {ageOverridden && (
+                <span
+                  style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}
+                  title="Overridden — not saved, will reset on refresh"
+                >
+                  ✎ what-if
+                </span>
+              )}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="64"
+              value={ageStr}
+              onChange={(e) => setAgeStr(e.target.value)}
+              aria-label="Current age used by the simulation"
+            />
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+              {ageOverridden ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAgeStr(currentAge > 0 ? String(currentAge) : "");
+                    ageSeedRef.current = currentAge;
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--accent-blue)",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontSize: "0.7rem",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Reset to actual ({currentAge})
+                </button>
+              ) : (
+                <>What-if only — does not change your real plan</>
+              )}
             </div>
           </div>
           {/* Build 103 — Real Increase slider and the actual / hypothetical
@@ -1772,8 +1831,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 }}
               >
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                  {(auditMode ? AUDIT.age : currentAge) > 0
-                    ? `Age ${(auditMode ? AUDIT.age : currentAge) + hoverAbs}`
+                  {(auditMode ? AUDIT.age : simAge) > 0
+                    ? `Age ${(auditMode ? AUDIT.age : simAge) + hoverAbs}`
                     : `Year +${hoverAbs}`}
                 </div>
                 {[
@@ -1983,8 +2042,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           >
             <span>
               Window:{" "}
-              {(auditMode ? AUDIT.age : currentAge) > 0
-                ? `age ${(auditMode ? AUDIT.age : currentAge) + z0}–${(auditMode ? AUDIT.age : currentAge) + z1}`
+              {(auditMode ? AUDIT.age : simAge) > 0
+                ? `age ${(auditMode ? AUDIT.age : simAge) + z0}–${(auditMode ? AUDIT.age : simAge) + z1}`
                 : `+${z0}y–+${z1}y`}{" "}
               ({span} yrs)
             </span>

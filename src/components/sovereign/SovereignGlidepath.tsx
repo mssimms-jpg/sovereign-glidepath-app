@@ -2690,19 +2690,6 @@ export function SovereignGlidepath() {
             >
               📖 Full Manual
             </button>
-            <button
-              className="secondary"
-              onClick={() => {
-                const isFile = typeof window !== "undefined" && window.location.protocol === "file:";
-                window.open(
-                  isFile ? "./sovereign-glidepath-simulator-guide.html" : "/sovereign-glidepath-simulator-guide.html",
-                  "_blank",
-                  "noopener",
-                );
-              }}
-            >
-              📊 Simulator Guide
-            </button>
             <button className="secondary" onClick={exportData}>
               💾 Back-Up
             </button>
@@ -3816,6 +3803,7 @@ export function SovereignGlidepath() {
                           age: String(age),
                           horizon: String(cappingAge - age),
                           withdrawal: String(Math.round(calc.grossTargetYearly)),
+                          currency,
                         });
                         const pen = cleanNum(pensionAmountStr);
                         if (pen > 0) {
@@ -3859,13 +3847,19 @@ export function SovereignGlidepath() {
                           withdrawal: String(Math.round(calc.grossTargetYearly)),
                           growth: String(growthRate),
                           cashReal: String(cashRealPct),
+                          currency,
                         });
                         const pen = cleanNum(pensionAmountStr);
                         if (pen > 0) {
                           params.set("pensionAge", String(pensionStartAge));
                           params.set("pensionAmount", String(Math.round(pen)));
                         }
-                        window.open(`/risk-simulator?${params.toString()}`, "_blank", "noopener");
+                        const isDesktop =
+                          typeof window !== "undefined" && window.location.protocol === "file:";
+                        const url = isDesktop
+                          ? `#/risk-simulator?${params.toString()}`
+                          : `/risk-simulator?${params.toString()}`;
+                        window.open(url, "_blank", "noopener");
                       }}
                     >
                       🎲 Risk Simulator (Monte Carlo)

@@ -154,7 +154,7 @@
       <div class="cover">
         <p class="tag">SOVEREIGN GLIDEPATH · COMPANION VOLUME</p>
         <h1 class="cover-title">The Risk Simulator Companion</h1>
-        <p class="cover-sub">A complete guide to Pane 5 — the Monte Carlo Fan Chart</p>
+        <p class="cover-sub">A complete guide to the Risk Simulator — the Monte Carlo Fan Chart</p>
         <p class="cover-ver">Matches Sovereign Glidepath's numbered-pane, capitalised-field convention throughout</p>
       </div>
 
@@ -165,7 +165,7 @@
         About This Book
       </h2>
       <p>
-        Pane 5 is the most statistically dense pane in Sovereign Glidepath. It has more moving parts than any other
+        The Risk Simulator is the most statistically dense screen in Sovereign Glidepath. It has more moving parts than any other
         single screen in the app, and it is the pane most likely to be misread — not because it is poorly built, but
         because it asks you to hold several genuinely different ideas in your head at once: randomness, compounding,
         sequence risk, and the mechanics of a two-bucket withdrawal engine, all overlaid on one chart.
@@ -235,12 +235,12 @@
         <h4>ANALOGY</h4>
         <p>
           A weather forecaster doesn't say "18°C tomorrow, guaranteed." They say "likely around 18°C, could range
-          14–22°C." Pane 5 does the same for your retirement — trading false precision for honest uncertainty.
+          14–22°C." The Risk Simulator does the same for your retirement — trading false precision for honest uncertainty.
         </p>
       </div>
 
       <h4 class="sub">1.2 Manual Section — The Mechanics</h4>
-      <p>Every simulation in Pane 5, regardless of mode, follows the same loop:</p>
+      <p>Every simulation in the Risk Simulator, regardless of mode, follows the same loop:</p>
       <ol>
         <li>Start with your Equities Pot and Cash Pot at their current values.</li>
         <li>For each year (or quarter — see Chapter 4), generate a return for that period.</li>
@@ -267,7 +267,7 @@
         <ul>
           <li>Average return tells you almost nothing about whether your specific plan survives.</li>
           <li>The order of good/bad years can make or break an otherwise identical plan.</li>
-          <li>Pane 5 makes this hidden risk visible by running many possible orderings.</li>
+          <li>The Risk Simulator makes this hidden risk visible by running many possible orderings.</li>
           <li>The simulation is deterministic and reproducible for a given set of inputs.</li>
         </ul>
       </div>
@@ -307,7 +307,7 @@
 
       <h4 class="sub">2.1 Ebook Section</h4>
       <p>
-        When Pane 5 needs a return for a simulated year, it gets that number one of two ways.
+        When the Risk Simulator needs a return for a simulated year, it gets that number one of two ways.
         <b>Historical mode</b> reaches into real market history — a table of actual MSCI World (GBP) annual returns,
         1970–2024, 55 real years. Each simulated year, for each of the 10,000 paths, the engine picks one of those 55
         real years at random. <b>Parametric mode</b> instead invents an imaginary market from just two numbers you
@@ -417,7 +417,7 @@
         small, steady jar (Cash) that barely grows but never crashes. Always paying bills from the volatile jar means
         sometimes selling shares at exactly the worst moment. The smarter approach: pay bills from Cash in good years
         (topping Cash back up from Equities' gains), and pay entirely from Cash in bad years, letting Equities recover
-        untouched. Pane 5's two-bucket engine does this automatically, every simulated period, across all 10,000
+        untouched. The Risk Simulator's two-bucket engine does this automatically, every simulated period, across all 10,000
         futures.
       </p>
 
@@ -518,7 +518,7 @@
             spending from Cash during that same crash?
           </li>
           <li>
-            <em>(Practical)</em> You change Pane 1's Equities Pot from £500,000 to £600,000. Will Pane 5 automatically
+            <em>(Practical)</em> You change Pane 1's Equities Pot from £500,000 to £600,000. Will the Risk Simulator automatically
             reflect this? How would you check?
           </li>
           <li>
@@ -739,7 +739,7 @@
       <h3 class="chapter" id="ch-6">6. Percentiles, the Assumed Rate Line, Volatility Drag, and Skew</h3>
 
       <h4 class="sub">6.1 Ebook Section</h4>
-      <p>Once 10,000 lifetimes are run, Pane 5 shows them via a small number of representative lines and bands:</p>
+      <p>Once 10,000 lifetimes are run, the Risk Simulator shows them via a small number of representative lines and bands:</p>
       <ul>
         <li>
           <b>The median (solid line):</b> the outcome exactly in the middle — the typical result, not the average.
@@ -1000,7 +1000,7 @@
         <li>
           <b>Defensive Draw Threshold:</b> the rule deciding whether a period's spending comes from Equities or Cash.
         </li>
-        <li><b>WHAT-IF badge:</b> a warning that a Pane 5 field no longer matches your real, current recorded plan.</li>
+        <li><b>WHAT-IF badge:</b> a warning that a Risk Simulator field no longer matches your real, current recorded plan.</li>
         <li><b>Ruin Rate:</b> the % of simulated futures where the pot is fully exhausted before the horizon ends.</li>
         <li><b>Capital Preserved:</b> the % of simulated futures ending at or above starting capital.</li>
       </ul>

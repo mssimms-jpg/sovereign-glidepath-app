@@ -178,7 +178,7 @@ export function HelpContent() {
             predict the future — it's to make the <em>shape</em> of uncertainty visible.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
-            <strong>How to read this pane (updated in Build 099).</strong> The pane now reads top-to-bottom in the order
+            <strong>How to read the simulator (updated in Build 099).</strong> It now reads top-to-bottom in the order
             you'd actually use it: <em>inputs</em> (pot, withdrawal, pension) → <em>sliders</em> (expected return,
             volatility, growth, cash real return, pension real increase) → <em>Defensive-Draw Threshold</em> → the{" "}
             <em>fan chart</em> → the <em>percentile stats</em> → <em>Allocation Bias</em> →{" "}
@@ -272,7 +272,8 @@ export function HelpContent() {
             commit has a clean audit trail of what was withdrawn.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
-            <strong>Audit Mode (hidden, Build 062).</strong> Double-click the "5. Risk Simulator" header to freeze the
+            <strong>Audit Mode (hidden, Build 062).</strong> Double-click the "Risk Simulator" header (inside the
+            standalone Risk Simulator page) to freeze the
             RNG and run a single deterministic path with canonical inputs (Age 64→85, £610k/£90k, £36k draw, £12,700
             pension @ 67). A 2-decimal step ledger renders beneath the chart for pocket-calculator reproduction.
             Double-click again to exit.
