@@ -9,19 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as RiskSimulatorRouteImport } from './routes/risk-simulator'
-import { Route as HelpRouteImport } from './routes/help'
-import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccumulationSimulatorRouteImport } from './routes/accumulation-simulator'
+import { Route as ChangelogRouteImport } from './routes/changelog'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as RiskSimulatorRouteImport } from './routes/risk-simulator'
 
-const RiskSimulatorRoute = RiskSimulatorRouteImport.update({
-  id: '/risk-simulator',
-  path: '/risk-simulator',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
+const AccumulationSimulatorRoute = AccumulationSimulatorRouteImport.update({
+  id: '/accumulation-simulator',
+  path: '/accumulation-simulator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangelogRoute = ChangelogRouteImport.update({
@@ -29,20 +30,27 @@ const ChangelogRoute = ChangelogRouteImport.update({
   path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RiskSimulatorRoute = RiskSimulatorRouteImport.update({
+  id: '/risk-simulator',
+  path: '/risk-simulator',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accumulation-simulator': typeof AccumulationSimulatorRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
   '/risk-simulator': typeof RiskSimulatorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accumulation-simulator': typeof AccumulationSimulatorRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
   '/risk-simulator': typeof RiskSimulatorRoute
@@ -50,20 +58,30 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accumulation-simulator': typeof AccumulationSimulatorRoute
   '/changelog': typeof ChangelogRoute
   '/help': typeof HelpRoute
   '/risk-simulator': typeof RiskSimulatorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/changelog' | '/help' | '/risk-simulator'
+  fullPaths:
+    '/' | '/accumulation-simulator' | '/changelog' | '/help' | '/risk-simulator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/changelog' | '/help' | '/risk-simulator'
-  id: '__root__' | '/' | '/changelog' | '/help' | '/risk-simulator'
+  to:
+    '/' | '/accumulation-simulator' | '/changelog' | '/help' | '/risk-simulator'
+  id:
+    | '__root__'
+    | '/'
+    | '/accumulation-simulator'
+    | '/changelog'
+    | '/help'
+    | '/risk-simulator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccumulationSimulatorRoute: typeof AccumulationSimulatorRoute
   ChangelogRoute: typeof ChangelogRoute
   HelpRoute: typeof HelpRoute
   RiskSimulatorRoute: typeof RiskSimulatorRoute
@@ -71,18 +89,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/risk-simulator': {
-      id: '/risk-simulator'
-      path: '/risk-simulator'
-      fullPath: '/risk-simulator'
-      preLoaderRoute: typeof RiskSimulatorRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
+    '/accumulation-simulator': {
+      id: '/accumulation-simulator'
+      path: '/accumulation-simulator'
+      fullPath: '/accumulation-simulator'
+      preLoaderRoute: typeof AccumulationSimulatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/changelog': {
@@ -92,11 +110,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/risk-simulator': {
+      id: '/risk-simulator'
+      path: '/risk-simulator'
+      fullPath: '/risk-simulator'
+      preLoaderRoute: typeof RiskSimulatorRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -104,6 +129,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccumulationSimulatorRoute: AccumulationSimulatorRoute,
   ChangelogRoute: ChangelogRoute,
   HelpRoute: HelpRoute,
   RiskSimulatorRoute: RiskSimulatorRoute,
@@ -111,3 +137,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

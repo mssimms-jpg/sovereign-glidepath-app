@@ -30,6 +30,7 @@ import {
   decryptBackup,
   detectBackupKind,
   encryptBackup,
+  flushWrites,
   secureRead,
   secureWrite,
 } from "@/lib/sovereign/secureStore";
@@ -40,7 +41,6 @@ import { StateTestPresets, type PresetValues } from "./StateTestPresets";
 import { exportLedgerCSV, localTimestamp } from "@/lib/sovereign/csvExport";
 import { computeDefensiveRecommendation, type DefensiveRecResult } from "@/lib/sovereign/defensiveRec";
 import type { ThresholdMode } from "@/lib/sovereign/drawdown";
-
 
 const LEDGER_KEY = "shd_ledger_v4";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
@@ -723,6 +723,21 @@ export function SovereignGlidepath() {
     } catch {
       setShowDisclaimer(true);
     }
+  }, []);
+
+  // secureWrite() queues encryption + the actual localStorage write onto an
+  // async chain and returns immediately -- if the tab closes before that
+  // chain finishes, the last edit can be lost. beforeunload can't guarantee
+  // async work completes before the page actually unloads, but calling
+  // flushWrites() here is the standard best-effort mitigation: it nudges the
+  // pending chain along in whatever time the browser does grant on exit,
+  // which is the most any beforeunload handler can offer for async work.
+  useEffect(() => {
+    const onExit = () => {
+      void flushWrites();
+    };
+    window.addEventListener("beforeunload", onExit);
+    return () => window.removeEventListener("beforeunload", onExit);
   }, []);
 
   // --- License & 30-day evaluation ---
@@ -1844,7 +1859,7 @@ export function SovereignGlidepath() {
       return blank;
     };
 
-    const realisedWrPct = (d: LedgerEntry): string => {
+    const targetWrPct = (d: LedgerEntry): string => {
       const tot = Number(d.totalCapital) || 0;
       const ty = Number(d.targetYearly) || 0;
       if (tot <= 0) return blank;
@@ -1898,7 +1913,7 @@ export function SovereignGlidepath() {
           value: (d) => (hasSplit(d) ? num(d.rebalanceAmount) : blank),
         },
         { header: "Event Amount", value: (d) => eventAmount(d) },
-        { header: "Realised Withdrawal Rate (%)", value: (d) => realisedWrPct(d) },
+        { header: "Target Withdrawal Rate (%)", value: (d) => targetWrPct(d) },
         // Build 079 — snapshot of Pane 2's Withdrawal Status + Guardrail State
         // (stored per-row at commit time). Positioned near Horizon Age so the
         // full Pane 2 context travels with the row into external tools.
@@ -3201,8 +3216,8 @@ export function SovereignGlidepath() {
                         fontStyle: "italic",
                       }}
                     >
-                      Growth above inflation (0% = tracks CPI exactly). These are your real figures — the Risk Simulator reads them
-                      live unless you switch it to Hypothetical.
+                      Growth above inflation (0% = tracks CPI exactly). These are your real figures — the Risk Simulator
+                      reads them live unless you switch it to Hypothetical.
                     </div>
                   </div>
                 </div>
@@ -3760,7 +3775,6 @@ export function SovereignGlidepath() {
                           Preview only — Pane 1's real values, Pane 3's directive, and every committed calculation still
                           use the unstressed baseline.
                         </div>
-
                       </div>
                     );
                   })()}
@@ -3786,6 +3800,88 @@ export function SovereignGlidepath() {
                     gap: "0.85rem",
                   }}
                 >
+                  <div
+                    style={{
+                      padding: "0.9rem",
+                      background: "var(--bg-main)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "0.5rem",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        const isDesktop = typeof window !== "undefined" && window.location.protocol === "file:";
+                        const params = new URLSearchParams({ currency });
+                        const url = isDesktop
+                          ? `#/accumulation-simulator?${params.toString()}`
+                          : `/accumulation-simulator?${params.toString()}`;
+                        window.open(url, "_blank", "noopener");
+                      }}
+                    >
+                      📈 Accumulation Simulator
+                    </button>
+                    <div
+                      style={{
+                        marginTop: "0.55rem",
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Shows how a pot could grow from an early starting age to a chosen retirement age, across 10,000
+                      possible market paths — a good one to share with younger family members starting out. Opens in its
+                      own tab with its own sensible starting defaults, not your live Pane 1 figures.
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "0.9rem",
+                      background: "var(--bg-main)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "0.5rem",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          eq: String(Math.round(cleanNum(equityVal))),
+                          cash: String(Math.round(cleanNum(mmVal))),
+                          age: String(age),
+                          horizon: String(cappingAge - age),
+                          withdrawal: String(Math.round(calc.grossTargetYearly)),
+                          growth: String(growthRate),
+                          cashReal: String(cashRealPct),
+                          currency,
+                        });
+                        const pen = cleanNum(pensionAmountStr);
+                        if (pen > 0) {
+                          params.set("pensionAge", String(pensionStartAge));
+                          params.set("pensionAmount", String(Math.round(pen)));
+                        }
+                        const isDesktop = typeof window !== "undefined" && window.location.protocol === "file:";
+                        const url = isDesktop
+                          ? `#/risk-simulator?${params.toString()}`
+                          : `/risk-simulator?${params.toString()}`;
+                        window.open(url, "_blank", "noopener");
+                      }}
+                    >
+                      🎲 Risk Simulator (Monte Carlo)
+                    </button>
+                    <div
+                      style={{
+                        marginTop: "0.55rem",
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Stress-tests your plan across 10,000 possible market paths and plots the fan chart of outcomes.
+                      Opens in its own tab as a sandbox, seeded from your live Pane 1 figures — nothing you change there
+                      writes back.
+                    </div>
+                  </div>
+
                   <div
                     style={{
                       padding: "0.9rem",
@@ -3828,56 +3924,6 @@ export function SovereignGlidepath() {
                       this app. Opens with your live Pane 1 figures already filled in.
                     </div>
                   </div>
-
-                  <div
-                    style={{
-                      padding: "0.9rem",
-                      background: "var(--bg-main)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "0.5rem",
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        const params = new URLSearchParams({
-                          eq: String(Math.round(cleanNum(equityVal))),
-                          cash: String(Math.round(cleanNum(mmVal))),
-                          age: String(age),
-                          horizon: String(cappingAge - age),
-                          withdrawal: String(Math.round(calc.grossTargetYearly)),
-                          growth: String(growthRate),
-                          cashReal: String(cashRealPct),
-                          currency,
-                        });
-                        const pen = cleanNum(pensionAmountStr);
-                        if (pen > 0) {
-                          params.set("pensionAge", String(pensionStartAge));
-                          params.set("pensionAmount", String(Math.round(pen)));
-                        }
-                        const isDesktop =
-                          typeof window !== "undefined" && window.location.protocol === "file:";
-                        const url = isDesktop
-                          ? `#/risk-simulator?${params.toString()}`
-                          : `/risk-simulator?${params.toString()}`;
-                        window.open(url, "_blank", "noopener");
-                      }}
-                    >
-                      🎲 Risk Simulator (Monte Carlo)
-                    </button>
-                    <div
-                      style={{
-                        marginTop: "0.55rem",
-                        fontSize: "0.75rem",
-                        color: "var(--text-muted)",
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      Stress-tests your plan across 10,000 possible market paths and plots the fan chart of outcomes.
-                      Opens in its own tab as a sandbox, seeded from your live Pane 1 figures — nothing you change there
-                      writes back.
-                    </div>
-                  </div>
-
                 </div>
               </div>
             </div>
@@ -4175,7 +4221,6 @@ export function SovereignGlidepath() {
 
           {/* Build 120 — the Risk Simulator now lives on its own /risk-simulator
               route, launched from Pane 2's Companion Apps section. */}
-
 
           {/* Can I Afford This? — Instant Impact Calculator */}
           <AffordCalculator

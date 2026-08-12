@@ -1,4 +1,4 @@
-Sovereign Glidepath — Web Update Build 122
+Sovereign Glidepath — Web Update Build 124
 =============================================
 
 This zip is a drop-in replacement for the web-hosted (Cloudflare Pages) copy
@@ -24,15 +24,15 @@ Option A — GitHub web UI
 3. Drag the contents of this zip (not the zip itself) into the upload area.
    Keep the folder structure intact.
 4. Commit directly to the default branch with message:
-   "Sync to Build 122"
+   "Sync to Build 124"
 
 Option B — Git CLI
 ------------------
 1. Unzip into your local clone, overwriting existing files:
-     unzip -o sovereign-glidepath-web-build122.zip -d /path/to/repo
+     unzip -o sovereign-glidepath-web-build124.zip -d /path/to/repo
 2. From the repo root:
      git add -A
-     git commit -m "Sync to Build 122"
+     git commit -m "Sync to Build 124"
      git push
 
 Cloudflare
@@ -41,21 +41,25 @@ No action needed. Cloudflare Pages is wired to the GitHub repo, so the push
 automatically triggers a new build and redeploy (usually live in 1-2 min).
 Watch progress in: Cloudflare -> Workers & Pages -> your project -> Deployments.
 
-What's new since the last web sync (Build 120 + Comparison Builder fix)
--------------------------------------------------------------------------
-- Risk Simulator CSS fix (shd-root class + desk.css import)
-- Comparison Builder click/download fix (isInitialLoad scope bug)
-- Comparison Builder £ prefix on money fields
-- Editable Current Age field in the Risk Simulator
-- Build 121: package.json bump, CHANGELOG.md and in-app changelog entries
-- Build 122: Risk Simulator and Comparison Builder now both follow the
-  currency selected on Pane 1 (previously both were hardcoded to £ for
-  field values, chart labels, and the Comparison Builder's Excel export)
-- Comparison Builder and Risk Simulator now share a consistent header/User
-  Guide button treatment (primary blue); the old "Simulator Guide" button
-  was removed from the main app's help row since it's now reachable from
-  within the Risk Simulator itself
-- Full Manual, Quick Start Guide, and the Risk Simulator's own guide had a
-  round of outdated "Pane 5" references corrected, including a genuine
-  pane-numbering error in two Full Manual chapters (was off by one against
-  the live app)
+What's new since the last web sync (Build 123)
+-------------------------------------------------
+- Accumulation Simulator now has its own dedicated manual, matching the
+  Risk Simulator and Comparison Builder guides in style and structure; the
+  previously-unwired "User Guide" button on that page now opens it
+- Fixed the Risk Simulator's "Back to..." link, which an earlier, unrelated
+  edit had accidentally reverted — now correctly and reliably reads "Back
+  to Accumulation Simulator" when opened that way
+- Fixed a real page freeze: both simulators ran their 10,000-path
+  calculation synchronously, which could block the page for 200-580ms with
+  no visible indication anything was happening. Both now defer the
+  calculation and show a genuine "Recalculating..." indicator while it runs
+- Fixed a data-loss risk: pending encrypted ledger writes are now flushed
+  when the tab closes, rather than risking the last edit being lost
+  mid-write if the tab closed an instant too soon
+- Fixed a mislabelled CSV export column: "Realised Withdrawal Rate" now
+  correctly reads "Target Withdrawal Rate", matching what it actually
+  computes
+- Full Manual and Quick Start Guide brought up to date: both previously had
+  zero mention of the Accumulation Simulator, and zero coverage of the Risk
+  Simulator's own Current Age / Horizon Age what-if fields. Full Manual's
+  cover version stamp also corrected (was showing Build 118)

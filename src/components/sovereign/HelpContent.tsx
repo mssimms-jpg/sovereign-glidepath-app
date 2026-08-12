@@ -117,10 +117,9 @@ export function HelpContent() {
             Read the <strong>Directive</strong> pane (3) for this quarter's recommendation, click{" "}
             <strong>Commit</strong> — a confirmation dialog appears so you can spot typos before anything is written —
             then launch the <strong>Risk Simulator</strong> from <em>Companion Apps</em> at the foot of Pane 2 to
-            stress-test the plan against 10,000 possible
-            futures. Need to record a one-off expense (car, kitchen, gift)? Use the purple <em>Commit Special Event</em>{" "}
-            button in Pane 5 — it deducts from your pots and lowers the ATH automatically so the plan's baseline stays
-            honest.
+            stress-test the plan against 10,000 possible futures. Need to record a one-off expense (car, kitchen, gift)?
+            Use the purple <em>Commit Special Event</em> button in Pane 5 — it deducts from your pots and lowers the ATH
+            automatically so the plan's baseline stays honest.
           </p>
         </Section>
 
@@ -202,6 +201,14 @@ export function HelpContent() {
               "Reset split to actual" restores your real split.
             </li>
             <li>
+              <strong>Current Age and Horizon Age are both what-if fields.</strong> Both seed from your live plan the
+              moment the page opens, but each is freely editable afterward — a "✎ what-if" badge and a{" "}
+              <strong>Reset to actual</strong> link appear once you change either. Nothing here writes back, and
+              reopening the simulator from Pane 2 always starts from your real figures again. Change them together to
+              model a genuinely different retirement shape — this is the same mechanism the Accumulation Simulator's
+              hand-off window uses (below) to seed the Risk Simulator with a projected pot.
+            </li>
+            <li>
               <strong>Future Extraordinary Inflow</strong> now has a <strong>Destination</strong> choice — Equities or
               Cash. Previously a windfall was always split 50/50; the whole amount now lands in the bucket you pick, at
               the end of year N, and re-anchors the ATH.
@@ -273,10 +280,9 @@ export function HelpContent() {
           </p>
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Audit Mode (hidden, Build 062).</strong> Double-click the "Risk Simulator" header (inside the
-            standalone Risk Simulator page) to freeze the
-            RNG and run a single deterministic path with canonical inputs (Age 64→85, £610k/£90k, £36k draw, £12,700
-            pension @ 67). A 2-decimal step ledger renders beneath the chart for pocket-calculator reproduction.
-            Double-click again to exit.
+            standalone Risk Simulator page) to freeze the RNG and run a single deterministic path with canonical inputs
+            (Age 64→85, £610k/£90k, £36k draw, £12,700 pension @ 67). A 2-decimal step ledger renders beneath the chart
+            for pocket-calculator reproduction. Double-click again to exit.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Historical vs Parametric.</strong> Historical draws each year at random from MSCI World (Net Total
@@ -525,6 +531,28 @@ export function HelpContent() {
             figures already filled in — equities, cash, age, horizon, gross target withdrawal, and your State Pension
             details if you have one configured. Nothing is re-typed, and the comparison runs on open. If you open the
             Comparison Builder on its own, with no plan attached, it falls back to its own editable example values.
+          </p>
+        </Section>
+
+        <Section title="Companion Apps — the Accumulation Simulator">
+          <p>
+            The third Companion App is the <strong>Accumulation Simulator</strong> (📈), the Risk Simulator's mirror
+            image — instead of stress-testing a pot being drawn down, it projects a pot <em>growing</em>, from an early
+            starting age up to a chosen retirement age, across 10,000 possible market paths on the same historical data
+            and fan-chart engine.
+          </p>
+          <p>
+            It's aimed at someone decades from retirement — most often a younger family member the plan-holder wants to
+            show the value of starting early. Unlike the other two Companion Apps, it does not open pre-filled with your
+            live Pane 1 figures; it starts from its own small, sensible defaults, and everything it does have persists
+            locally between visits, since there's no real plan behind it to fall back to.
+          </p>
+          <p>
+            A <strong>"Move this pot to the Risk Simulator"</strong> button hands the projected pot — split 15% cash /
+            85% equities — over to the Risk Simulator as its starting capital, using the same Current Age and Horizon
+            Age what-if fields covered above. Nothing before or after that hand-off writes back to either tool's real
+            state. Full detail lives in its own guide, opened from the 📖 <strong>User Guide</strong>
+            button on the Accumulation Simulator's own page.
           </p>
         </Section>
 

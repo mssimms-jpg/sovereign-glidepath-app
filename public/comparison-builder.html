@@ -120,13 +120,15 @@
           <div class="field">
             <label>Global Equities Pot (<span class="cur-symbol">£</span>)</label>
             <div class="money-input-wrap">
-              <span class="money-prefix cur-symbol">£</span><input type="number" id="inEquities" value="630000" step="1000" />
+              <span class="money-prefix cur-symbol">£</span
+              ><input type="number" id="inEquities" value="630000" step="1000" />
             </div>
           </div>
           <div class="field">
             <label>Cash Pot (<span class="cur-symbol">£</span>)</label>
             <div class="money-input-wrap">
-              <span class="money-prefix cur-symbol">£</span><input type="number" id="inCash" value="100000" step="1000" />
+              <span class="money-prefix cur-symbol">£</span
+              ><input type="number" id="inCash" value="100000" step="1000" />
             </div>
           </div>
           <div class="field">
@@ -150,7 +152,8 @@
           <div class="field">
             <label>SG Target Annual Withdrawal (<span class="cur-symbol">£</span>)</label>
             <div class="money-input-wrap">
-              <span class="money-prefix cur-symbol">£</span><input type="number" id="inWithdrawal" value="40000" step="500" />
+              <span class="money-prefix cur-symbol">£</span
+              ><input type="number" id="inWithdrawal" value="40000" step="500" />
             </div>
             <p class="note" id="sgVsClassicNote" style="margin-top:0.3rem;"></p>
           </div>
@@ -166,7 +169,8 @@
           <div class="field">
             <label>State Pension Amount (<span class="cur-symbol">£</span>/yr, today's money)</label>
             <div class="money-input-wrap">
-              <span class="money-prefix cur-symbol">£</span><input type="number" id="inPensionAmount" value="11500" step="100" />
+              <span class="money-prefix cur-symbol">£</span
+              ><input type="number" id="inPensionAmount" value="11500" step="100" />
             </div>
             <p class="note" id="pensionEffectNote" style="margin-top:0.3rem;"></p>
           </div>
@@ -910,6 +914,19 @@
         updateCohortNote();
         updatePensionNote();
       })();
+
+      // Build 123 — strip the query string from the visible URL and browser
+      // history once it's been read above (by initCurrency and
+      // prefillFromPane1), so the plan figures handed over at launch (pot
+      // values, withdrawal, pension amount, etc.) don't sit in plaintext
+      // browser history or get accidentally shared/bookmarked. Desktop opens
+      // this same file via a real file:// URL with a real query string (no
+      // hash-routing needed here, unlike the Risk Simulator route), so this
+      // applies equally there -- harmless either way since replaceState just
+      // no-ops if there's nothing to strip.
+      if (window.location.search) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
 
       // Show something at startup rather than requiring a click first (and this
       // also naturally sidesteps the old "canvas hidden on first draw" issue).

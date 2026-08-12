@@ -3,6 +3,38 @@
 A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
+
+## Version 1.0 build 124 — Accumulation Simulator manual, plus a code review pass
+
+- **Accumulation Simulator now has its own manual**, matching the Risk Simulator and Comparison Builder guides in style and structure — the same layered chapters, the same appendix format. The "User Guide" button on the Accumulation Simulator, previously unwired, now opens it.
+- **The Risk Simulator's "Back to…" link now correctly reads "Back to Accumulation Simulator"** when opened that way, in every case — an earlier attempt at this fix was accidentally reverted by a later, unrelated edit; this build carries the corrected version, verified end-to-end through the actual hand-off flow rather than just checking the code.
+- **Fixed a real page freeze.** Both the Risk Simulator and the Accumulation Simulator ran their 10,000-path simulation synchronously, which could block the whole page for 200–580ms every time an input settled — long enough to feel like the tab had hung, with nothing on screen to say otherwise. Both now defer the calculation and show a small "Recalculating…" indicator while it runs, confirmed actually visible on screen (an initial attempt at this fix silently failed to show anything, despite looking correct — caught only by testing it directly rather than trusting the code).
+- **Fixed a data-loss risk on exit.** Ledger writes are encrypted and queued asynchronously; closing the tab an instant after an edit could lose that edit before it finished writing. The app now asks the browser to flush any pending writes when the tab closes.
+- **Fixed a mislabelled CSV export column.** "Realised Withdrawal Rate" was actually your _target_ rate, not what was genuinely drawn — renamed to "Target Withdrawal Rate" to match what it's always computed.
+
+## Version 1.0 build 123 — Accumulation Simulator
+
+A new companion app: the **Accumulation Simulator**. Shows how a pot could grow from an early starting age to a chosen retirement age across 10,000 possible market paths — aimed at demonstrating the value of starting early to family members who aren't near retirement themselves. Launches from Pane 2's Companion Apps section with its own sensible starting defaults, not your live plan figures.
+
+- **Core engine.** Single-pot compounding model (no equities/cash split at this stage — a young saver isn't managing a cash buffer decades out). Historical (real MSCI World sequence, same dataset as the Risk Simulator) and Parametric modes, monthly contributions with an optional annual real increase, and an Assumed Real Growth Rate slider independent of the Parametric mean — mirroring the Risk Simulator's own field separation.
+- **Interactive fan chart.** Hover crosshair and tooltip showing the P10/Median/P90 spread and the assumed-rate line at any age, plus a drag-to-zoom brush beneath the chart — both ported from the Risk Simulator's own chart.
+- **Sticky by design.** Every field on the page persists across navigation (leaving for the Risk Simulator and coming back, or leaving the app entirely) — there's no "real plan" behind this tool the way the Risk Simulator has, so everything here is meant to remember itself.
+- **Move to Risk Simulator.** A single button opens a confirmation window — set your desired retirement income, State Pension age and amount, and choose whether the projected Median or Assumed Growth Rate value becomes your starting pot. The review updates live as you edit, and confirming opens the Risk Simulator pre-filled, with the pot split 15% cash / 85% equities (freely adjustable once there, like everything else handed over).
+- **Currency-prefixed money fields**, matching the treatment already used elsewhere in the app.
+
+Risk Simulator also picked up several improvements alongside this:
+
+- **Horizon Age is now its own editable what-if field**, seeded from Pane 1 and freely adjustable, same pattern as Current Age.
+- **Tooltip now shows the annual drawdown**, and once State Pension has started paying, the reduction it makes to what's actually drawn from the pot.
+- **Tooltip now shows an approximate Fun Bucket figure** (in purple, matching Pane 2's own Fun Bucket styling) — a rough equivalent of Pane 2's surplus calculation, using the tool's own Assumed Rate as the discount rate since there's no per-year bucket split or Legacy Target input to draw an exact blended rate from here.
+- **Fixed a tooltip/crosshair misalignment** on both fan charts, caused by the chart's fixed aspect ratio not matching its actual on-screen size.
+
+Smaller polish:
+
+- **Companion Apps reordered**: Accumulation Simulator, Risk Simulator, Comparison Builder.
+- **The Risk Simulator's "Back to..." link is now dynamic** — correctly reads "Back to Accumulation Simulator" when opened from there, "Back to Sovereign Glidepath" otherwise.
+- **Fixed a routing bug** that could 404 the Risk Simulator in a production build (Lovable Publish and, very likely, Cloudflare) despite working fine in the dev server — caused by the route file exporting its page component directly rather than through its own file, which broke code-splitting.
+
 ## Version 1.0 build 122 — Currency now follows through to the companion apps
 
 - **Risk Simulator: field values now match your selected currency, not just the labels.** The simulator's actual input values, "Reset to actual" links, and fan chart bands were still hardcoded to £ regardless of your Pane 1 currency choice — a leftover gap in the currency plumbing added in Build 121.
@@ -43,7 +75,6 @@ Location: project root (`CHANGELOG.md`). Update this file every build.
 - **A short lead-in phrase, "Shown on chart as", now precedes the swatch** in both Pane 1 and Pane 5, so the label reads as a direct pointer to the chart line.
 - **"Reset split to actual" is now "Reset to starting split & actual values"**, making clear it restores the underlying Equities/Cash figures as well as the percentage. Text only — no behaviour change.
 
-
 ## Version 1.0 build 115 — Growth sliders reach 20%; clearer Fan Chart vs. dashed-line labelling
 
 - **Build stamp corrected.** Build 114 shipped without bumping `package.json`'s version, so the auto-derived stamp still read 113. The derivation was fine; the version bump was missed. Bumping `package.json` is now an explicit, checked release step alongside this changelog.
@@ -53,7 +84,6 @@ Location: project root (`CHANGELOG.md`). Update this file every build.
 - **Effect-based tooltips** added to the two Parametric fields, Assumed Real Growth Rate and Cash Real Return.
 
 ## Version 1.0 build 114 — Simulator Guide button; Annual Pension field types normally
-
 
 - **New "📊 Simulator Guide" button** sits between Full Manual and Back-Up in the header row and opens the Risk Simulator companion ebook (`/sovereign-glidepath-simulator-guide.html`) in a new tab, using the same open behaviour and styling as Full Manual.
 - **Annual Pension input fixed.** It parsed and reformatted every keystroke (typing "1" became "1.00"), forcing the cursor to the end and breaking backspace. It now stores the raw string while editing, like every other money field, and the numeric value is derived with the same `cleanNum()` helper — no change to the pension-netting or guardrail calculations.
@@ -74,13 +104,12 @@ Location: project root (`CHANGELOG.md`). Update this file every build.
 ## Version 1.0 build 111 — Deterministic "Assumed Rate" line now uses the shared drawdown engine
 
 - **The dashed Assumed Rate line runs through `applyPeriod()`** — the same shared function used by the 10,000 Monte Carlo paths and Audit Mode — driven by a flat (deterministic) return sequence.
-- **Depletion is now real.** The old hand-rolled loop always drew from equities and clamped a negative equity balance to zero, silently deleting the shortfall and leaving an untouched cash pot that appeared to *grow* after the plan had actually failed. Shortfalls now spill correctly into cash and the line reaches zero.
+- **Depletion is now real.** The old hand-rolled loop always drew from equities and clamped a negative equity balance to zero, silently deleting the shortfall and leaving an untouched cash pot that appeared to _grow_ after the plan had actually failed. Shortfalls now spill correctly into cash and the line reaches zero.
 - **Guyton-Klinger guardrails now apply** to the deterministic line (±10%, still switched off in the No-Go phase), as they always have for the stochastic paths.
 - **Tick mode is now respected** — the deterministic line steps four times a year in Quarterly mode instead of ignoring the setting.
 - **Extraordinary inflows re-anchor the deterministic ATH**, matching the stochastic paths.
 
 ## Version 1.0 build 110 — Fan chart tooltip: Assumed Rate split onto two lines
-
 
 - **"Assumed Rate" is now its own label line** with its value right-aligned in the same column as the 90th percentile, Median Path and 10th percentile values.
 - **"(blended, real): X.XX%" moved to a smaller muted sub-line** directly beneath the label.

@@ -133,6 +133,7 @@
             <a href="#ch-23b">23b. True two-bucket simulation (cash drag &amp; defensive draw)</a>
           </li>
           <li class="toc-chap"><a href="#ch-23c">23c. Worked example — a 30-year stress test</a></li>
+          <li class="toc-chap"><a href="#ch-23d">23d. What-if Current Age and Horizon Age</a></li>
           <li class="toc-chap"><a href="#ch-24">24. "Sims beating your assumption"</a></li>
           <li class="toc-chap"><a href="#ch-25">25. What the simulator is NOT</a></li>
           <li class="toc-chap"><a href="#ch-26">26. FAQ — "Is the maths broken?"</a></li>
@@ -160,6 +161,7 @@
           <li class="toc-chap"><a href="#ch-40">40. Extraordinary Inflow</a></li>
           <li class="toc-chap"><a href="#ch-41">41. App-Lock &amp; encryption</a></li>
           <li class="toc-chap"><a href="#ch-42">42. Companion Apps &amp; the Comparison Builder</a></li>
+          <li class="toc-chap"><a href="#ch-43">43. Companion Apps &amp; the Accumulation Simulator</a></li>
         </ul>
       </div>
     </nav>
@@ -176,7 +178,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.118 · Edition XV</p>
+        <p class="cover-ver">Version 1.0.124 · Edition XVI</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -302,9 +304,9 @@
       <h3 class="chapter" id="ch-4">4. Anatomy of the dashboard</h3>
       <p>
         The desk is divided into seven numbered panes arranged top-to-bottom, plus two hidden panes reached by
-        double-click shortcuts, plus a set of standalone <b>Companion Apps</b> (the Risk Simulator and the Comparison
-        Builder) that open in their own tab or window, launched from Pane 2. Everything you ever do happens in pane 1;
-        everything else is the machine reasoning about what you typed.
+        double-click shortcuts, plus a set of standalone <b>Companion Apps</b> (the Accumulation Simulator, the Risk
+        Simulator, and the Comparison Builder) that open in their own tab or window, launched from Pane 2. Everything
+        you ever do happens in pane 1; everything else is the machine reasoning about what you typed.
       </p>
       <p>
         <b>1. Parameters.</b> Your inputs. Target Horizon Age, current Modeling Age, the two pot balances, Assumed Real
@@ -318,11 +320,14 @@
         <b>2. Intelligence Diagnostics.</b> The engine's reading of your inputs: total capital, peak drawdown vs ATH,
         the Fun Bucket surplus, Guyton-Klinger target vs realised withdrawal rate, current guardrail state, actual cash
         shield runway, actuarial amortisation matrix, and market momentum vector. The Scenario Stress Test slider lives
-        at the bottom of this pane — see chapter 9 for what it now shows. Below that sits the <b>Companion Apps</b>
-        section, from which the Risk Simulator and Comparison Builder both launch, each pre-filled with a live snapshot
-        of your Pane 1 figures. Double-clicking this pane's header (Pane 2 title) opens the hidden <b>State Test
-        Presets</b> pane — eight one-click buttons that populate Pane 1 with a canonical recipe for each directive
-        state, for testing and verification without touching your real ledger. Closing it (double-click again)
+        at the bottom of this pane — see chapter 9 for what it now shows. Below that sits the
+        <b>Companion Apps</b> section, from which the Accumulation Simulator, Risk Simulator, and Comparison Builder all
+        launch. The Risk Simulator and Comparison Builder both open pre-filled with a live snapshot of your Pane 1
+        figures; the Accumulation Simulator deliberately opens with its own small, standalone starting defaults instead
+        (chapter 43) — it's built to model someone decades from retirement, so your own real pot figures wouldn't be a
+        useful starting point there. Double-clicking this pane's header (Pane 2 title) opens the hidden
+        <b>State Test Presets</b> pane — eight one-click buttons that populate Pane 1 with a canonical recipe for each
+        directive state, for testing and verification without touching your real ledger. Closing it (double-click again)
         automatically reverts Pane 1 back to your real committed values.
       </p>
       <p>
@@ -343,8 +348,8 @@
       </p>
       <p>
         <b>6. Extraordinary Inflow.</b> Logs a one-off lump sum landing in your accounts — a property sale, an
-        inheritance, a windfall — adding it to the chosen pot and re-anchoring the Stored ATH Baseline upward
-        (chapter 40).
+        inheritance, a windfall — adding it to the chosen pot and re-anchoring the Stored ATH Baseline upward (chapter
+        40).
       </p>
       <p>
         <b>7. Historical Timeline Ledger.</b> Every committed snapshot. You can re-open any row to edit it, and the
@@ -1485,6 +1490,26 @@
           quarterly discipline is buying you.
         </p>
       </aside>
+
+      <h3 class="chapter" id="ch-23d">23d. What-if Current Age and Horizon Age</h3>
+      <p>
+        Two fields on the Risk Simulator's own page — <b>Current Age</b> and <b>Horizon Age</b> — behave differently
+        from every other field there. They seed from your live Pane 1 figures the moment the page opens, exactly like
+        everything else, but they're freely editable afterward with a visible "✎ what-if" badge and a
+        <b>Reset to actual</b> link once changed. Nothing you do to either writes back to your real plan, and reopening
+        the Risk Simulator fresh from Pane 2 always starts from your real figures again.
+      </p>
+      <p>
+        The two are independent, so both need to be changed together to model a genuinely different retirement shape —
+        moving Current Age alone just shifts when the same horizon starts, while moving Horizon Age alone changes how
+        long the plan needs to fund without touching when it begins.
+      </p>
+      <p>
+        This is the mechanism the Accumulation Simulator's hand-off window relies on (chapter 43) — when it opens the
+        Risk Simulator with a projected pot, it's setting exactly these two what-if fields, the same way you could by
+        hand.
+      </p>
+
       <h3 class="chapter" id="ch-24">24. "Sims beating your assumption"</h3>
       <p>
         The headline readout below the chart is the percentage of the 10,000 simulated futures that ended at or above
@@ -1801,14 +1826,13 @@
       <h3 class="chapter" id="ch-34">34. Audit Mode (hidden)</h3>
       <p>
         Double-click the "Risk Simulator — Monte Carlo Fan Chart" header (inside the standalone Risk Simulator page) to
-        toggle <b>Audit Mode</b>. In this mode
-        the RNG is paused and the simulator runs a single deterministic path with canonical inputs: Age 64 → 85,
-        Equities £610,000, Cash £90,000, Withdrawal £36,000, Pension £12,700 starting at Age 67 with 2.5% real growth,
-        cash real return +2.0%, inflation 2.5%. In Parametric mode the equity return is a flat +7.0% nominal every step;
-        in Historical mode the engine walks the MSCI World sequence chronologically starting from 1973 — the classic
-        sequence-of-returns stress benchmark. A step-by-step ledger table renders beneath the chart to the second
-        decimal place so the math can be reproduced with a pocket calculator. Double-click the header again to exit and
-        restore the full 10,000-run engine.
+        toggle <b>Audit Mode</b>. In this mode the RNG is paused and the simulator runs a single deterministic path with
+        canonical inputs: Age 64 → 85, Equities £610,000, Cash £90,000, Withdrawal £36,000, Pension £12,700 starting at
+        Age 67 with 2.5% real growth, cash real return +2.0%, inflation 2.5%. In Parametric mode the equity return is a
+        flat +7.0% nominal every step; in Historical mode the engine walks the MSCI World sequence chronologically
+        starting from 1973 — the classic sequence-of-returns stress benchmark. A step-by-step ledger table renders
+        beneath the chart to the second decimal place so the math can be reproduced with a pocket calculator.
+        Double-click the header again to exit and restore the full 10,000-run engine.
       </p>
 
       <h2 class="part" id="part-9">
@@ -1840,8 +1864,8 @@
         <b>Cash Real Return</b> and <b>Inflation / CPI Assumption</b> are now two independent sliders on Pane 1, sitting
         beneath Global Equities / Cash Pot and Assumed Real Growth Rate respectively. The Inflation / CPI Assumption
         slider feeds Pane 3's annualised-real-return calculation specifically; it is deliberately kept separate from the
-        Risk Simulator's own Inflation / Escalation slider, so you can hold a different short-term CPI view
-        for live directives than for long-run Monte Carlo planning. Moving one does not move the other.
+        Risk Simulator's own Inflation / Escalation slider, so you can hold a different short-term CPI view for live
+        directives than for long-run Monte Carlo planning. Moving one does not move the other.
       </p>
 
       <h3 class="chapter" id="ch-36">36. Rebalance Move &amp; the Withdrawal Recorded split, revisited</h3>
@@ -1972,6 +1996,31 @@
         target, and your State Pension age and amount if one is configured, omitted entirely rather than zeroed when no
         pension is set up &mdash; so the comparison reflects your actual plan the moment the tool opens, with nothing to
         re-type. Opened on its own, with no plan attached, it falls back to its own editable example figures.
+      </p>
+
+      <h3 class="chapter" id="ch-43">43. Companion Apps &mdash; the Accumulation Simulator</h3>
+      <p>
+        The third Companion App is the <b>Accumulation Simulator</b>, launched with the button marked &#128200;
+        <i>Accumulation Simulator</i>. Where the Risk Simulator stress-tests a pot being drawn down, this is its mirror
+        image &mdash; it projects a pot <em>growing</em>, from an early starting age up to a chosen retirement age,
+        across 10,000 possible market paths using the same fan-chart machinery and the same real historical return data
+        as the Risk Simulator.
+      </p>
+      <p>
+        It's aimed at a different audience than the rest of this app &mdash; someone decades from retirement, most often
+        a younger family member the plan-holder wants to make the case to about starting early. For that reason it
+        deliberately does <em>not</em> open pre-filled with your live Pane 1 figures the way the other two Companion
+        Apps do; it starts from its own small, sensible defaults, and every field it does have persists locally between
+        visits since there's no real plan behind it to fall back to.
+      </p>
+      <p>
+        A <b>"Move this pot to the Risk Simulator"</b> button lets the two tools meet in the middle: it opens a
+        confirmation window asking for a desired retirement income and State Pension details, then hands the projected
+        pot &mdash; split 15% cash / 85% equities &mdash; over to the Risk Simulator as its starting capital, landing on
+        the same Current Age / Horizon Age what-if fields covered in chapter 23d. Nothing before or after that hand-off
+        writes back to either tool's real state. Full detail, including the historical/parametric modes, the
+        zoom-and-hover chart controls, and exactly how the hand-off figures are calculated, lives in its own dedicated
+        guide, opened from the &#128214; <i>User Guide</i> button on the Accumulation Simulator's own page.
       </p>
     </main>
 

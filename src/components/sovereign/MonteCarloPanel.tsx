@@ -6,7 +6,9 @@ import { DashedLineIcon } from "./DashedLineIcon";
 
 // MSCI World Net Total Return, GBP-denominated, approximate annual returns
 // 1970–2024 (decimal). Proxy for a UK investor holding a global tracker.
-const GLOBAL_ANNUAL: number[] = [
+// Build 124 — exported (was module-local) so the Accumulation Simulator can
+// reuse this exact series rather than embedding a second copy of it.
+export const GLOBAL_ANNUAL: number[] = [
   -0.03, 0.31, 0.16, -0.18, -0.25, 0.36, 0.36, -0.07, 0.06, 0.1, 0.26, 0.1, 0.21, 0.27, 0.31, 0.21, 0.31, -0.04, 0.16,
   0.34, -0.21, 0.16, 0.16, 0.27, -0.04, 0.18, 0.13, 0.15, 0.18, 0.34, -0.07, -0.13, -0.27, 0.2, 0.07, 0.24, 0.07, 0.09,
   -0.18, 0.16, 0.16, -0.04, 0.11, 0.25, 0.12, 0.05, 0.29, 0.12, -0.03, 0.23, 0.13, 0.23, -0.08, 0.17, 0.21,
@@ -119,6 +121,13 @@ export interface MonteCarloPanelProps {
 
   annualWithdrawal?: number;
   currentAge?: number;
+  /**
+   * Build 123 — seed only, exactly like currentAge: the real Target Horizon
+   * Age from Pane 1, editable locally, never written back. Combined with the
+   * (also editable) currentAge override, this determines the simulation
+   * length instead of the fixed `years` prop once both are set.
+   */
+  horizonAge?: number;
   currency?: "£" | "€" | "$";
 }
 
@@ -135,6 +144,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
   annualWithdrawal = 0,
   currentAge = 0,
+  horizonAge = 0,
   currency = "£",
 }) => {
   // Resolve equities & cash. New callers pass equitiesCapital + cashCapital;
@@ -317,6 +327,26 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const simAge = Math.max(0, Math.floor(cleanNum(ageStr)));
   const ageOverridden = simAge !== currentAge;
 
+  // Horizon Age (override) — same pattern as Current Age: seeded from the
+  // live plan's Target Horizon Age (Pane 1), freely editable, never written
+  // back. Combined with simAge below, this drives the simulation length.
+  const [horizonAgeStr, setHorizonAgeStr] = useState<string>(horizonAge > 0 ? String(horizonAge) : "");
+  const horizonAgeSeedRef = React.useRef<number>(horizonAge);
+  useEffect(() => {
+    if (cleanNum(horizonAgeStr) === horizonAgeSeedRef.current) {
+      horizonAgeSeedRef.current = horizonAge;
+      setHorizonAgeStr(horizonAge > 0 ? String(horizonAge) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [horizonAge]);
+  const simHorizonAge = Math.max(0, Math.floor(cleanNum(horizonAgeStr)));
+  const horizonAgeOverridden = simHorizonAge !== horizonAge;
+  // Falls back to the original `years` prop (the horizon computed once at
+  // launch time) until both ages are validly set, or if Horizon Age is set
+  // at or below Current Age (which would otherwise produce a zero/negative
+  // simulation length).
+  const effectiveYears = simHorizonAge > simAge ? simHorizonAge - simAge : years;
+
   // Build 103 — pot-weighted blended real rate, using the SAME formula as
   // Pane 2's Actuarial Amortization Matrix (engine.ts blendedRealG):
   //   (equities x equityReturn + cash x cashReturn) / (equities + cash)
@@ -358,7 +388,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       cashRealPct,
       threshold,
       tickMode,
-      years,
+      years: effectiveYears,
       deterministicRatePct,
       inflowAmt,
       inflowYear,
@@ -380,7 +410,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       cashRealPct,
       threshold,
       tickMode,
-      years,
+      effectiveYears,
       deterministicRatePct,
       inflowAmt,
       inflowYear,
@@ -389,7 +419,14 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   );
   const simInputs = useDebouncedValue(simInputsRaw, 180);
 
-  const sim = useMemo(() => {
+  // Build 130 — the 10,000-path simulation used to run synchronously inside
+  // useMemo, which blocks the whole page (measured 200-580ms) every time it
+  // fires. computeSim itself is completely unchanged from before -- only the
+  // wrapper around it changed, from useMemo (blocks render) to useState +
+  // useEffect with a deferred setTimeout(...,0) (lets the browser paint a
+  // "computing" state first, and lets a fresh input change cancel a
+  // still-running one via the effect's cleanup).
+  function computeSim(simInputs: typeof simInputsRaw) {
     const {
       mode,
       meanPct,
@@ -646,6 +683,37 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       avgDefensiveYears,
       defensivePct,
     };
+  }
+
+  const [sim, setSim] = useState<ReturnType<typeof computeSim> | null>(null);
+  const [simComputing, setSimComputing] = useState(false);
+
+  useEffect(() => {
+    // setTimeout(fn, 0) does NOT reliably guarantee the browser paints the
+    // "computing" state before this fires -- verified directly with a
+    // MutationObserver: the indicator never became visible, even though the
+    // computation genuinely took ~280ms. Browsers can run the whole
+    // true-then-false cycle as one atomic update with no paint in between.
+    // Double requestAnimationFrame is the standard, reliable way to force a
+    // real paint of the intermediate state first: the first rAF fires right
+    // before the next paint (painting the "computing" state), and the
+    // second rAF (scheduled from inside the first) runs after that paint
+    // has happened.
+    let cancelled = false;
+    let raf2 = 0;
+    setSimComputing(true);
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        if (cancelled) return;
+        setSim(computeSim(simInputs));
+        setSimComputing(false);
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [simInputs]);
 
   // -------- AUDIT MODE ---------------------------------------------------
@@ -827,7 +895,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           Risk Simulator — Monte Carlo Fan Chart
         </h2>
         <div style={{ color: "var(--text-muted)", padding: "1rem 0" }}>
-          Add a ledger entry with capital to run the simulation.
+          {simComputing ? "Running 10,000 simulations…" : "Add a ledger entry with capital to run the simulation."}
         </div>
       </div>
     );
@@ -1067,6 +1135,30 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         >
           Risk Simulator — Monte Carlo Fan Chart
         </h2>
+        {simComputing && (
+          <span
+            style={{
+              fontSize: "0.7rem",
+              color: "var(--text-muted)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+            }}
+            aria-live="polite"
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "var(--accent-blue)",
+                display: "inline-block",
+                animation: "shd-pulse 1s ease-in-out infinite",
+              }}
+            />
+            Recalculating…
+          </span>
+        )}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             className="secondary"
@@ -1264,11 +1356,14 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         )}
 
         {/* Pension group — Amount, Start Age, Real Increase and the real /
-            hypothetical switch all read as one unit. */}
+            hypothetical switch all read as one unit. Build 123 added
+            Horizon Age as a fourth column here alongside Current Age — not
+            strictly a pension field, but it shares the same what-if/reset
+            pattern and the two ages together define the simulation length. */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
             gap: "0.6rem 0.75rem",
             alignContent: "start",
           }}
@@ -1367,6 +1462,55 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   }}
                 >
                   Reset to actual ({currentAge})
+                </button>
+              ) : (
+                <>What-if only — does not change your real plan</>
+              )}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Horizon Age{" "}
+              {horizonAgeOverridden && (
+                <span
+                  style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}
+                  title="Overridden — not saved, will reset on refresh"
+                >
+                  ✎ what-if
+                </span>
+              )}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="95"
+              value={horizonAgeStr}
+              onChange={(e) => setHorizonAgeStr(e.target.value)}
+              aria-label="Horizon age used by the simulation"
+            />
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+              {simHorizonAge > 0 && simAge > 0 && simHorizonAge <= simAge ? (
+                <span style={{ color: "var(--accent-amber)" }}>
+                  Must be after Current Age — using original horizon for now
+                </span>
+              ) : horizonAgeOverridden ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHorizonAgeStr(horizonAge > 0 ? String(horizonAge) : "");
+                    horizonAgeSeedRef.current = horizonAge;
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--accent-blue)",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontSize: "0.7rem",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Reset to actual ({horizonAge})
                 </button>
               ) : (
                 <>What-if only — does not change your real plan</>
@@ -1741,6 +1885,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       <div ref={chartWrapRef} style={{ position: "relative", width: "100%", height: 360 }}>
         <svg
           viewBox={`0 0 ${w} ${h}`}
+          preserveAspectRatio="none"
           style={{ width: "100%", height: "100%", overflow: "visible" }}
           role="img"
           aria-label="Monte Carlo fan chart"
@@ -1835,6 +1980,52 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                     ? `Age ${(auditMode ? AUDIT.age : simAge) + hoverAbs}`
                     : `Year +${hoverAbs}`}
                 </div>
+                {(() => {
+                  // Build 129 — drawdown context at the hovered age, using the
+                  // exact same net-draw formula the simulation itself uses
+                  // (see netDraw a few hundred lines up): withdraw minus
+                  // whatever pension has started paying by this age, floored
+                  // at zero. Purely informational -- doesn't change the sim.
+                  const ageAtHover = (auditMode ? AUDIT.age : simAge) + hoverAbs;
+                  const pensG = Math.max(0, pensionIncreasePct) / 100;
+                  const pensionAtHover =
+                    pension > 0 && ageAtHover >= pensionAge ? pension * Math.pow(1 + pensG, hoverAbs) : 0;
+                  const netDrawAtHover = Math.max(0, withdraw - pensionAtHover);
+                  const rows = [{ label: "Annual Drawdown", value: withdraw }];
+                  if (pensionAtHover > 0) {
+                    rows.push(
+                      { label: "− State Pension", value: pensionAtHover },
+                      { label: "= Net Draw from Pot", value: netDrawAtHover },
+                    );
+                  }
+                  return (
+                    <div
+                      style={{
+                        paddingBottom: 4,
+                        marginBottom: 4,
+                        borderBottom: "1px solid var(--border-color)",
+                      }}
+                    >
+                      {rows.map((row) => (
+                        <div
+                          key={row.label}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "1px 0",
+                          }}
+                        >
+                          <span style={{ color: "var(--text-muted)" }}>{row.label}</span>
+                          <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                            {formatGBP(row.value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {[
                   {
                     label: `Assumed Rate`,
@@ -1900,6 +2091,55 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                     )}
                   </div>
                 ))}
+
+                {(() => {
+                  // Build 130 — Fun Bucket equivalent, mirroring engine.ts's
+                  // surplus formula from Pane 2 (Fun Bucket Balance): total
+                  // capital minus the present-value cost of funding the
+                  // remaining withdrawal years, annuity-due. Uses the Median
+                  // path as "current position" and this tool's own Assumed
+                  // Rate as the discount rate -- the Risk Simulator has no
+                  // per-year equities/cash split or Legacy Target input to
+                  // draw a byte-identical blended rate from, so this is the
+                  // closest faithful equivalent available here, not a
+                  // literal copy of Pane 2's exact calc.
+                  const inflLocal = Math.max(0, inflationPct) / 100;
+                  const detRNominalLocal = deterministicRatePct / 100;
+                  const detRRealLocal = inflLocal > 0 ? (1 + detRNominalLocal) / (1 + inflLocal) - 1 : detRNominalLocal;
+                  const ageAtHoverFb = (auditMode ? AUDIT.age : simAge) + hoverAbs;
+                  const remainingYears = Math.max(0, simHorizonAge - ageAtHoverFb);
+                  const baselineNeed =
+                    detRRealLocal > 0
+                      ? withdraw *
+                        ((1 - Math.pow(1 + detRRealLocal, -remainingYears)) / detRRealLocal) *
+                        (1 + detRRealLocal)
+                      : withdraw * remainingYears;
+                  const funBucket = hoverBand.p50 - baselineNeed;
+                  return (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        paddingTop: 4,
+                        borderTop: "1px solid var(--border-color)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <span style={{ color: "var(--text-muted)" }}>Fun Bucket (Median, approx.)</span>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontVariantNumeric: "tabular-nums",
+                          color: funBucket > 0 ? "var(--accent-purple)" : "var(--text-muted)",
+                        }}
+                      >
+                        {formatGBP(Math.max(0, funBucket))}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Build 102 — show which engine generated these figures. */}
                 <div

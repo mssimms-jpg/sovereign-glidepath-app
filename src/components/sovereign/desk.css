@@ -14,8 +14,7 @@
   --accent-red: #ef4444;
   --accent-purple: #a855f7;
 
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.5;
@@ -290,12 +289,18 @@
   display: block;
   margin-top: 0.5rem;
 }
-.directive-box.green .directive-title { color: var(--accent-green); }
-.directive-box.warning .directive-title { color: var(--accent-amber); }
-.directive-box.danger .directive-title { color: var(--accent-red); }
-.directive-box.purple .directive-title { color: var(--accent-purple); }
-
-
+.directive-box.green .directive-title {
+  color: var(--accent-green);
+}
+.directive-box.warning .directive-title {
+  color: var(--accent-amber);
+}
+.directive-box.danger .directive-title {
+  color: var(--accent-red);
+}
+.directive-box.purple .directive-title {
+  color: var(--accent-purple);
+}
 
 .shd-toast {
   min-width: 300px;
@@ -442,7 +447,7 @@
   border-color: var(--accent-green);
 }
 .shd-trial-banner.expired {
-  background: rgba(239, 68, 68, 0.10);
+  background: rgba(239, 68, 68, 0.1);
   border-color: var(--accent-red);
 }
 .shd-trial-banner button {
@@ -472,7 +477,6 @@
   margin-top: 0.25rem;
   letter-spacing: 0.04em;
 }
-
 
 /* Compact Monte Carlo input grid — keeps long labels readable in narrow widths */
 .shd-root .mc-compact label {
@@ -576,20 +580,36 @@
   width: 100%;
 }
 .shd-root .ledger-table-stacked th:nth-child(1),
-.shd-root .ledger-table-stacked td:nth-child(1) { width: 16%; }
+.shd-root .ledger-table-stacked td:nth-child(1) {
+  width: 16%;
+}
 .shd-root .ledger-table-stacked th:nth-child(2),
-.shd-root .ledger-table-stacked td:nth-child(2) { width: 19%; }
+.shd-root .ledger-table-stacked td:nth-child(2) {
+  width: 19%;
+}
 .shd-root .ledger-table-stacked th:nth-child(3),
-.shd-root .ledger-table-stacked td:nth-child(3) { width: 19%; }
+.shd-root .ledger-table-stacked td:nth-child(3) {
+  width: 19%;
+}
 .shd-root .ledger-table-stacked th:nth-child(4),
-.shd-root .ledger-table-stacked td:nth-child(4) { width: 12%; }
+.shd-root .ledger-table-stacked td:nth-child(4) {
+  width: 12%;
+}
 .shd-root .ledger-table-stacked th:nth-child(5),
-.shd-root .ledger-table-stacked td:nth-child(5) { width: 16%; }
+.shd-root .ledger-table-stacked td:nth-child(5) {
+  width: 16%;
+}
 .shd-root .ledger-table-stacked th:nth-child(6),
-.shd-root .ledger-table-stacked td:nth-child(6) { width: 18%; }
+.shd-root .ledger-table-stacked td:nth-child(6) {
+  width: 18%;
+}
 
-.shd-root th.text-right { text-align: right; }
-.shd-root th.text-center { text-align: center; }
+.shd-root th.text-right {
+  text-align: right;
+}
+.shd-root th.text-center {
+  text-align: center;
+}
 
 /* ---------- Build 117: App-lock screen ---------- */
 .applock-screen {
@@ -600,7 +620,11 @@
   padding: 2rem 1rem;
   background: #0f172a;
   color: #e2e8f0;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 .applock-card {
   width: 100%;
@@ -692,4 +716,15 @@
 .applock-submit:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* Build 130 — used by the Risk Simulator's "Recalculating…" indicator. */
+@keyframes shd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
