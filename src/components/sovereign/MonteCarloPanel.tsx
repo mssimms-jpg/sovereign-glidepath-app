@@ -686,19 +686,16 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   }
 
   const [sim, setSim] = useState<ReturnType<typeof computeSim> | null>(null);
+  // simComputing now only drives the initial-load message below ("Running
+  // 10,000 simulations…" vs "Add a ledger entry…") -- a visible indicator
+  // during recompute was tried and removed, since even a layout-neutral
+  // version caused visible judder on the Windows desktop build.
   const [simComputing, setSimComputing] = useState(false);
 
   useEffect(() => {
-    // setTimeout(fn, 0) does NOT reliably guarantee the browser paints the
-    // "computing" state before this fires -- verified directly with a
-    // MutationObserver: the indicator never became visible, even though the
-    // computation genuinely took ~280ms. Browsers can run the whole
-    // true-then-false cycle as one atomic update with no paint in between.
-    // Double requestAnimationFrame is the standard, reliable way to force a
-    // real paint of the intermediate state first: the first rAF fires right
-    // before the next paint (painting the "computing" state), and the
-    // second rAF (scheduled from inside the first) runs after that paint
-    // has happened.
+    // Deferred via double requestAnimationFrame so the input itself stays
+    // responsive during the ~200-580ms calculation, rather than blocking
+    // synchronously inside a render-triggering useMemo.
     let cancelled = false;
     let raf2 = 0;
     setSimComputing(true);
@@ -1135,30 +1132,6 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         >
           Risk Simulator — Monte Carlo Fan Chart
         </h2>
-        {simComputing && (
-          <span
-            style={{
-              fontSize: "0.7rem",
-              color: "var(--text-muted)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-            }}
-            aria-live="polite"
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--accent-blue)",
-                display: "inline-block",
-                animation: "shd-pulse 1s ease-in-out infinite",
-              }}
-            />
-            Recalculating…
-          </span>
-        )}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             className="secondary"

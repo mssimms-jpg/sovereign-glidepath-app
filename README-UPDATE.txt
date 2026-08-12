@@ -44,22 +44,21 @@ Watch progress in: Cloudflare -> Workers & Pages -> your project -> Deployments.
 What's new since the last web sync (Build 123)
 -------------------------------------------------
 - Accumulation Simulator now has its own dedicated manual, matching the
-  Risk Simulator and Comparison Builder guides in style and structure; the
-  previously-unwired "User Guide" button on that page now opens it
-- Fixed the Risk Simulator's "Back to..." link, which an earlier, unrelated
-  edit had accidentally reverted — now correctly and reliably reads "Back
-  to Accumulation Simulator" when opened that way
-- Fixed a real page freeze: both simulators ran their 10,000-path
-  calculation synchronously, which could block the page for 200-580ms with
-  no visible indication anything was happening. Both now defer the
-  calculation and show a genuine "Recalculating..." indicator while it runs
+  Risk Simulator and Comparison Builder guides; the previously-unwired
+  "User Guide" button on that page now opens it
+- Fixed the Risk Simulator's "Back to..." link to reliably read "Back to
+  Accumulation Simulator" when opened that way
+- Fixed a real page freeze in both simulators: the 10,000-path calculation
+  now runs deferred rather than blocking the page for 200-580ms
+- Removed a "Recalculating..." indicator that was added to address the
+  freeze above, after it turned out to cause a visible layout judder on
+  the Windows desktop build. The underlying deferred-calculation fix is
+  kept; the visible indicator itself was removed entirely for simplicity
 - Fixed a data-loss risk: pending encrypted ledger writes are now flushed
-  when the tab closes, rather than risking the last edit being lost
-  mid-write if the tab closed an instant too soon
+  when the tab closes
 - Fixed a mislabelled CSV export column: "Realised Withdrawal Rate" now
-  correctly reads "Target Withdrawal Rate", matching what it actually
-  computes
-- Full Manual and Quick Start Guide brought up to date: both previously had
-  zero mention of the Accumulation Simulator, and zero coverage of the Risk
-  Simulator's own Current Age / Horizon Age what-if fields. Full Manual's
-  cover version stamp also corrected (was showing Build 118)
+  correctly reads "Target Withdrawal Rate"
+- Full Manual and Quick Start Guide brought up to date with the
+  Accumulation Simulator and the Risk Simulator's Current Age / Horizon
+  Age what-if fields, both previously undocumented. Full Manual's cover
+  version stamp also corrected (was showing Build 118)

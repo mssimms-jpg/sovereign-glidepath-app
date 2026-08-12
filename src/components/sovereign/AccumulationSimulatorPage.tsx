@@ -197,23 +197,17 @@ export function AccumulationSimulatorPage() {
     potSource,
   ]);
 
-  // Build 130 — same fix as MonteCarloPanel.tsx's Risk Simulator: a 10,000
-  // path simulation run synchronously in useMemo blocks the whole page
-  // (measured 200-580ms). Deferred via setTimeout(...,0) so the browser can
-  // paint a "computing" state first, with the effect's cleanup cancelling a
-  // still-running computation if inputs change again before it finishes.
+  // Build 130 — the 10,000-path simulation used to run synchronously in
+  // useMemo, blocking the whole page (measured 200-580ms). Deferred via
+  // double requestAnimationFrame so at least the input itself stays
+  // responsive during the calculation, even without any visible indicator
+  // (an indicator was tried and removed -- even a layout-neutral one caused
+  // visible judder on the Windows desktop build, and simplicity won out).
   const [sim, setSim] = useState<ReturnType<typeof runAccumulation> | null>(null);
-  const [simComputing, setSimComputing] = useState(false);
 
   useEffect(() => {
-    // See the matching comment in MonteCarloPanel.tsx: setTimeout(fn, 0) does
-    // not reliably guarantee a paint of the "computing" state happens before
-    // this fires -- verified directly with a MutationObserver, the indicator
-    // never actually became visible despite the computation taking ~200-500ms.
-    // Double requestAnimationFrame reliably forces a real paint in between.
     let cancelled = false;
     let raf2 = 0;
-    setSimComputing(true);
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         if (cancelled) return;
@@ -231,7 +225,6 @@ export function AccumulationSimulatorPage() {
             assumedRatePct,
           }),
         );
-        setSimComputing(false);
       });
     });
     return () => {
@@ -524,31 +517,6 @@ export function AccumulationSimulatorPage() {
           Runs 10,000 possible saving-up paths from your current age to your chosen retirement age, showing the full
           spread of pot sizes your contributions could realistically reach.
         </p>
-        {simComputing && (
-          <span
-            style={{
-              fontSize: "0.7rem",
-              color: "var(--text-muted)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              marginTop: "0.4rem",
-            }}
-            aria-live="polite"
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--accent-blue)",
-                display: "inline-block",
-                animation: "shd-pulse 1s ease-in-out infinite",
-              }}
-            />
-            Recalculating…
-          </span>
-        )}
         <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "1rem" }}>
           <button
             type="button"
