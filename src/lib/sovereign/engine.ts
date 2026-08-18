@@ -66,6 +66,14 @@ export interface LedgerEntry {
   assumedGrowthRate?: number;
   assumedCashRealPct?: number;
   assumedInflationPct?: number;
+  // Build 125 — actual observed CPI/RPI since the PRIOR row, entered at
+  // commit time as a plain percentage (e.g. 2.8, not 0.028). Optional: when
+  // omitted, computeInflationTracking() falls back to the row's own
+  // assumedInflationPct (or the current Pane 1 slider, for legacy rows with
+  // neither) annualised over the actual elapsed time to the prior row. This
+  // is what lets the realised-inflation index be as accurate as the user is
+  // willing to make it, without ever forcing a lookup.
+  actualCpiSincePriorRow?: number;
 }
 
 
@@ -101,6 +109,16 @@ export interface CalcInputs {
   pensionStartAge?: number;
   /** Real annual increase of the pension, in % (compounds from start age). */
   pensionIncreasePct?: number;
+
+  /**
+   * Build 125 — cumulative realised-inflation index (multiplier, plan
+   * inception = 1.0), as returned by computeInflationTracking().currentIndex.
+   * Optional; omitted or 1.0 means "no nominal conversion shown" — the
+   * directive falls back to its historical real-terms-only behaviour.
+   */
+  inflationIndex?: number;
+  /** Calendar year of the ledger's oldest (plan-inception) row, for the Pane 3 caption. */
+  inflationBaseYear?: number;
 }
 
 /**
@@ -126,6 +144,139 @@ export function pensionIncomeFor(inp: {
 /** Net-of-pension annual draw funded from the pot. */
 export function netTargetYearlyFor(inp: CalcInputs): number {
   return Math.max(0, inp.targetYearly - pensionIncomeFor(inp));
+}
+
+// ---------------------------------------------------------------------------
+// Build 125 — Realised Inflation Tracking.
+//
+// The live directive has always spoken in REAL terms (today's money): the
+// Target Annual Base Withdrawal stays flat, and the model deflates portfolio
+// returns rather than inflating the withdrawal. That is internally
+// consistent, but it means the pound figure printed on screen is never the
+// actual nominal amount to withdraw in cash — the user was expected to do
+// that translation themselves, silently, with no help from the app.
+//
+// This tracks a cumulative realised-inflation index across the ledger's
+// history (oldest row = 1.0) so the directive can show a genuine nominal
+// draw figure alongside the real one. Only Normal (non-event) rows with a
+// periodEndDate participate in the chain — special-event and windfall rows
+// don't represent a new planning period and must not distort the index.
+// ---------------------------------------------------------------------------
+
+export interface InflationTrackingRow {
+  /** Index into the ORIGINAL ledger array (newest-first) this row came from. */
+  ledgerIndex: number;
+  periodEndDate: string;
+  /** Cumulative index AS OF this row, oldest row = 1.0. */
+  cumulativeIndex: number;
+  /** True if actualCpiSincePriorRow was present on this row (vs assumed fallback). */
+  isActual: boolean;
+  /** The per-period rate actually applied (actual if present, else assumed), as %. */
+  rateAppliedPct: number;
+}
+
+export interface InflationTrackingResult {
+  rows: InflationTrackingRow[];
+  /** Cumulative index at the most recent participating row. 1.0 if fewer than 2 rows. */
+  currentIndex: number;
+  /** Implied average annual realised rate across the whole tracked span, as %. */
+  impliedAverageAnnualPct: number;
+}
+
+const MS_PER_YEAR = 365.25 * 86_400_000;
+
+/**
+ * Build the cumulative realised-inflation index across a ledger's Normal-row
+ * history. `ledger` is newest-first (the app's standard convention — index 0
+ * is the most recent commit). `fallbackAssumedPct` is used for legacy rows
+ * that recorded neither an actual figure nor their own assumedInflationPct
+ * snapshot (typically the current Pane 1 slider value).
+ */
+export function computeInflationTracking(
+  ledger: LedgerEntry[],
+  fallbackAssumedPct: number,
+): InflationTrackingResult {
+  // Oldest-first, Normal rows only, with a usable date.
+  const chain = ledger
+    .filter(
+      (e) =>
+        !e.isSpecialEvent &&
+        e.entryKind !== "special_withdrawal" &&
+        e.entryKind !== "windfall" &&
+        !e.isInflowEvent &&
+        typeof e.periodEndDate === "string" &&
+        e.periodEndDate.length > 0,
+    )
+    .map((e) => ({ entry: e, ledgerIndex: ledger.indexOf(e) }))
+    .sort((a, b) => a.entry.periodEndDate!.localeCompare(b.entry.periodEndDate!));
+
+  if (chain.length === 0) {
+    return { rows: [], currentIndex: 1.0, impliedAverageAnnualPct: 0 };
+  }
+
+  const rows: InflationTrackingRow[] = [];
+  let cumulativeIndex = 1.0;
+  let prevDateMs = Date.parse(chain[0].entry.periodEndDate + "T00:00:00Z");
+
+  // First (oldest) row is the plan-inception baseline — index 1.0 by
+  // definition, nothing has compounded yet.
+  rows.push({
+    ledgerIndex: chain[0].ledgerIndex,
+    periodEndDate: chain[0].entry.periodEndDate!,
+    cumulativeIndex: 1.0,
+    isActual: false,
+    rateAppliedPct: 0,
+  });
+
+  for (let i = 1; i < chain.length; i++) {
+    const { entry, ledgerIndex } = chain[i];
+    const dateMs = Date.parse(entry.periodEndDate + "T00:00:00Z");
+    const yearsElapsed = Math.max(0, (dateMs - prevDateMs) / MS_PER_YEAR);
+
+    const hasActual = typeof entry.actualCpiSincePriorRow === "number" && !isNaN(entry.actualCpiSincePriorRow);
+    let periodFactor: number;
+    let rateAppliedPct: number;
+
+    if (hasActual) {
+      // Actual is recorded as the total change SINCE THE PRIOR ROW (not
+      // necessarily annualised — it's whatever the user looked up for that
+      // real span), so it's applied directly as a single compounding step.
+      rateAppliedPct = entry.actualCpiSincePriorRow!;
+      periodFactor = 1 + rateAppliedPct / 100;
+    } else {
+      // Assumed fallback IS an annual rate, so it must be raised to the
+      // actual elapsed span before compounding — a 6-month gap should only
+      // apply half a year's inflation, not a full year's.
+      const assumedPct =
+        typeof entry.assumedInflationPct === "number" ? entry.assumedInflationPct : fallbackAssumedPct;
+      rateAppliedPct = assumedPct;
+      periodFactor = Math.pow(1 + assumedPct / 100, yearsElapsed);
+    }
+
+    cumulativeIndex *= periodFactor;
+    rows.push({
+      ledgerIndex,
+      periodEndDate: entry.periodEndDate!,
+      cumulativeIndex,
+      isActual: hasActual,
+      rateAppliedPct,
+    });
+    prevDateMs = dateMs;
+  }
+
+  const spanMs =
+    Date.parse(chain[chain.length - 1].entry.periodEndDate + "T00:00:00Z") -
+    Date.parse(chain[0].entry.periodEndDate + "T00:00:00Z");
+  const totalYears = Math.max(0, spanMs / MS_PER_YEAR);
+  const impliedAverageAnnualPct =
+    totalYears > 0 ? (Math.pow(cumulativeIndex, 1 / totalYears) - 1) * 100 : 0;
+
+  return { rows, currentIndex: cumulativeIndex, impliedAverageAnnualPct };
+}
+
+/** Convert a real-terms (today's money) amount to its nominal equivalent given a cumulative index. */
+export function nominalFromReal(realAmount: number, cumulativeIndex: number): number {
+  return realAmount * Math.max(0, cumulativeIndex || 1.0);
 }
 
 
@@ -596,8 +747,31 @@ export function generateDirectives(
   } = o;
   const mm = inp.mmFund;
   const capA = inp.cappingAge;
+  const inflationIndex = inp.inflationIndex;
 
-
+  // Build 125c — REDESIGN per Mark's feedback: the directive was showing two
+  // numbers for what is really one instruction ("Sell £5,000... / Withdraw
+  // £5,750.66") which reads as two separate actions rather than one. Every
+  // REAL-terms £ figure that appears as something the user is told to
+  // actually move (sell/withdraw/sweep/deploy) now passes through this one
+  // helper before reaching the sentence, so there is exactly ONE actionable
+  // number per instruction — the real pounds to move today. The real-terms
+  // plan figure becomes a small reference footnote (see wrap()), never a
+  // second headline. `mm` (the live actual cash balance) never passes
+  // through this — it's already an actual, current, nominal figure entered
+  // directly by the user, not a real-terms one, so converting it again would
+  // double-count. Scope note: this only changes DISPLAY figures within an
+  // already-selected branch (def/excess/shortfall are computed AFTER the
+  // branch fires). It deliberately does NOT touch which branch fires in the
+  // first place (e.g. the `mm >= gAdjQ` Preservation threshold below still
+  // compares actual cash against a real-terms figure, exactly as it always
+  // has) — that's a pre-existing characteristic of the whole guardrail
+  // engine (targetYearly-derived figures are real throughout; entered
+  // balances are always actual/nominal), not something introduced here, and
+  // changing it is a materially bigger, separate decision deserving its own
+  // dedicated review — not something to bundle into a display fix.
+  const hasNominalDrift = !!inflationIndex && Math.abs(inflationIndex - 1) > 0.0005;
+  const nom = (v: number) => (hasNominalDrift ? nominalFromReal(v, inflationIndex!) : v);
 
   const sC = mm - targetCashAmount;
   const pT = preservationThresholdPct(phase);
@@ -610,7 +784,6 @@ export function generateDirectives(
   // the user simply draws normally from Equities.
   const comfortBypass = comfortYears >= 3 && phase !== "No-Go";
 
-
   // Amount wording: only say "adjusted" when Guyton-Klinger actually changed it.
   // Under comfort bypass we also force the amount back to the un-reduced quarterly.
   // Build 091 — comfort bypass suppresses cuts only; the Prosperity bonus stands.
@@ -618,14 +791,14 @@ export function generateDirectives(
   const amtLabel = isAdj ? "adjusted quarterly draw" : "quarterly draw";
   const amt = isAdj ? gAdjQ : tQ;
   const amtNote = isAdj
-    ? ` (Guyton-Klinger ${gF < 1 ? "reduction −10%" : "prosperity bonus +10%"} applied to the ${formatGBP(tQ)} baseline).`
+    ? ` (Guyton-Klinger ${gF < 1 ? "reduction −10%" : "prosperity bonus +10%"} applied to the ${formatGBP(nom(tQ))} baseline).`
     : "";
 
   let gAB = "";
   if (!comfortBypass && gF < 1.0)
-    gAB = `<div style="padding:0.75rem; background:rgba(245,158,11,0.1); border:1px solid var(--accent-amber); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-amber);">Guyton-Klinger Preservation:</strong> Realised withdrawal rate is more than 20% above target. Cut this quarter's payout by 10% to <strong>${formatGBP(gAdjQ)}</strong>.</div>`;
+    gAB = `<div style="padding:0.75rem; background:rgba(245,158,11,0.1); border:1px solid var(--accent-amber); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-amber);">Guyton-Klinger Preservation:</strong> Realised withdrawal rate is more than 20% above target. Cut this quarter's payout by 10% to <strong>${formatGBP(nom(gAdjQ))}</strong>.</div>`;
   else if (gF > 1.0)
-    gAB = `<div style="padding:0.75rem; background:rgba(168,85,247,0.1); border:1px solid var(--accent-purple); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-purple);">Guyton-Klinger Prosperity:</strong> Realised withdrawal rate is more than 20% below target. You may raise this quarter's payout by 10% to <strong>${formatGBP(gAdjQ)}</strong>.</div>`;
+    gAB = `<div style="padding:0.75rem; background:rgba(168,85,247,0.1); border:1px solid var(--accent-purple); border-radius:0.4rem; margin:0.5rem 0 1rem; font-size:0.9rem;"><strong style="color:var(--accent-purple);">Guyton-Klinger Prosperity:</strong> Realised withdrawal rate is more than 20% below target. You may raise this quarter's payout by 10% to <strong>${formatGBP(nom(gAdjQ))}</strong>.</div>`;
 
   let cGT: DirectiveState = "Normal Draw";
   let cGC = COLORS.green;
@@ -648,6 +821,11 @@ export function generateDirectives(
     desc: string,
     action: string,
     titleOverride?: string,
+    /** Build 125c — the REAL-terms plan figure this branch's (now-nominal)
+     * headline was derived from. Shown only as a small reference footnote —
+     * never as a second instruction — and only when there's realised
+     * inflation drift worth disclosing. */
+    realBaseline?: number,
   ) => {
     const cls =
       variant === "blue" ? "directive-box" : `directive-box ${variant}`;
@@ -660,9 +838,13 @@ export function generateDirectives(
     const sub = bits.length
       ? `<span style="display:block; font-size:0.72rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-muted); margin-top:0.2rem;">${bits.join(" · ")}</span>`
       : "";
-    return `<div class="${cls}"${style}><div class="directive-title">${title}${sub}</div><span class="directive-desc">${desc}</span>${gAB}<span class="directive-action">${action}</span></div>`;
+    let footnote = "";
+    if (typeof realBaseline === "number" && realBaseline > 0 && hasNominalDrift) {
+      const yearLabel = inp.inflationBaseYear ? `Year-1 (${inp.inflationBaseYear})` : "plan-start";
+      footnote = `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.6rem;">Your ${yearLabel} plan figure is ${formatGBP(realBaseline)}/quarter — this stays fixed and never needs manual updating; the pounds above already account for realised inflation. See Pane 2's Inflation Tracking for the detail.</div>`;
+    }
+    return `<div class="${cls}"${style}><div class="directive-title">${title}${sub}</div><span class="directive-desc">${desc}</span>${gAB}<span class="directive-action">${action}</span>${footnote}</div>`;
   };
-
 
   // Build 113 — the exhaustion branch now also fires whenever NET total capital
   // is <= 0 (e.g. a bucket driven negative by an oversized special event), so
@@ -675,7 +857,9 @@ export function generateDirectives(
       "danger",
       "Exhaustion",
       "Total capital is exhausted. The plan cannot fund this quarter's withdrawal.",
-      `Required <strong>${formatGBP(amt)}</strong> — <strong>unavailable</strong>. Stop discretionary spending and revisit the plan parameters.`,
+      `Required <strong>${formatGBP(nom(amt))}</strong> — <strong>unavailable</strong>. Stop discretionary spending and revisit the plan parameters.`,
+      undefined,
+      amt,
     );
   } else if (phase === "No-Go" && surplus >= 0) {
     cGT = "No-Go Amortization";
@@ -684,10 +868,12 @@ export function generateDirectives(
       "purple",
       "No-Go Amortization",
       `You are past ~85 and the plan is in run-down mode. Guardrails are switched off; simply draw the target amount from ${srcLabel} and let the plan amortize.`,
-      `${srcVerb} <strong>${formatGBP(tQ)}</strong> from ${srcLabel} this quarter.`,
+      `${srcVerb} <strong>${formatGBP(nom(tQ))}</strong> from ${srcLabel} this quarter.`,
+      undefined,
+      tQ,
     );
   } else if (draw < pT && runwayMonths < modifiedTargetMonths) {
-    const def = Math.max(0, targetCashAmount - mm);
+    const defNominal = Math.max(0, nom(targetCashAmount) - mm);
     if (draw < 2.0) {
       cGT = "Peak Refill";
       cGC = COLORS.blue;
@@ -695,7 +881,9 @@ export function generateDirectives(
         "blue",
         "Peak Refill",
         `Portfolio is at or near an all-time high (drawdown ${draw.toFixed(1)}%) and the Cash Shield is below its ${modifiedTargetMonths}-month target. This is the ideal moment to sell equities and top the shield right up.`,
-        `Sell <strong>${formatGBP(amt)}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Then sweep an additional <strong>${formatGBP(def)}</strong> from Equities into the Cash Pot to fully refill the shield.`,
+        `Sell <strong>${formatGBP(nom(amt))}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Then sweep an additional <strong>${formatGBP(defNominal)}</strong> from Equities into the Cash Pot to fully refill the shield.`,
+        undefined,
+        amt,
       );
     } else if (traj === "ascending") {
       cGT = "Recovery Wave Refill";
@@ -704,7 +892,9 @@ export function generateDirectives(
         "blue",
         "Recovery Wave Refill",
         `Equities are rising after a drawdown (${draw.toFixed(1)}% off ATH, momentum ascending). Use the recovery to rebuild the Cash Shield while prices are climbing.`,
-        `Sell <strong>${formatGBP(amt)}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Sell an additional <strong>${formatGBP(Math.min(def, tQ))}</strong> from Equities to refill the shield.`,
+        `Sell <strong>${formatGBP(nom(amt))}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Sell an additional <strong>${formatGBP(Math.min(defNominal, nom(tQ)))}</strong> from Equities to refill the shield.`,
+        undefined,
+        amt,
       );
     } else {
       cGT = "Refilling Shield";
@@ -713,18 +903,22 @@ export function generateDirectives(
         "blue",
         "Refilling Shield",
         `Markets are broadly calm (drawdown ${draw.toFixed(1)}%) but the Cash Shield is below its ${modifiedTargetMonths}-month target. Take this quarter's spending from equities and plan to top up the shield on the next up-move.`,
-        `Sell <strong>${formatGBP(amt)}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
+        `Sell <strong>${formatGBP(nom(amt))}</strong> from Global Equities for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
+        undefined,
+        amt,
       );
     }
   } else if (draw >= sT && runwayMonths > modifiedTargetMonths + 12) {
     cGT = "Reverse-Shielding";
     cGC = COLORS.blue;
-    const excess = Math.max(0, mm - targetCashAmount);
+    const excessNominal = Math.max(0, mm - nom(targetCashAmount));
     h = wrap(
       "blue",
       "Reverse-Shielding",
       `Markets are down (${draw.toFixed(1)}% off ATH) but your Cash Shield is well above target. Use surplus cash to buy equities at depressed prices while funding spending from cash.`,
-      `Fund this quarter's <strong>${formatGBP(amt)}</strong> ${amtLabel} from the Cash Pot${amtNote}${amtNote ? "" : "."}<br/>Deploy up to <strong>${formatGBP(excess)}</strong> of surplus cash into Global Equities.`,
+      `Fund this quarter's <strong>${formatGBP(nom(amt))}</strong> ${amtLabel} from the Cash Pot${amtNote}${amtNote ? "" : "."}<br/>Deploy up to <strong>${formatGBP(excessNominal)}</strong> of surplus cash into Global Equities.`,
+      undefined,
+      amt,
     );
   } else if (comfortBypass && draw >= pT) {
     cGT = "Comfortable Amortization";
@@ -737,8 +931,9 @@ export function generateDirectives(
       "green",
       "Comfortable Amortization",
       `Portfolio is ${draw.toFixed(1)}% off a past all-time high, but you still hold roughly <strong>${comfortYears.toFixed(1)} years</strong> of surplus beyond lifetime needs${legacyTarget > 0 ? " and legacy target" : ""}. The distant ATH is stale — freezing equities here would just hoard capital you cannot spend.${legacyNote}`,
-      `${srcVerb} <strong>${formatGBP(amt)}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
+      `${srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
       `Comfortable Amortization — Draw Normally${useCash ? " from Cash" : ""}`,
+      amt,
     );
   } else if (draw < pT) {
     cGT = "Normal Draw";
@@ -747,8 +942,9 @@ export function generateDirectives(
       "green",
       "Normal Draw",
       `Markets are calm (drawdown ${draw.toFixed(1)}% off ATH) and the Cash Shield is at or above its ${modifiedTargetMonths}-month target. Fund this quarter's spending as normal from ${srcLabel}.`,
-      `${srcVerb} <strong>${formatGBP(amt)}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
+      `${srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
       `Normal Draw from ${useCash ? "Cash" : "Equities"}`,
+      amt,
     );
   } else if (mm >= gAdjQ) {
     cGT = "Preservation";
@@ -757,19 +953,24 @@ export function generateDirectives(
       "warning",
       "Preservation",
       `Portfolio is in meaningful drawdown (${draw.toFixed(1)}% off ATH). Stop selling equities and let them recover — fund spending entirely from the Cash Shield this quarter.`,
-      `Withdraw <strong>${formatGBP(amt)}</strong> from the Cash Pot for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Do not sell any Global Equities.`,
+      `Withdraw <strong>${formatGBP(nom(amt))}</strong> from the Cash Pot for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}<br/>Do not sell any Global Equities.`,
+      undefined,
+      amt,
     );
   } else {
     cGT = "Shield Deficit";
     cGC = COLORS.red;
-    const shortfall = Math.max(0, amt - mm);
+    const shortfallNominal = Math.max(0, nom(amt) - mm);
     h = wrap(
       "danger",
       "Shield Deficit",
       `Portfolio is down (${draw.toFixed(1)}% off ATH) and the Cash Shield is exhausted. You are forced to sell equities at a loss to complete this quarter's spending.`,
-      `Empty the Cash Pot (<strong>${formatGBP(mm)}</strong>) and sell the remaining <strong>${formatGBP(shortfall)}</strong> from Global Equities${amtNote}${amtNote ? "" : "."}<br/>Prioritise refilling the shield on the next up-move.`,
+      `Empty the Cash Pot (<strong>${formatGBP(mm)}</strong>) and sell the remaining <strong>${formatGBP(shortfallNominal)}</strong> from Global Equities${amtNote}${amtNote ? "" : "."}<br/>Prioritise refilling the shield on the next up-move.`,
+      undefined,
+      amt,
     );
   }
+
 
   const legacyBit =
     legacyTarget > 0

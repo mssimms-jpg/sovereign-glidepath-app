@@ -4,7 +4,20 @@ A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
 
-## Version 1.0 build 124 — Accumulation Simulator manual, plus a code review pass
+## Version 1.0 build 125 — Realised Inflation Tracking, and a genuine one-number directive
+
+**Realised Inflation Tracking** — the live directive has always spoken in real terms (today's money): the withdrawal target stays flat, and the model deflates portfolio returns rather than inflating the withdrawal. That was internally consistent, but the pound figure on screen was never the actual nominal amount to withdraw in cash — the user had to do that translation themselves, with no help from the app.
+
+- **New per-row field**: an optional "Actual CPI since last entry" — entered freely each quarter, or left blank to fall back to the assumed CPI slider (pro-rated for the real elapsed gap, not assumed to be a full year).
+- **New Pane 2 section**: cumulative realised-inflation index, implied average annual rate, and a "View realised-inflation history" table showing every tracked row, its rate, source (actual vs assumed), and running index.
+- **The directive (Pane 3) now shows genuine actual pounds.** Every action figure — the main draw, sweep-to-shield amounts, deploy-to-equities amounts, Guyton-Klinger overlay figures — is converted through the realised index before display, so there's exactly one number to act on per instruction, not a real-terms figure and a nominal figure competing for attention. The real-terms baseline appears only as a small reference footnote, explicitly stating it never needs manual updating.
+- **Withdrawal Recorded now auto-seeds with the same nominal figure the directive shows** (previously it silently seeded from the real-terms figure, which could quietly diverge from what the directive actually told the user to withdraw — caught via a live walkthrough, not spotted by inspection).
+
+**Field renamed for clarity**: "Target Annual Base Withdrawal" is now **"Initial Annual Withdrawal — Frozen Baseline"**, with an explanatory caption and a **live nominal preview** that updates as you type — including a worked example showing a genuine lifestyle change (e.g. a 20% rise) is a straight multiplier on the frozen figure, never a guess at a nominal number.
+
+**Documentation**: build-number references stripped from the Quick Start guide and Full Manual (three "Recent additions (Builds X–Y)" chapter parts retitled thematically); a new Quick Start section explains the Pane 2 Scenario Stress Test slider is a lightweight, local, single-hypothetical preview — distinct from the standalone Risk Simulator companion app, a distinction the guide previously left unclear; field-name references propagated across all four guide files.
+
+
 
 - **Accumulation Simulator now has its own manual**, matching the Risk Simulator and Comparison Builder guides in style and structure — the same layered chapters, the same appendix format. The "User Guide" button on the Accumulation Simulator, previously unwired, now opens it.
 - **The Risk Simulator's "Back to…" link now correctly reads "Back to Accumulation Simulator"** when opened that way, in every case — an earlier attempt at this fix was accidentally reverted by a later, unrelated edit; this build carries the corrected version, verified end-to-end through the actual hand-off flow rather than just checking the code.

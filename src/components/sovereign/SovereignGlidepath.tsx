@@ -10,7 +10,10 @@ import {
   phaseFor,
   setCurrencySymbol,
   xorDecode,
+  computeInflationTracking,
+  nominalFromReal,
   type LedgerEntry,
+  type InflationTrackingResult,
 } from "@/lib/sovereign/engine";
 import {
   loadLicense,
@@ -839,6 +842,13 @@ export function SovereignGlidepath() {
   // that so both surfaces stay in lock-step. Falls back to the same 2.5%
   // default the MC panel uses when no value has been saved yet.
   const [inflationPct, setInflationPct] = useState<number>(2.5);
+  // Build 125 — actual CPI observed since the PRIOR committed row, entered
+  // freely each quarter. Optional: left blank, the realised-inflation index
+  // falls back to the assumed slider for that gap rather than forcing a
+  // lookup. Cleared on Cancel / New Entry, restored on Edit.
+  const [actualCpiInput, setActualCpiInput] = useState<string>("");
+  // Build 125 — expand/collapse for the realised-inflation history table in Pane 2.
+  const [showInflationHistory, setShowInflationHistory] = useState<boolean>(false);
 
   // --- Ledger ---
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
@@ -1059,6 +1069,39 @@ export function SovereignGlidepath() {
     return (Number(first.equities) || 0) + (Number(first.mmFund) || 0);
   }, [ledger]);
 
+  // Build 125 — realised-inflation tracking. Chains actual CPI entries (or
+  // the assumed fallback) across the ledger's Normal-row history to produce
+  // a cumulative index the directive can use to show a genuine nominal draw
+  // figure. Recomputed whenever the ledger or the assumed-CPI slider moves.
+  const inflationTracking: InflationTrackingResult = useMemo(
+    () => computeInflationTracking(ledger, inflationPct),
+    [ledger, inflationPct],
+  );
+  // Calendar year of the oldest tracked row, for the Pane 3 "Year-1 (20XX)" caption.
+  const inflationBaseYear: number | undefined = useMemo(() => {
+    if (inflationTracking.rows.length === 0) return undefined;
+    const y = inflationTracking.rows[0].periodEndDate.slice(0, 4);
+    const n = parseInt(y, 10);
+    return isNaN(n) ? undefined : n;
+  }, [inflationTracking]);
+
+  // Build 125d — the SAME nominal-conversion the directive (Pane 3) applies
+  // to its headline figures, made available here so the Withdrawal Recorded
+  // fields auto-seed with the actual pounds the directive told the user to
+  // withdraw — not the real-terms figure underneath it. Without this, the
+  // directive could say "Withdraw £5,750.66" while the recorded amount
+  // silently defaulted to £5,000.00, the exact inconsistency Mark caught.
+  // Threshold matches engine.ts's hasNominalDrift exactly so the two can
+  // never disagree about whether there's meaningful drift to apply.
+  const nominaliseRequest = useCallback(
+    (realAmount: number): number => {
+      const idx = inflationTracking.currentIndex;
+      const hasDrift = !!idx && Math.abs(idx - 1) > 0.0005;
+      return hasDrift ? nominalFromReal(realAmount, idx) : realAmount;
+    },
+    [inflationTracking],
+  );
+
   // Build 112 — QA State Test Presets are self-contained scenarios. While one
   // is active, the Prosperity reference must come from the preset, not from
   // the real ledger's oldest row (otherwise presets can never reproduce their
@@ -1086,6 +1129,8 @@ export function SovereignGlidepath() {
         pensionAmount,
         pensionStartAge,
         pensionIncreasePct,
+        inflationIndex: inflationTracking.currentIndex,
+        inflationBaseYear,
       },
       prevEq,
     );
@@ -1105,6 +1150,8 @@ export function SovereignGlidepath() {
     pensionIncreasePct,
     effectiveBaselineTotal,
     ledger,
+    inflationTracking,
+    inflationBaseYear,
   ]);
 
   // Build 082 — separate stress preview, ONLY consumed inside the Pane 2
@@ -1198,6 +1245,8 @@ export function SovereignGlidepath() {
           pensionAmount,
           pensionStartAge,
           pensionIncreasePct,
+          inflationIndex: inflationTracking.currentIndex,
+          inflationBaseYear,
         },
         directiveBucket,
       ),
@@ -1217,6 +1266,8 @@ export function SovereignGlidepath() {
       pensionStartAge,
       pensionIncreasePct,
       directiveBucket,
+      inflationTracking,
+      inflationBaseYear,
     ],
   );
 
@@ -1314,21 +1365,24 @@ export function SovereignGlidepath() {
   ]);
 
   // Auto-seed the "Withdrawal recorded" input from the live guardrail-adjusted
-  // Request. Once the user edits it, we stop overriding.
+  // Request. Once the user edits it, we stop overriding. Build 125d — seeds
+  // with the NOMINAL request (matching what the Pane 3 directive actually
+  // told the user to withdraw), not the real-terms figure.
   useEffect(() => {
     if (withdrawnTouched) return;
-    const req = calc.guardrailAdjustedQuarterly;
+    const req = nominaliseRequest(calc.guardrailAdjustedQuarterly);
     setWithdrawnStr(req > 0 ? req.toFixed(2) : "");
-  }, [calc.guardrailAdjustedQuarterly, withdrawnTouched]);
+  }, [calc.guardrailAdjustedQuarterly, withdrawnTouched, nominaliseRequest]);
 
   // Build 076 / Build 087 — auto-seed the bucket split from the RESOLVED
   // effective bucket (narrative override wins over the selected Defensive-
   // Draw Mode's default). This reads the same `effectiveBucket` used to
   // render the mode-line advisory, so the Commit form can never record a
   // withdrawal source that contradicts the visible directive.
+  // Build 125d — uses the same nominalised request as the directive text.
   useEffect(() => {
     if (wdSplitTouched) return;
-    const req = calc.guardrailAdjustedQuarterly;
+    const req = nominaliseRequest(calc.guardrailAdjustedQuarterly);
     const drawFromCash = effectiveBucket === "cash";
     if (drawFromCash) {
       setWdEqStr("0.00");
@@ -1340,9 +1394,14 @@ export function SovereignGlidepath() {
     // Refill suggestion — only when we're drawing from equities AND cash
     // is below the shield target. Amount = shortfall, capped by the equity
     // left after this quarter's withdrawal (never suggest going negative).
+    // Build 125d — targetCashAmount is also nominalised here for the same
+    // reason def/excess were converted in the directive: comparing a
+    // nominalised request against a real-terms shield target would
+    // understate the true shortfall once inflation drift exists.
     const currentCash = cleanNum(mmVal);
     const currentEq = cleanNum(equityVal);
-    const shortfall = Math.max(0, calc.targetCashAmount - currentCash);
+    const nominalTargetCash = nominaliseRequest(calc.targetCashAmount);
+    const shortfall = Math.max(0, nominalTargetCash - currentCash);
     const equityAfter = Math.max(0, currentEq - (drawFromCash ? 0 : req));
     if (!drawFromCash && shortfall > 0 && equityAfter > 0) {
       const refill = Math.min(shortfall, equityAfter);
@@ -1352,7 +1411,15 @@ export function SovereignGlidepath() {
       setRebalDir("none");
       setRebalAmtStr("");
     }
-  }, [calc.guardrailAdjustedQuarterly, calc.targetCashAmount, effectiveBucket, wdSplitTouched, mmVal, equityVal]);
+  }, [
+    calc.guardrailAdjustedQuarterly,
+    calc.targetCashAmount,
+    effectiveBucket,
+    wdSplitTouched,
+    mmVal,
+    equityVal,
+    nominaliseRequest,
+  ]);
 
   // --- Toast ---
   const [toast, setToast] = useState("");
@@ -1472,6 +1539,10 @@ export function SovereignGlidepath() {
       assumedGrowthRate: growthRate,
       assumedCashRealPct: cashRealPct,
       assumedInflationPct: inflationPct,
+      // Build 125 — actual CPI since the prior row, if the user supplied one
+      // this quarter. Blank input stores undefined (not 0 — a genuine 0%
+      // reading and "not looked up" must stay distinguishable).
+      actualCpiSincePriorRow: actualCpiInput.trim() !== "" ? cleanNum(actualCpiInput) : undefined,
     };
     const next = editIndex > -1 ? ledger.map((e, i) => (i === editIndex ? entry : e)) : [entry, ...ledger];
     setLedger(next);
@@ -1656,6 +1727,8 @@ export function SovereignGlidepath() {
     }
     setRebalDir(d.rebalanceDirection ?? "none");
     setRebalAmtStr(typeof d.rebalanceAmount === "number" && d.rebalanceAmount > 0 ? d.rebalanceAmount.toFixed(2) : "");
+    // Build 125 — restore the row's own actual-CPI entry, if it recorded one.
+    setActualCpiInput(typeof d.actualCpiSincePriorRow === "number" ? String(d.actualCpiSincePriorRow) : "");
     setEditIndex(i);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1691,6 +1764,10 @@ export function SovereignGlidepath() {
     // strings alone keeps the (already-correct) seeded values in place.
     setWithdrawnTouched(false);
     setWdSplitTouched(false);
+    // Build 125 — actual CPI is a fresh-each-quarter entry, not a persisted
+    // assumption; always blank on New Entry so last quarter's figure can't
+    // accidentally get re-applied to this quarter.
+    setActualCpiInput("");
     // Build 086 — Cancel (new-entry mode) must also revert the app-wide
     // fields that are NOT stored on the ledger row (cashRealPct,
     // inflationPct, legacyTarget, currency). Restore from the baseline
@@ -2404,7 +2481,7 @@ export function SovereignGlidepath() {
                       <td style={vcell}>{dd.toFixed(2)}%</td>
                     </tr>
                     <tr>
-                      <td style={kcell}>Target Annual Draw</td>
+                      <td style={kcell}>Initial Annual Withdrawal (Frozen)</td>
                       <td style={vcell}>
                         {formatGBP(cleanNum(targetYearly))} ({wr.toFixed(2)}% WR)
                       </td>
@@ -2421,11 +2498,21 @@ export function SovereignGlidepath() {
                       <td style={kcell}>Assumed Growth</td>
                       <td style={vcell}>{growthRate.toFixed(1)}%</td>
                     </tr>
+                    <tr>
+                      <td style={kcell}>Actual CPI Since Last Entry</td>
+                      <td style={vcell}>
+                        {actualCpiInput.trim() !== "" ? `${cleanNum(actualCpiInput).toFixed(2)}%` : "— (using assumed)"}
+                      </td>
+                    </tr>
                     {(() => {
                       const wdEq = cleanNum(wdEqStr);
                       const wdCash = cleanNum(wdCashStr);
                       const wdTotal = wdEq + wdCash;
-                      const req = calc.guardrailAdjustedQuarterly;
+                      // Build 125d — compare against the NOMINAL request (what the
+                      // directive actually told the user to withdraw), or this would
+                      // wrongly flag a mismatch for someone who correctly followed
+                      // the directive's inflation-adjusted figure.
+                      const req = nominaliseRequest(calc.guardrailAdjustedQuarterly);
                       const mismatch = wdTotal > 0 && Math.abs(wdTotal - req) > 0.005;
                       const rebAmt = rebalDir === "none" ? 0 : Math.max(0, cleanNum(rebalAmtStr));
                       const rebLabel =
@@ -3022,66 +3109,6 @@ export function SovereignGlidepath() {
               </div>
 
               <div className="shd-cluster">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.75fr", gap: "0.85rem" }}>
-                  <div>
-                    <label style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>Cash Buffer Target (months)</label>
-                    <IntInput
-                      min={1}
-                      max={120}
-                      value={desiredRunwayMonths}
-                      fallback={36}
-                      onChange={setDesiredRunwayMonths}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="legacyTargetTop" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
-                      Legacy Target ({currency})
-                    </label>
-                    <MoneyInput
-                      id="legacyTargetTop"
-                      value={legacyTarget ? String(legacyTarget) : ""}
-                      onChange={(v) => setLegacyTarget(cleanNum(v))}
-                      currency={currency}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="currencySel" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
-                      Currency
-                    </label>
-                    <select
-                      id="currencySel"
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value as CurrencySymbol)}
-                      style={{
-                        width: "100%",
-                        background: "var(--bg-input, #0f172a)",
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-main)",
-                        padding: "0.6rem",
-                        borderRadius: "0.375rem",
-                        fontSize: "0.95rem",
-                      }}
-                      aria-label="Display currency (cosmetic only — no FX conversion)"
-                    >
-                      <option value="£">£ GBP</option>
-                      <option value="€">€ EUR</option>
-                      <option value="$">$ USD</option>
-                    </select>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.72rem",
-                    color: "var(--text-muted)",
-                    marginTop: 6,
-                    fontStyle: "italic",
-                  }}
-                >
-                  Legacy Target: real-terms amount you want to leave behind (rises with inflation). Held aside from the
-                  Fun Bucket and factored into every directive. Set to {currency}0 to draw the pot to zero. Currency
-                  change is cosmetic only — no FX conversion.
-                </div>
-
                 <div
                   style={{
                     marginTop: "1rem",
@@ -3089,8 +3116,52 @@ export function SovereignGlidepath() {
                     paddingTop: "1rem",
                   }}
                 >
-                  <label>Target Annual Base Withdrawal ({currency})</label>
+                  <label style={{ color: "var(--accent-green)" }}>
+                    Initial Annual Withdrawal — Frozen Baseline ({currency})
+                  </label>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "-0.3rem", marginBottom: "0.5rem" }}>
+                    Set your desired standard of living once. Inflation is applied automatically — only change this
+                    for a genuine lifestyle change.
+                  </div>
                   <MoneyInput id="targetYearly" value={targetYearly} onChange={setTargetYearly} currency={currency} />
+                  {(() => {
+                    // Build 125e — live nominal preview, updates as you type,
+                    // before you commit anything. Answers "what does this
+                    // actually mean in real pounds today?" on the spot, for
+                    // both the figure as typed AND — since this is exactly
+                    // the moment someone is most likely to be testing a
+                    // lifestyle change — a quick multiplier reference so a
+                    // "20% pay rise" is visibly just ×1.2 on the frozen
+                    // baseline, with no inflation arithmetic required.
+                    const idx = inflationTracking.currentIndex;
+                    const hasDrift = !!idx && Math.abs(idx - 1) > 0.0005;
+                    if (!hasDrift) return null;
+                    const annualReal = cleanNum(targetYearly);
+                    if (annualReal <= 0) return null;
+                    const annualNominal = nominaliseRequest(annualReal);
+                    const quarterlyNominal = annualNominal / 4;
+                    return (
+                      <div
+                        style={{
+                          marginTop: "0.5rem",
+                          padding: "0.6rem 0.75rem",
+                          background: "rgba(55,138,221,0.1)",
+                          border: "1px solid rgba(55,138,221,0.3)",
+                          borderRadius: "0.4rem",
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        <span style={{ color: "var(--text-muted)" }}>Live nominal preview — </span>
+                        <strong style={{ color: "var(--accent-blue)" }}>{formatGBP(annualNominal)}/year</strong>
+                        <span style={{ color: "var(--text-muted)" }}> ({formatGBP(quarterlyNominal)}/quarter) in actual pounds today</span>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
+                          Based on realised inflation since plan start (see Pane 2's Inflation Tracking). A genuine
+                          lifestyle change is a straight multiplier on the frozen baseline above — e.g. a 20% rise is{" "}
+                          {formatGBP(annualReal)} × 1.2 = {formatGBP(annualReal * 1.2)}, not a guess at a nominal figure.
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {calc.pensionActive && (
                     <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", lineHeight: 1.5 }}>
                       <div>
@@ -3222,6 +3293,66 @@ export function SovereignGlidepath() {
                   </div>
                 </div>
 
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.75fr", gap: "0.85rem" }}>
+                  <div>
+                    <label style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>Cash Buffer Target (months)</label>
+                    <IntInput
+                      min={1}
+                      max={120}
+                      value={desiredRunwayMonths}
+                      fallback={36}
+                      onChange={setDesiredRunwayMonths}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="legacyTargetTop" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                      Legacy Target ({currency})
+                    </label>
+                    <MoneyInput
+                      id="legacyTargetTop"
+                      value={legacyTarget ? String(legacyTarget) : ""}
+                      onChange={(v) => setLegacyTarget(cleanNum(v))}
+                      currency={currency}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="currencySel" style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                      Currency
+                    </label>
+                    <select
+                      id="currencySel"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value as CurrencySymbol)}
+                      style={{
+                        width: "100%",
+                        background: "var(--bg-input, #0f172a)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-main)",
+                        padding: "0.6rem",
+                        borderRadius: "0.375rem",
+                        fontSize: "0.95rem",
+                      }}
+                      aria-label="Display currency (cosmetic only — no FX conversion)"
+                    >
+                      <option value="£">£ GBP</option>
+                      <option value="€">€ EUR</option>
+                      <option value="$">$ USD</option>
+                    </select>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "var(--text-muted)",
+                    marginTop: 6,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Legacy Target: real-terms amount you want to leave behind (rises with inflation). Held aside from the
+                  Fun Bucket and factored into every directive. Set to {currency}0 to draw the pot to zero. Currency
+                  change is cosmetic only — no FX conversion.
+                </div>
+
                 <div
                   style={{
                     marginTop: "1rem",
@@ -3266,7 +3397,8 @@ export function SovereignGlidepath() {
                     const wdEq = cleanNum(wdEqStr);
                     const wdCash = cleanNum(wdCashStr);
                     const wdTotal = wdEq + wdCash;
-                    const req = calc.guardrailAdjustedQuarterly;
+                    // Build 125d — nominal request, matching the directive.
+                    const req = nominaliseRequest(calc.guardrailAdjustedQuarterly);
                     const mismatch = wdTotal > 0 && Math.abs(wdTotal - req) > 0.005;
                     return (
                       <div
@@ -3292,7 +3424,8 @@ export function SovereignGlidepath() {
                           style={{ fontSize: "0.7rem", padding: "0.3rem 0.55rem", whiteSpace: "nowrap" }}
                           onClick={() => {
                             setWdSplitTouched(false);
-                            const rq = calc.guardrailAdjustedQuarterly;
+                            // Build 125d — reset to the nominal request too.
+                            const rq = nominaliseRequest(calc.guardrailAdjustedQuarterly);
                             setWdEqStr("0.00");
                             setWdCashStr(rq > 0 ? rq.toFixed(2) : "0.00");
                           }}
@@ -3613,6 +3746,131 @@ export function SovereignGlidepath() {
                     {calc.trajectoryLabel}
                   </div>
                 </div>
+              </div>
+
+              {/* Build 125 — Inflation Tracking. Realised-inflation index built from
+                  the ledger's actual/assumed CPI history, plus the optional per-quarter
+                  actual-CPI entry. Kept out of Pane 1 (already busy) per Mark's steer —
+                  this is a diagnostic, not a planning input. */}
+              <div
+                style={{
+                  marginTop: "2rem",
+                  padding: "1.25rem",
+                  background: "rgba(55,138,221,0.05)",
+                  border: "1px solid rgba(55,138,221,0.2)",
+                  borderRadius: "0.5rem",
+                }}
+              >
+                <label style={{ color: "var(--accent-blue)", fontWeight: 800, fontSize: "0.8rem" }}>
+                  Inflation Tracking
+                </label>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                    gap: "0.75rem",
+                    marginTop: "0.85rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      background: "rgba(0,0,0,0.15)",
+                      borderRadius: "0.4rem",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+                      Cumulative Index
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>
+                      {inflationTracking.currentIndex.toFixed(3)}×
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      background: "rgba(0,0,0,0.15)",
+                      borderRadius: "0.4rem",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+                      Implied Average
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>
+                      {inflationTracking.impliedAverageAnnualPct.toFixed(1)}% p.a.
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      background: "rgba(0,0,0,0.15)",
+                      borderRadius: "0.4rem",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+                      Since
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{inflationBaseYear ?? "—"}</div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "1rem" }}>
+                  <label style={{ fontSize: "0.78rem" }}>Actual CPI since last entry (optional)</label>
+                  <input
+                    id="actualCpiInput"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={`Leave blank to use assumed ${inflationPct.toFixed(1)}%`}
+                    value={actualCpiInput}
+                    onChange={(e) => setActualCpiInput(e.target.value)}
+                    style={{ width: "100%" }}
+                    aria-label="Actual CPI observed since the previous ledger entry"
+                  />
+                  <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                    Look up the real inflation figure for this period if you want an accurate record; leaving it
+                    blank falls back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
+                  </div>
+                </div>
+
+                {inflationTracking.rows.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowInflationHistory((v) => !v)}
+                    style={{ marginTop: "1rem", fontSize: "0.78rem" }}
+                  >
+                    {showInflationHistory ? "Hide" : "View"} realised-inflation history
+                  </button>
+                )}
+
+                {showInflationHistory && inflationTracking.rows.length >= 2 && (
+                  <div style={{ marginTop: "0.85rem", overflowX: "auto" }}>
+                    <table style={{ width: "100%", fontSize: "0.78rem", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border-color)" }}>
+                          <th style={{ padding: "0.35rem 0.5rem" }}>Period end</th>
+                          <th style={{ padding: "0.35rem 0.5rem" }}>Rate applied</th>
+                          <th style={{ padding: "0.35rem 0.5rem" }}>Source</th>
+                          <th style={{ padding: "0.35rem 0.5rem" }}>Cumulative index</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inflationTracking.rows.map((r) => (
+                          <tr key={r.ledgerIndex} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                            <td style={{ padding: "0.35rem 0.5rem" }}>{r.periodEndDate}</td>
+                            <td style={{ padding: "0.35rem 0.5rem" }}>{r.rateAppliedPct.toFixed(2)}%</td>
+                            <td style={{ padding: "0.35rem 0.5rem", color: r.isActual ? "var(--accent-blue)" : "var(--text-muted)" }}>
+                              {r.isActual ? "Actual" : "Assumed"}
+                            </td>
+                            <td style={{ padding: "0.35rem 0.5rem" }}>{r.cumulativeIndex.toFixed(3)}×</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               <div

@@ -718,7 +718,7 @@
   cursor: default;
 }
 
-/* Build 130 — used by the Risk Simulator's "Recalculating…" indicator. */
+/* Build 124 — used by the Risk Simulator's "Recalculating…" indicator. */
 @keyframes shd-pulse {
   0%,
   100% {

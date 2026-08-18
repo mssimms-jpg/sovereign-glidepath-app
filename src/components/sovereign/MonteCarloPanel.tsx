@@ -9,9 +9,10 @@ import { DashedLineIcon } from "./DashedLineIcon";
 // Build 124 — exported (was module-local) so the Accumulation Simulator can
 // reuse this exact series rather than embedding a second copy of it.
 export const GLOBAL_ANNUAL: number[] = [
-  -0.03, 0.31, 0.16, -0.18, -0.25, 0.36, 0.36, -0.07, 0.06, 0.1, 0.26, 0.1, 0.21, 0.27, 0.31, 0.21, 0.31, -0.04, 0.16,
-  0.34, -0.21, 0.16, 0.16, 0.27, -0.04, 0.18, 0.13, 0.15, 0.18, 0.34, -0.07, -0.13, -0.27, 0.2, 0.07, 0.24, 0.07, 0.09,
-  -0.18, 0.16, 0.16, -0.04, 0.11, 0.25, 0.12, 0.05, 0.29, 0.12, -0.03, 0.23, 0.13, 0.23, -0.08, 0.17, 0.21,
+  -0.03, 0.31, 0.16, -0.18, -0.25, 0.36, 0.36, -0.07, 0.06, 0.1, 0.26, 0.1, 0.21, 0.27, 0.31, 0.21,
+  0.31, -0.04, 0.16, 0.34, -0.21, 0.16, 0.16, 0.27, -0.04, 0.18, 0.13, 0.15, 0.18, 0.34, -0.07,
+  -0.13, -0.27, 0.2, 0.07, 0.24, 0.07, 0.09, -0.18, 0.16, 0.16, -0.04, 0.11, 0.25, 0.12, 0.05, 0.29,
+  0.12, -0.03, 0.23, 0.13, 0.23, -0.08, 0.17, 0.21,
 ];
 
 type Mode = "historical" | "parametric";
@@ -59,7 +60,8 @@ function quantile(sorted: number[], q: number): number {
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);
   const rest = pos - base;
-  if (sorted[base + 1] !== undefined) return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  if (sorted[base + 1] !== undefined)
+    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
   return sorted[base];
 }
 
@@ -150,7 +152,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   // Resolve equities & cash. New callers pass equitiesCapital + cashCapital;
   // legacy callers passing only startingCapital are treated as 100% equities.
   const livEquities =
-    typeof equitiesCapital === "number" ? equitiesCapital : typeof startingCapital === "number" ? startingCapital : 0;
+    typeof equitiesCapital === "number"
+      ? equitiesCapital
+      : typeof startingCapital === "number"
+        ? startingCapital
+        : 0;
   const livCash = typeof cashCapital === "number" ? cashCapital : 0;
 
   const persisted = useRef<PersistedMC>(loadMC());
@@ -162,7 +168,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const [stdevStr, setStdevStr] = useState<string>(p.stdevStr ?? "15");
   const meanPct = cleanNum(meanStr);
   const stdevPct = cleanNum(stdevStr);
-  const [inflationPct, setInflationPct] = useState<number>(typeof p.inflationPct === "number" ? p.inflationPct : 2.5);
+  const [inflationPct, setInflationPct] = useState<number>(
+    typeof p.inflationPct === "number" ? p.inflationPct : 2.5,
+  );
   // Build 099 — pension inputs now live in Pane 1 (real, app-wide state). This
   // pane either READS those real values live (default) or, when the user opts
   // out, runs its own fully independent hypothetical pension seeded once from
@@ -191,9 +199,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   );
   // Hypothetical buffers — seeded from the real values the moment the toggle is
   // switched off, then fully independent.
-  const [hypPensionStr, setHypPensionStr] = useState<string>(realPension > 0 ? realPension.toFixed(2) : "");
+  const [hypPensionStr, setHypPensionStr] = useState<string>(
+    realPension > 0 ? realPension.toFixed(2) : "",
+  );
   const [hypPensionAgeStr, setHypPensionAgeStr] = useState<string>(String(realPensionAge || 67));
-  const [hypPensionIncreasePct, setHypPensionIncreasePct] = useState<number>(realPensionIncreasePct);
+  const [hypPensionIncreasePct, setHypPensionIncreasePct] =
+    useState<number>(realPensionIncreasePct);
   const [pensionFocused, setPensionFocused] = useState(false);
 
   const enterHypotheticalPension = () => {
@@ -203,7 +214,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     setUseRealPension(false);
   };
 
-  const pensionStr = useRealPension ? (realPension > 0 ? realPension.toFixed(2) : "") : hypPensionStr;
+  const pensionStr = useRealPension
+    ? realPension > 0
+      ? realPension.toFixed(2)
+      : ""
+    : hypPensionStr;
   const pensionAgeStr = useRealPension ? String(realPensionAge || 67) : hypPensionAgeStr;
   const pensionIncreasePct = useRealPension ? realPensionIncreasePct : hypPensionIncreasePct;
 
@@ -228,7 +243,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     typeof p.growthPct === "number" ? p.growthPct : (deterministicRatePctSeed ?? 5),
   );
   const [cashRealPct, setCashRealPct] = useState<number>(
-    typeof p.cashRealPct === "number" ? p.cashRealPct : typeof cashRealPctSeed === "number" ? cashRealPctSeed : 1,
+    typeof p.cashRealPct === "number"
+      ? p.cashRealPct
+      : typeof cashRealPctSeed === "number"
+        ? cashRealPctSeed
+        : 1,
   );
   const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
   const [tickMode, setTickMode] = useState<TickMode>(p.tickMode ?? "yearly");
@@ -271,7 +290,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     useRealPension,
   ]);
 
-  const [withdrawStr, setWithdrawStr] = useState<string>(annualWithdrawal > 0 ? annualWithdrawal.toFixed(2) : "");
+  const [withdrawStr, setWithdrawStr] = useState<string>(
+    annualWithdrawal > 0 ? annualWithdrawal.toFixed(2) : "",
+  );
   const [withdrawFocused, setWithdrawFocused] = useState(false);
   const seededRef = React.useRef<number>(annualWithdrawal);
   useEffect(() => {
@@ -286,7 +307,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const contrib = 0;
 
   // Equities (override) — seeded from live ledger but freely editable for what-if.
-  const [equitiesStr, setEquitiesStr] = useState<string>(livEquities > 0 ? livEquities.toFixed(2) : "");
+  const [equitiesStr, setEquitiesStr] = useState<string>(
+    livEquities > 0 ? livEquities.toFixed(2) : "",
+  );
   const [equitiesFocused, setEquitiesFocused] = useState(false);
   const equitiesSeedRef = React.useRef<number>(livEquities);
   useEffect(() => {
@@ -330,7 +353,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   // Horizon Age (override) — same pattern as Current Age: seeded from the
   // live plan's Target Horizon Age (Pane 1), freely editable, never written
   // back. Combined with simAge below, this drives the simulation length.
-  const [horizonAgeStr, setHorizonAgeStr] = useState<string>(horizonAge > 0 ? String(horizonAge) : "");
+  const [horizonAgeStr, setHorizonAgeStr] = useState<string>(
+    horizonAge > 0 ? String(horizonAge) : "",
+  );
   const horizonAgeSeedRef = React.useRef<number>(horizonAge);
   useEffect(() => {
     if (cleanNum(horizonAgeStr) === horizonAgeSeedRef.current) {
@@ -419,7 +444,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   );
   const simInputs = useDebouncedValue(simInputsRaw, 180);
 
-  // Build 130 — the 10,000-path simulation used to run synchronously inside
+  // Build 124 — the 10,000-path simulation used to run synchronously inside
   // useMemo, which blocks the whole page (measured 200-580ms) every time it
   // fires. computeSim itself is completely unchanged from before -- only the
   // wrapper around it changed, from useMemo (blocks render) to useState +
@@ -504,7 +529,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         const realEq = infl > 0 ? (1 + nominal) / (1 + infl) - 1 : nominal;
 
         const ageThisYear = currentAge + y - 1;
-        const pensionThisYear = pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
+        const pensionThisYear =
+          pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
         const netDraw = Math.max(0, withdraw - pensionThisYear);
 
         // Delegate to shared applyPeriod. Yearly = one call; Quarterly =
@@ -595,7 +621,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     let dATH = start;
     for (let y = 1; y <= yrs; y++) {
       const ageThisYear = currentAge + y - 1;
-      const pensionThisYear = pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
+      const pensionThisYear =
+        pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
       const netDraw = Math.max(0, withdraw - pensionThisYear);
 
       if (tickMode === "quarterly") {
@@ -663,9 +690,13 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     }
     const pctRank = Math.round((below / sortedFinals.length) * 100);
 
-    const successRate = Math.round((sortedFinals.filter((f) => f >= start).length / sortedFinals.length) * 100);
+    const successRate = Math.round(
+      (sortedFinals.filter((f) => f >= start).length / sortedFinals.length) * 100,
+    );
 
-    const ruinRate = Math.round((sortedFinals.filter((f) => f <= 0).length / sortedFinals.length) * 100);
+    const ruinRate = Math.round(
+      (sortedFinals.filter((f) => f <= 0).length / sortedFinals.length) * 100,
+    );
     const detRuined = detFinal <= 0;
 
     const avgDefensiveYears = defensiveSum / RUNS;
@@ -769,11 +800,14 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
     for (let y = 1; y <= yrs; y++) {
       const nominal =
-        mode === "historical" ? GLOBAL_ANNUAL[(HIST_START + (y - 1)) % GLOBAL_ANNUAL.length] : AUDIT.meanNom;
+        mode === "historical"
+          ? GLOBAL_ANNUAL[(HIST_START + (y - 1)) % GLOBAL_ANNUAL.length]
+          : AUDIT.meanNom;
       const realEq = (1 + nominal) / (1 + infl) - 1;
 
       const ageThisYear = AUDIT.age + y - 1;
-      const pensionThisYear = AUDIT.pension > 0 && ageThisYear >= AUDIT.pensionAge ? AUDIT.pension : 0;
+      const pensionThisYear =
+        AUDIT.pension > 0 && ageThisYear >= AUDIT.pensionAge ? AUDIT.pension : 0;
       const netDraw = Math.max(0, AUDIT.withdraw - pensionThisYear);
 
       if (tickMode === "quarterly") {
@@ -888,11 +922,17 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   if (!sim && !auditMode) {
     return (
       <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
-        <h2 className="shd-h2" onDoubleClick={() => setAuditMode((v) => !v)} title="Double-click to toggle Audit Mode">
+        <h2
+          className="shd-h2"
+          onDoubleClick={() => setAuditMode((v) => !v)}
+          title="Double-click to toggle Audit Mode"
+        >
           Risk Simulator — Monte Carlo Fan Chart
         </h2>
         <div style={{ color: "var(--text-muted)", padding: "1rem 0" }}>
-          {simComputing ? "Running 10,000 simulations…" : "Add a ledger entry with capital to run the simulation."}
+          {simComputing
+            ? "Running 10,000 simulations…"
+            : "Add a ledger entry with capital to run the simulation."}
         </div>
       </div>
     );
@@ -938,8 +978,13 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const getX = (i: number) => pL + ((i - z0) / span) * (w - pL - pR);
   const getY = (v: number) => h - pB - ((Math.max(minV, v) - minV) / rangeV) * (h - pB - pT);
 
-  const pathFromTo = (lo: (b: (typeof bands)[number]) => number, hi: (b: (typeof bands)[number]) => number) => {
-    const top = visibleBands.map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(hi(b))}`).join(" ");
+  const pathFromTo = (
+    lo: (b: (typeof bands)[number]) => number,
+    hi: (b: (typeof bands)[number]) => number,
+  ) => {
+    const top = visibleBands
+      .map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(hi(b))}`)
+      .join(" ");
     const bot = [...visibleBands]
       .map((b, k) => ({ b, k }))
       .reverse()
@@ -948,18 +993,32 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     return `${top} ${bot} Z`;
   };
 
-  const median = visibleBands.map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p50)}`).join(" ");
-  const detPath = visibleDet.map((v, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(v)}`).join(" ");
+  const median = visibleBands
+    .map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p50)}`)
+    .join(" ");
+  const detPath = visibleDet
+    .map((v, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(v)}`)
+    .join(" ");
 
   const gridLines: React.ReactElement[] = [];
   for (let i = 0; i <= 5; i++) {
     const val = minV + (rangeV / 5) * i;
     const y = getY(val);
     const lab =
-      val >= 1_000_000 ? `${currency}${(val / 1_000_000).toFixed(2)}M` : `${currency}${(val / 1000).toFixed(0)}k`;
+      val >= 1_000_000
+        ? `${currency}${(val / 1_000_000).toFixed(2)}M`
+        : `${currency}${(val / 1000).toFixed(0)}k`;
     gridLines.push(
       <g key={`g${i}`}>
-        <line x1={pL} y1={y} x2={w - pR} y2={y} stroke="var(--border-color)" strokeWidth={1} opacity={0.3} />
+        <line
+          x1={pL}
+          y1={y}
+          x2={w - pR}
+          y2={y}
+          stroke="var(--border-color)"
+          strokeWidth={1}
+          opacity={0.3}
+        />
         <text x={pL - 10} y={y + 4} fill="var(--text-muted)" fontSize={12} textAnchor="end">
           {lab}
         </text>
@@ -1006,7 +1065,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const brushTrackH = brushH - brushPT - brushPB;
   const brushXFor = (i: number) => pL + (i / yrs) * brushW;
 
-  const startBrushDrag = (e: React.PointerEvent<SVGElement>, which: "left" | "right" | "window") => {
+  const startBrushDrag = (
+    e: React.PointerEvent<SVGElement>,
+    which: "left" | "right" | "window",
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     const host = (e.currentTarget.ownerSVGElement ?? e.currentTarget) as SVGSVGElement;
@@ -1055,9 +1117,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
   // Brush mini-band preview (full-range p10/p90).
   const brushMaxV = Math.max(...bands.map((b) => b.p90), 1);
-  const brushTopY = (v: number) => brushPT + brushTrackH - (Math.max(0, v) / brushMaxV) * brushTrackH;
+  const brushTopY = (v: number) =>
+    brushPT + brushTrackH - (Math.max(0, v) / brushMaxV) * brushTrackH;
   const brushBandPath = (() => {
-    const top = bands.map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p90)}`).join(" ");
+    const top = bands
+      .map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p90)}`)
+      .join(" ");
     const bot = [...bands]
       .map((b, i) => ({ b, i }))
       .reverse()
@@ -1065,7 +1130,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       .join(" ");
     return `${top} ${bot} Z`;
   })();
-  const brushMedianPath = bands.map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p50)}`).join(" ");
+  const brushMedianPath = bands
+    .map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p50)}`)
+    .join(" ");
 
   const beatRate = 100 - pctRank;
   const planFailing = detRuined || ruinRate >= 50;
@@ -1105,12 +1172,21 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             letterSpacing: 0.2,
           }}
         >
-          AUDIT MODE ACTIVE — Randomness Paused (Deterministic Sample Path). Double-click the pane header to exit.
-          <div style={{ fontWeight: 400, fontSize: "0.75rem", marginTop: "0.25rem", color: "var(--text-muted)" }}>
-            Fixed inputs: Age {AUDIT.age} → {AUDIT.age + 30} · Eq {currency}610,000 · Cash {currency}90,000 · Draw{" "}
-            {currency}36,000 · Pension {currency}12,700 @ 67 (flat real) · Equity{" "}
-            {mode === "parametric" ? "flat +7.0% nominal" : "historical from 1973 chronological"} · Cash real +2.0% ·
-            Inflation 2.5%.
+          AUDIT MODE ACTIVE — Randomness Paused (Deterministic Sample Path). Double-click the pane
+          header to exit.
+          <div
+            style={{
+              fontWeight: 400,
+              fontSize: "0.75rem",
+              marginTop: "0.25rem",
+              color: "var(--text-muted)",
+            }}
+          >
+            Fixed inputs: Age {AUDIT.age} → {AUDIT.age + 30} · Eq {currency}610,000 · Cash{" "}
+            {currency}90,000 · Draw {currency}36,000 · Pension {currency}12,700 @ 67 (flat real) ·
+            Equity{" "}
+            {mode === "parametric" ? "flat +7.0% nominal" : "historical from 1973 chronological"} ·
+            Cash real +2.0% · Inflation 2.5%.
           </div>
         </div>
       )}
@@ -1200,72 +1276,82 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         >
           <div style={{ fontWeight: 700, marginBottom: "0.4rem" }}>How to read this panel</div>
           <p style={{ margin: "0 0 0.5rem" }}>
-            We re-run your retirement <strong>10,000 times</strong> with fresh annual returns each run, then plot the
-            spread. The point isn't to predict the future — it's to make the <em>shape</em> of uncertainty visible.
+            We re-run your retirement <strong>10,000 times</strong> with fresh annual returns each
+            run, then plot the spread. The point isn't to predict the future — it's to make the{" "}
+            <em>shape</em> of uncertainty visible.
           </p>
           <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>True two-bucket sim.</strong> Equities and Cash run as separate buckets. In a <em>good</em> year
-            (equities clear the defensive threshold) we spend from Equities and refill the Cash Pot up to its starting
-            size. In a <em>bad</em> year we spend from Cash to avoid forced selling. The <strong>threshold</strong>{" "}
-            buttons pick how cautious that switch is — Standard = "spend from cash in flat or weak equity markets".
+            <strong>True two-bucket sim.</strong> Equities and Cash run as separate buckets. In a{" "}
+            <em>good</em> year (equities clear the defensive threshold) we spend from Equities and
+            refill the Cash Pot up to its starting size. In a <em>bad</em> year we spend from Cash
+            to avoid forced selling. The <strong>threshold</strong> buttons pick how cautious that
+            switch is — Standard = "spend from cash in flat or weak equity markets".
           </p>
           <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Yearly vs Quarterly tick (new in Build 061).</strong> The toggle in the header switches the engine
-            between an annual step (one G-K check per year — the original 10,000-run engine) and a <em>quarterly</em>{" "}
-            step that re-checks the Guyton-Klinger ±10% guardrail every quarter, exactly like the live app does when you
-            commit a ledger row. The quarterly mode splits each year's nominal return into four equal geometric quarters
-            and evaluates Preservation / Prosperity / Normal against a per-path all-time high, then draws accordingly.
-            Expect the p10 floor to lift slightly under quarterly — that lift is the visible value of the live app's
-            quarterly discipline.
-          </p>
-
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Modes:</strong> <em>Historical</em> draws each year at random from real MSCI World (Net Total
-            Return, GBP) annual returns 1970–2024 — a global-tracker proxy for a typical UK investor.{" "}
-            <em>Parametric</em> manufactures returns from a normal curve with a mean and volatility you set.
-          </p>
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Yearly Withdrawal Increase Rate (0–5%):</strong> escalates your withdrawal smoothly each year.
-            Returns are deflated by the same rate so the whole chart is in <strong>today's pounds</strong>.
-          </p>
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Annual Pension &amp; Pension Start Age:</strong> the pension amount (in today's money) is netted off
-            your withdrawal once you reach the start age. Before that age, the full withdrawal comes from capital.
-          </p>
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Pension Real Annual Increase (0–6%):</strong> compounds the pension in <em>today's pounds</em> each
-            year from the start date. 0% means a flat-real pension (purchasing power held constant). 2% means the
-            pension's real value grows by 2% per year — roughly the gap between the UK triple-lock and CPI over the long
-            run.
-          </p>
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>The fan:</strong> light blue = 10–90th percentile, darker = 25–75th, solid = median, dashed = your
-            deterministic reference path — the <em>return</em> is held flat at your Assumed Growth Rate, but the{" "}
-            <em>withdrawal</em> is fully live (same guardrails, bucket-sourcing and pension logic as the fan itself), so
-            in an unsustainable scenario the dashed line can genuinely decline to zero, not just flatten out.
-          </p>
-          <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>Zoom &amp; hover.</strong> Drag the handles on the strip below the chart to zoom into a time window
-            — the Y-axis auto-rescales so short horizons no longer look flat. Drag the highlighted region to pan,
-            double-click to reset. Hover (or touch) anywhere on the chart for a dashed crosshair and a tooltip card with
-            Age, Assumed Growth, Median Path and the 10th/90th percentile values at that year.
+            <strong>Yearly vs Quarterly tick (new in Build 061).</strong> The toggle in the header
+            switches the engine between an annual step (one G-K check per year — the original
+            10,000-run engine) and a <em>quarterly</em> step that re-checks the Guyton-Klinger ±10%
+            guardrail every quarter, exactly like the live app does when you commit a ledger row.
+            The quarterly mode splits each year's nominal return into four equal geometric quarters
+            and evaluates Preservation / Prosperity / Normal against a per-path all-time high, then
+            draws accordingly. Expect the p10 floor to lift slightly under quarterly — that lift is
+            the visible value of the live app's quarterly discipline.
           </p>
 
           <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>FAQ — why does the median sit below the dashed line at the same %?</strong> Volatility drag. The
-            Expected Return is an <em>arithmetic</em> mean; what compounds over time is the <em>geometric</em> mean, ≈ μ
-            − σ²/2. With σ=15%, that's ~1.13%/yr lower (so the median compounds at ~5.9%, not 7%). A +20% / −20%
-            portfolio ends at 0.96, not 1.00 — the bigger the swings, the bigger the gap.
+            <strong>Modes:</strong> <em>Historical</em> draws each year at random from real MSCI
+            World (Net Total Return, GBP) annual returns 1970–2024 — a global-tracker proxy for a
+            typical UK investor. <em>Parametric</em> manufactures returns from a normal curve with a
+            mean and volatility you set.
           </p>
           <p style={{ margin: "0 0 0.5rem" }}>
-            <strong>And the upper band looks wider than the lower band?</strong> Correct. Compounded returns are{" "}
-            <em>log-normal</em>: the downside is bounded at zero (a 100% loss), the upside is unbounded. The fan is
-            right-skewed by design — that's the honest shape of compounded risk, not a chart bug.
+            <strong>Yearly Withdrawal Increase Rate (0–5%):</strong> escalates your withdrawal
+            smoothly each year. Returns are deflated by the same rate so the whole chart is in{" "}
+            <strong>today's pounds</strong>.
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>Annual Pension &amp; Pension Start Age:</strong> the pension amount (in today's
+            money) is netted off your withdrawal once you reach the start age. Before that age, the
+            full withdrawal comes from capital.
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>Pension Real Annual Increase (0–6%):</strong> compounds the pension in{" "}
+            <em>today's pounds</em> each year from the start date. 0% means a flat-real pension
+            (purchasing power held constant). 2% means the pension's real value grows by 2% per year
+            — roughly the gap between the UK triple-lock and CPI over the long run.
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>The fan:</strong> light blue = 10–90th percentile, darker = 25–75th, solid =
+            median, dashed = your deterministic reference path — the <em>return</em> is held flat at
+            your Assumed Growth Rate, but the <em>withdrawal</em> is fully live (same guardrails,
+            bucket-sourcing and pension logic as the fan itself), so in an unsustainable scenario
+            the dashed line can genuinely decline to zero, not just flatten out.
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>Zoom &amp; hover.</strong> Drag the handles on the strip below the chart to zoom
+            into a time window — the Y-axis auto-rescales so short horizons no longer look flat.
+            Drag the highlighted region to pan, double-click to reset. Hover (or touch) anywhere on
+            the chart for a dashed crosshair and a tooltip card with Age, Assumed Growth, Median
+            Path and the 10th/90th percentile values at that year.
+          </p>
+
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>FAQ — why does the median sit below the dashed line at the same %?</strong>{" "}
+            Volatility drag. The Expected Return is an <em>arithmetic</em> mean; what compounds over
+            time is the <em>geometric</em> mean, ≈ μ − σ²/2. With σ=15%, that's ~1.13%/yr lower (so
+            the median compounds at ~5.9%, not 7%). A +20% / −20% portfolio ends at 0.96, not 1.00 —
+            the bigger the swings, the bigger the gap.
+          </p>
+          <p style={{ margin: "0 0 0.5rem" }}>
+            <strong>And the upper band looks wider than the lower band?</strong> Correct. Compounded
+            returns are <em>log-normal</em>: the downside is bounded at zero (a 100% loss), the
+            upside is unbounded. The fan is right-skewed by design — that's the honest shape of
+            compounded risk, not a chart bug.
           </p>
 
           <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.76rem" }}>
-            <strong>Does NOT model:</strong> taxes, fees, your actual asset mix, behavioural cuts, or regime change.
-            Stress test, not forecast.
+            <strong>Does NOT model:</strong> taxes, fees, your actual asset mix, behavioural cuts,
+            or regime change. Stress test, not forecast.
           </p>
         </div>
       )}
@@ -1358,7 +1444,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               inputMode="decimal"
               placeholder={`${currency}0.00`}
               readOnly={useRealPension}
-              value={pensionFocused ? pensionStr : pensionStr ? formatGBP(cleanNum(pensionStr)) : ""}
+              value={
+                pensionFocused ? pensionStr : pensionStr ? formatGBP(cleanNum(pensionStr)) : ""
+              }
               onFocus={(e) => {
                 if (useRealPension) return;
                 const n = cleanNum(e.currentTarget.value);
@@ -1375,7 +1463,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             </div>
           </div>
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Pension Start Age</label>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Pension Start Age
+            </label>
             <input
               type="text"
               inputMode="numeric"
@@ -1504,9 +1594,16 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             <div style={{ flex: "1 1 55%", minWidth: 180 }}>
               <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                 Pension Real Increase %{" "}
-                <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{pensionIncreasePct.toFixed(1)}%</span>
+                <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+                  {pensionIncreasePct.toFixed(1)}%
+                </span>
                 {!useRealPension && (
-                  <span style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}> ✎ what-if</span>
+                  <span
+                    style={{ color: "var(--accent-amber)", fontWeight: 700, fontSize: "0.65rem" }}
+                  >
+                    {" "}
+                    ✎ what-if
+                  </span>
                 )}
               </label>
               <input
@@ -1527,7 +1624,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               </div>
             </div>
             <div style={{ flex: "0 0 auto" }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>Pension data</label>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>
+                Pension data
+              </label>
               <span
                 style={{
                   display: "inline-flex",
@@ -1591,7 +1690,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             type="text"
             inputMode="decimal"
             placeholder={`${currency}0.00`}
-            value={withdrawFocused ? withdrawStr : withdrawStr ? formatGBP(cleanNum(withdrawStr)) : ""}
+            value={
+              withdrawFocused ? withdrawStr : withdrawStr ? formatGBP(cleanNum(withdrawStr)) : ""
+            }
             onFocus={(e) => {
               const n = cleanNum(e.currentTarget.value);
               setWithdrawStr(n !== 0 ? n.toFixed(2) : "");
@@ -1641,7 +1742,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             type="text"
             inputMode="decimal"
             placeholder={`${currency}0.00`}
-            value={equitiesFocused ? equitiesStr : equitiesStr ? formatGBP(cleanNum(equitiesStr)) : ""}
+            value={
+              equitiesFocused ? equitiesStr : equitiesStr ? formatGBP(cleanNum(equitiesStr)) : ""
+            }
             onFocus={(e) => {
               const n = cleanNum(e.currentTarget.value);
               setEquitiesStr(n !== 0 ? n.toFixed(2) : "");
@@ -1730,7 +1833,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             Inflation / Escalation %{" "}
-            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{inflationPct.toFixed(1)}%</span>
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {inflationPct.toFixed(1)}%
+            </span>
           </label>
           <input
             type="range"
@@ -1743,7 +1848,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             aria-label="Yearly withdrawal increase rate"
           />
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-            Chart shown in today's {currency === "£" ? "pounds" : currency === "€" ? "euros" : "dollars"}
+            Chart shown in today's{" "}
+            {currency === "£" ? "pounds" : currency === "€" ? "euros" : "dollars"}
           </div>
         </div>
         {/* Assumed Growth Rate — independent of Pane 1, sits below Equities */}
@@ -1753,7 +1859,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             title="Moves only the dashed 'Assumed Rate' line. Does not change how fast Equities grow in the Fan Chart — only nudges when the simulation switches to spending from Cash."
           >
             Shown on chart as <DashedLineIcon /> Assumed Real Growth Rate %{" "}
-            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{deterministicRatePct.toFixed(1)}%</span>
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {deterministicRatePct.toFixed(1)}%
+            </span>
           </label>
           <input
             type="range"
@@ -1776,7 +1884,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             title="Directly changes how fast the Cash Pot grows every year, in every one of the 10,000 simulated futures. Moves the Fan Chart and Median directly."
           >
             Cash Real Return %{" "}
-            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{cashRealPct.toFixed(1)}%</span>
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
+              {cashRealPct.toFixed(1)}%
+            </span>
           </label>
 
           <input
@@ -1820,7 +1930,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 "Standard",
                 "draw cash in flat or weak-positive real years (below half the expected hurdle)",
               ],
-              ["aggressive", "Aggressive", "draw cash unless real returns clearly clear the expected hurdle"],
+              [
+                "aggressive",
+                "Aggressive",
+                "draw cash unless real returns clearly clear the expected hurdle",
+              ],
             ] as [ThresholdMode, string, string][]
           ).map(([id, label, tip]) => (
             <button
@@ -1852,7 +1966,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           marginBottom: "0.35rem",
         }}
       >
-        Tip: drag the handles below the chart to zoom into a time window. Hover the chart for exact values.
+        Tip: drag the handles below the chart to zoom into a time window. Hover the chart for exact
+        values.
       </div>
 
       <div ref={chartWrapRef} style={{ position: "relative", width: "100%", height: 360 }}>
@@ -1881,8 +1996,21 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             opacity={0.22}
           />
           <path d={median} fill="none" stroke="var(--accent-blue)" strokeWidth={2} />
-          <path d={detPath} fill="none" stroke="var(--text-main)" strokeWidth={2.5} strokeDasharray="6,4" />
-          <line x1={pL} y1={h - pB} x2={w - pR} y2={h - pB} stroke="var(--border-color)" opacity={0.6} />
+          <path
+            d={detPath}
+            fill="none"
+            stroke="var(--text-main)"
+            strokeWidth={2.5}
+            strokeDasharray="6,4"
+          />
+          <line
+            x1={pL}
+            y1={h - pB}
+            x2={w - pR}
+            y2={h - pB}
+            stroke="var(--border-color)"
+            opacity={0.6}
+          />
           {xTicks}
           {hoverX != null && hoverBand && hoverDet != null && (
             <g pointerEvents="none">
@@ -1895,8 +2023,20 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 strokeWidth={1}
                 strokeDasharray="3 3"
               />
-              <circle cx={hoverX} cy={getY(hoverBand.p90)} r={3.5} fill="var(--accent-blue)" opacity={0.7} />
-              <circle cx={hoverX} cy={getY(hoverBand.p10)} r={3.5} fill="var(--accent-blue)" opacity={0.7} />
+              <circle
+                cx={hoverX}
+                cy={getY(hoverBand.p90)}
+                r={3.5}
+                fill="var(--accent-blue)"
+                opacity={0.7}
+              />
+              <circle
+                cx={hoverX}
+                cy={getY(hoverBand.p10)}
+                r={3.5}
+                fill="var(--accent-blue)"
+                opacity={0.7}
+              />
               <circle cx={hoverX} cy={getY(hoverBand.p50)} r={4} fill="var(--accent-blue)" />
               <circle cx={hoverX} cy={getY(hoverDet)} r={4} fill="var(--text-main)" />
             </g>
@@ -1917,7 +2057,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           hoverBand &&
           hoverDet != null &&
           (() => {
-            const leftPct = ((hoverAbs - z0) / span) * (100 - ((pL + pR) / w) * 100) + (pL / w) * 100;
+            const leftPct =
+              ((hoverAbs - z0) / span) * (100 - ((pL + pR) / w) * 100) + (pL / w) * 100;
             // Edge-aware flip: the tooltip keeps a FIXED width and swaps to the
             // left of the cursor once there isn't room on the right, instead of
             // being squeezed by the container edge.
@@ -1954,7 +2095,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                     : `Year +${hoverAbs}`}
                 </div>
                 {(() => {
-                  // Build 129 — drawdown context at the hovered age, using the
+                  // Build 124 — drawdown context at the hovered age, using the
                   // exact same net-draw formula the simulation itself uses
                   // (see netDraw a few hundred lines up): withdraw minus
                   // whatever pension has started paying by this age, floored
@@ -1962,7 +2103,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   const ageAtHover = (auditMode ? AUDIT.age : simAge) + hoverAbs;
                   const pensG = Math.max(0, pensionIncreasePct) / 100;
                   const pensionAtHover =
-                    pension > 0 && ageAtHover >= pensionAge ? pension * Math.pow(1 + pensG, hoverAbs) : 0;
+                    pension > 0 && ageAtHover >= pensionAge
+                      ? pension * Math.pow(1 + pensG, hoverAbs)
+                      : 0;
                   const netDrawAtHover = Math.max(0, withdraw - pensionAtHover);
                   const rows = [{ label: "Annual Drawdown", value: withdraw }];
                   if (pensionAtHover > 0) {
@@ -2066,7 +2209,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 ))}
 
                 {(() => {
-                  // Build 130 — Fun Bucket equivalent, mirroring engine.ts's
+                  // Build 124 — Fun Bucket equivalent, mirroring engine.ts's
                   // surplus formula from Pane 2 (Fun Bucket Balance): total
                   // capital minus the present-value cost of funding the
                   // remaining withdrawal years, annuity-due. Uses the Median
@@ -2078,7 +2221,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   // literal copy of Pane 2's exact calc.
                   const inflLocal = Math.max(0, inflationPct) / 100;
                   const detRNominalLocal = deterministicRatePct / 100;
-                  const detRRealLocal = inflLocal > 0 ? (1 + detRNominalLocal) / (1 + inflLocal) - 1 : detRNominalLocal;
+                  const detRRealLocal =
+                    inflLocal > 0 ? (1 + detRNominalLocal) / (1 + inflLocal) - 1 : detRNominalLocal;
                   const ageAtHoverFb = (auditMode ? AUDIT.age : simAge) + hoverAbs;
                   const remainingYears = Math.max(0, simHorizonAge - ageAtHoverFb);
                   const baselineNeed =
@@ -2100,7 +2244,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                         gap: 10,
                       }}
                     >
-                      <span style={{ color: "var(--text-muted)" }}>Fun Bucket (Median, approx.)</span>
+                      <span style={{ color: "var(--text-muted)" }}>
+                        Fun Bucket (Median, approx.)
+                      </span>
                       <span
                         style={{
                           fontWeight: 700,
@@ -2154,9 +2300,21 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               rx={4}
             />
             <path d={brushBandPath} fill="var(--accent-blue)" opacity={0.18} />
-            <path d={brushMedianPath} fill="none" stroke="var(--accent-blue)" strokeWidth={1} opacity={0.6} />
+            <path
+              d={brushMedianPath}
+              fill="none"
+              stroke="var(--accent-blue)"
+              strokeWidth={1}
+              opacity={0.6}
+            />
             {/* dim outside-window regions */}
-            <rect x={pL} y={brushPT} width={brushXFor(z0) - pL} height={brushTrackH} fill="rgba(15,23,42,0.55)" />
+            <rect
+              x={pL}
+              y={brushPT}
+              width={brushXFor(z0) - pL}
+              height={brushTrackH}
+              fill="rgba(15,23,42,0.55)"
+            />
             <rect
               x={brushXFor(z1)}
               y={brushPT}
@@ -2284,7 +2442,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           Median path
         </div>
         <div className="legend-item">
-          <div className="legend-line" style={{ borderTop: "3px dashed var(--text-main)", height: 0 }} />
+          <div
+            className="legend-line"
+            style={{ borderTop: "3px dashed var(--text-main)", height: 0 }}
+          />
           Assumed Rate (blended, real): {blendedAssumedPct.toFixed(2)}%
         </div>
       </div>
@@ -2359,7 +2520,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             Capital preserved
           </div>
           <div style={{ fontWeight: 700 }}>{successRate}% of runs</div>
-          <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>ended ≥ starting capital</div>
+          <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>
+            ended ≥ starting capital
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
           <div>
@@ -2377,7 +2540,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               style={{
                 fontWeight: 700,
                 color:
-                  ruinRate >= 50 ? "var(--accent-red)" : ruinRate >= 25 ? "var(--accent-amber)" : "var(--text-main)",
+                  ruinRate >= 50
+                    ? "var(--accent-red)"
+                    : ruinRate >= 25
+                      ? "var(--accent-amber)"
+                      : "var(--text-main)",
               }}
             >
               {ruinRate}% of runs
@@ -2388,7 +2555,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           <button
             type="button"
             className="secondary"
-            style={{ fontSize: "0.7rem", padding: "0.2rem 0.6rem", alignSelf: "center", whiteSpace: "nowrap" }}
+            style={{
+              fontSize: "0.7rem",
+              padding: "0.2rem 0.6rem",
+              alignSelf: "center",
+              whiteSpace: "nowrap",
+            }}
             aria-expanded={showAbout}
             onClick={() => setShowAbout((v) => !v)}
           >
@@ -2414,7 +2586,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           {mode === "historical"
             ? "Bootstrap from MSCI World NTR (GBP) annual returns 1970–2024"
             : `Normal returns: μ ${meanPct}%, σ ${stdevPct}%`}{" "}
-          • Withdrawal escalates {inflationPct.toFixed(1)}%/yr (nominal), pension grows {pensionIncreasePct.toFixed(1)}
+          • Withdrawal escalates {inflationPct.toFixed(1)}%/yr (nominal), pension grows{" "}
+          {pensionIncreasePct.toFixed(1)}
           %/yr (real, today's {currency}) •{" "}
           {tickMode === "quarterly"
             ? "Quarterly tick — Guyton-Klinger ±10% re-checked every quarter"
@@ -2452,7 +2625,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               >
                 <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-main)" }}>
                   Allocation Bias{" "}
-                  <span style={{ color: "var(--accent-blue)", fontWeight: 700, fontSize: "0.72rem" }}>
+                  <span
+                    style={{ color: "var(--accent-blue)", fontWeight: 700, fontSize: "0.72rem" }}
+                  >
                     {eqPct.toFixed(1)}% Equities / {(100 - eqPct).toFixed(1)}% Cash
                   </span>
                 </span>
@@ -2535,18 +2710,22 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             Future Extraordinary Inflow
           </span>
           <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-            Property sale, inheritance, etc. — a flat amount in today's purchasing power, injected at the end of year N
-            and re-anchoring the ATH.
+            Property sale, inheritance, etc. — a flat amount in today's purchasing power, injected
+            at the end of year N and re-anchoring the ATH.
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.85rem" }}>
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Amount ({currency})</label>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Amount ({currency})
+            </label>
             <input
               type="text"
               inputMode="decimal"
               placeholder={`${currency}0.00`}
-              value={inflowFocused ? inflowAmtStr : inflowAmtStr ? formatGBP(cleanNum(inflowAmtStr)) : ""}
+              value={
+                inflowFocused ? inflowAmtStr : inflowAmtStr ? formatGBP(cleanNum(inflowAmtStr)) : ""
+              }
               onFocus={(e) => {
                 const n = cleanNum(e.currentTarget.value);
                 setInflowAmtStr(n !== 0 ? n.toFixed(2) : "");
@@ -2557,7 +2736,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             />
           </div>
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Inflow Timeline (Years from Now)</label>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Inflow Timeline (Years from Now)
+            </label>
             <input
               type="text"
               inputMode="numeric"
@@ -2611,8 +2792,8 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           >
             <div style={{ fontWeight: 700, color: "var(--accent-purple)" }}>
               Audit Ledger — Step-by-step, Age {AUDIT.age} → {AUDIT.age + 30} (
-              {tickMode === "quarterly" ? "120 quarterly rows" : "30 yearly rows"}, 2 dp for pocket-calculator
-              reproduction)
+              {tickMode === "quarterly" ? "120 quarterly rows" : "30 yearly rows"}, 2 dp for
+              pocket-calculator reproduction)
             </div>
             <button
               type="button"
@@ -2801,10 +2982,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             {tickMode === "quarterly"
               ? `${auditSim.steps.length} quarterly steps shown (30 full years, Age ${AUDIT.age} → ${AUDIT.age + 30}). Eq Ret % = real per-quarter return applied to End Eq — ((1 + nominal)/(1 + 2.5% infl))^0.25 − 1 in parametric mode. Cash Ret % = (1 + 2.0%)^0.25 − 1.`
               : `${auditSim.steps.length} yearly steps shown (Age ${AUDIT.age} → ${AUDIT.age + auditSim.steps.length}). Eq Ret % = real return applied ((1 + nominal)/(1 + 2.5% infl) − 1). Cash Ret % = 2.0000 real.`}{" "}
-            Pension of {currency}12,700 is held FLAT in real terms and offsets the withdrawal from Age 67 onward (Net
-            Outflow = 36,000 − 12,700 = 23,300 yearly / 5,825 quarterly). Defensive draws:{" "}
-            {auditSim.avgDefensiveYears.toFixed(1)} of {auditSim.yrs} yrs ({auditSim.defensivePct}%) sourced from Cash
-            under <strong>{threshold}</strong> mode.
+            Pension of {currency}12,700 is held FLAT in real terms and offsets the withdrawal from
+            Age 67 onward (Net Outflow = 36,000 − 12,700 = 23,300 yearly / 5,825 quarterly).
+            Defensive draws: {auditSim.avgDefensiveYears.toFixed(1)} of {auditSim.yrs} yrs (
+            {auditSim.defensivePct}%) sourced from Cash under <strong>{threshold}</strong> mode.
           </div>
         </div>
       )}

@@ -11,6 +11,58 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 125 — Realised Inflation Tracking, and a genuine one-number directive
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Realised Inflation Tracking.</strong> The live directive has always spoken in real terms
+              (today's money) — the withdrawal target stays flat, and the model deflates portfolio returns rather
+              than inflating the withdrawal. That was internally consistent, but the pound figure on screen was
+              never the actual nominal amount to withdraw in cash — you had to do that translation yourself, with
+              no help from the app.
+            </p>
+            <ul style={{ paddingLeft: "1.25rem" }}>
+              <li>
+                <strong>New per-row field:</strong> an optional "Actual CPI since last entry" — enter it each
+                quarter, or leave it blank to fall back to the assumed CPI slider, pro-rated for the real elapsed
+                gap rather than assumed to be a full year.
+              </li>
+              <li>
+                <strong>New Pane 2 section:</strong> cumulative realised-inflation index, implied average annual
+                rate, and a "View realised-inflation history" table showing every tracked row, its rate, source
+                (actual vs assumed), and running index.
+              </li>
+              <li>
+                <strong>The directive now shows genuine actual pounds.</strong> Every action figure — the main
+                draw, sweep-to-shield amounts, deploy-to-equities amounts, Guyton-Klinger overlay figures — is
+                converted through the realised index before display, so there's exactly one number to act on per
+                instruction. The real-terms baseline appears only as a small reference footnote, explicitly
+                stating it never needs manual updating.
+              </li>
+              <li>
+                <strong>Withdrawal Recorded now auto-seeds with the same nominal figure the directive shows</strong>{" "}
+                — previously it silently seeded from the real-terms figure, which could quietly diverge from what
+                the directive actually told the user to withdraw.
+              </li>
+            </ul>
+            <p>
+              <strong>Field renamed for clarity:</strong> "Target Annual Base Withdrawal" is now{" "}
+              <strong>"Initial Annual Withdrawal — Frozen Baseline"</strong>, with an explanatory caption and a live
+              nominal preview that updates as you type — including a worked example showing a genuine lifestyle
+              change (e.g. a 20% rise) is a straight multiplier on the frozen figure, never a guess at a nominal
+              number.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Documentation:</strong> build-number references stripped from the Quick Start guide and Full
+              Manual; a new Quick Start section explains the Pane 2 Scenario Stress Test slider is a lightweight,
+              local preview distinct from the standalone Risk Simulator companion app; field-name references
+              propagated across all four guide files.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 124 — Accumulation Simulator manual, plus a code review pass
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
