@@ -538,14 +538,34 @@
 /* Stacked ledger: 6 semantic columns, each cell stacks primary + muted lines */
 .shd-root .ledger-table-stacked {
   table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .shd-root .ledger-table-stacked th {
   font-size: 0.7rem;
   letter-spacing: 0.05em;
+  color: #cbd5e1;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border-color);
 }
 .shd-root .ledger-table-stacked tbody td {
   vertical-align: top;
   padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+/* Build 126 — a little visual polish for a table that had none: zebra
+   striping and a hover highlight, so a long ledger (a real one might run to
+   100+ rows) is easier to track across a row, and the currently-hovered
+   quarter is unambiguous. Deliberately subtle — this is a dense data table,
+   not a marketing page. */
+.shd-root .ledger-row-stacked:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+.shd-root .ledger-row-stacked:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+.shd-root .ledger-row-stacked:last-child td {
+  border-bottom: none;
 }
 .shd-root .ledger-table-stacked .cell-primary {
   font-size: 0.9rem;

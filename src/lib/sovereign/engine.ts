@@ -74,8 +74,14 @@ export interface LedgerEntry {
   // is what lets the realised-inflation index be as accurate as the user is
   // willing to make it, without ever forcing a lookup.
   actualCpiSincePriorRow?: number;
+  // Build 126 — snapshot of Pane 2's Fun Bucket Balance (calc.surplus,
+  // floored at 0 to match the display convention) at commit time. Undefined
+  // on legacy rows committed before Build 126 — do NOT backfill by
+  // recomputing from today's assumptions, since surplus depends on the
+  // Assumed Real Growth Rate and Cash Buffer Target in force at the time,
+  // which may since have changed.
+  funBucket?: number;
 }
-
 
 export interface CalcInputs {
   currentAge: number;
@@ -192,10 +198,7 @@ const MS_PER_YEAR = 365.25 * 86_400_000;
  * that recorded neither an actual figure nor their own assumedInflationPct
  * snapshot (typically the current Pane 1 slider value).
  */
-export function computeInflationTracking(
-  ledger: LedgerEntry[],
-  fallbackAssumedPct: number,
-): InflationTrackingResult {
+export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedPct: number): InflationTrackingResult {
   // Oldest-first, Normal rows only, with a usable date.
   const chain = ledger
     .filter(
@@ -247,8 +250,7 @@ export function computeInflationTracking(
       // Assumed fallback IS an annual rate, so it must be raised to the
       // actual elapsed span before compounding — a 6-month gap should only
       // apply half a year's inflation, not a full year's.
-      const assumedPct =
-        typeof entry.assumedInflationPct === "number" ? entry.assumedInflationPct : fallbackAssumedPct;
+      const assumedPct = typeof entry.assumedInflationPct === "number" ? entry.assumedInflationPct : fallbackAssumedPct;
       rateAppliedPct = assumedPct;
       periodFactor = Math.pow(1 + assumedPct / 100, yearsElapsed);
     }
@@ -268,8 +270,7 @@ export function computeInflationTracking(
     Date.parse(chain[chain.length - 1].entry.periodEndDate + "T00:00:00Z") -
     Date.parse(chain[0].entry.periodEndDate + "T00:00:00Z");
   const totalYears = Math.max(0, spanMs / MS_PER_YEAR);
-  const impliedAverageAnnualPct =
-    totalYears > 0 ? (Math.pow(cumulativeIndex, 1 / totalYears) - 1) * 100 : 0;
+  const impliedAverageAnnualPct = totalYears > 0 ? (Math.pow(cumulativeIndex, 1 / totalYears) - 1) * 100 : 0;
 
   return { rows, currentIndex: cumulativeIndex, impliedAverageAnnualPct };
 }
@@ -278,8 +279,6 @@ export function computeInflationTracking(
 export function nominalFromReal(realAmount: number, cumulativeIndex: number): number {
   return realAmount * Math.max(0, cumulativeIndex || 1.0);
 }
-
-
 
 export interface CalcOutputs {
   phase: Phase;
@@ -314,7 +313,6 @@ export interface CalcOutputs {
   portfolioExhausted: boolean;
 }
 
-
 export const COLORS = {
   green: "var(--accent-green)",
   blue: "var(--accent-blue)",
@@ -324,7 +322,6 @@ export const COLORS = {
   muted: "var(--text-muted)",
   text: "var(--text-main)",
 };
-
 
 export function phaseFor(age: number): Phase {
   if (age <= 75) return "Go-Go";
@@ -365,10 +362,7 @@ export function severeThresholdPct(phase: Phase): number {
  *   Standard   — the dashboard's own Preservation trigger (>= preservationThresholdPct)
  *   Aggressive — half the Preservation trigger (earliest de-risking)
  */
-export function defensiveDrawdownHurdlePct(
-  phase: Phase,
-  mode: "strict" | "standard" | "aggressive",
-): number {
+export function defensiveDrawdownHurdlePct(phase: Phase, mode: "strict" | "standard" | "aggressive"): number {
   if (mode === "strict") return severeThresholdPct(phase);
   if (mode === "aggressive") return preservationThresholdPct(phase) / 2;
   return preservationThresholdPct(phase);
@@ -416,23 +410,12 @@ export type GkOutcome = { factor: number; label: "Normal" | "Preservation" | "Pr
  * unit (all fractions, or all percentages) — only ratios are compared.
  * Gated off entirely in the No-Go phase (Build 089).
  */
-export function gkGuardrail(
-  currentWR: number,
-  athWR: number,
-  baselineWR: number,
-  phase: Phase,
-): GkOutcome {
+export function gkGuardrail(currentWR: number, athWR: number, baselineWR: number, phase: Phase): GkOutcome {
   if (phase === "No-Go") return { factor: 1.0, label: "Normal" };
-  if (athWR > 0 && currentWR >= athWR * 1.2)
-    return { factor: 0.9, label: "Preservation" };
-  if (baselineWR > 0 && currentWR <= baselineWR * 0.8)
-    return { factor: 1.1, label: "Prosperity" };
+  if (athWR > 0 && currentWR >= athWR * 1.2) return { factor: 0.9, label: "Preservation" };
+  if (baselineWR > 0 && currentWR <= baselineWR * 0.8) return { factor: 1.1, label: "Prosperity" };
   return { factor: 1.0, label: "Normal" };
 }
-
-
-
-
 
 // Build 088 — CANONICAL DIRECTIVE STATE REGISTRY.
 // Single source of truth for every value `Directive.guardrailText` can take,
@@ -469,24 +452,15 @@ export const DIRECTIVE_STATES = {
     lockedBucket: null,
   },
   "No-Go Amortization": { title: "No-Go Amortization", lockedBucket: null },
-} as const satisfies Record<
-  string,
-  { title: string; lockedBucket: "equities" | "cash" | null }
->;
+} as const satisfies Record<string, { title: string; lockedBucket: "equities" | "cash" | null }>;
 
 export type DirectiveState = keyof typeof DIRECTIVE_STATES;
 
-export const ALL_DIRECTIVE_STATES = Object.keys(
-  DIRECTIVE_STATES,
-) as DirectiveState[];
+export const ALL_DIRECTIVE_STATES = Object.keys(DIRECTIVE_STATES) as DirectiveState[];
 
-export const LOCKING_STATES = ALL_DIRECTIVE_STATES.filter(
-  (s) => DIRECTIVE_STATES[s].lockedBucket !== null,
-);
+export const LOCKING_STATES = ALL_DIRECTIVE_STATES.filter((s) => DIRECTIVE_STATES[s].lockedBucket !== null);
 
-export const NON_LOCKING_STATES = ALL_DIRECTIVE_STATES.filter(
-  (s) => DIRECTIVE_STATES[s].lockedBucket === null,
-);
+export const NON_LOCKING_STATES = ALL_DIRECTIVE_STATES.filter((s) => DIRECTIVE_STATES[s].lockedBucket === null);
 
 export function isLockingState(guardrailText: string): boolean {
   const s = DIRECTIVE_STATES[guardrailText as DirectiveState];
@@ -495,12 +469,9 @@ export function isLockingState(guardrailText: string): boolean {
 
 // Which bucket a locking narrative state funds withdrawals from. Non-locking
 // states return null and defer to the caller's Defensive-Draw Mode.
-export function lockingBucketFor(
-  guardrailText: string,
-): "equities" | "cash" | null {
+export function lockingBucketFor(guardrailText: string): "equities" | "cash" | null {
   return DIRECTIVE_STATES[guardrailText as DirectiveState]?.lockedBucket ?? null;
 }
-
 
 // Module-level currency symbol. Updated by SovereignGlidepath via setCurrencySymbol().
 // Cosmetic only — no FX conversion is ever performed.
@@ -558,12 +529,10 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
   const stressedEquities = rawEquities * (1 - stressPct / 100);
   const total = stressedEquities + mmFund;
 
-
   // Blended real return across the two buckets — makes the Fun Bucket / Actuarial
   // Amortization Matrix respond to cash drag the same way the Risk Simulator does.
   const cashRealG = ((typeof inp.cashRealPct === "number" ? inp.cashRealPct : 1) || 0) / 100;
-  const blendedRealG =
-    total > 0 ? (stressedEquities * realG + mmFund * cashRealG) / total : realG;
+  const blendedRealG = total > 0 ? (stressedEquities * realG + mmFund * cashRealG) / total : realG;
 
   const drawdownPct = drawdownPctOffAth(total, ath);
   const targetWR = ath > 0 ? (targetYearly / ath) * 100 : 0;
@@ -604,7 +573,6 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
         ? COLORS.purple
         : COLORS.green;
 
-
   const modifiedTargetMonths =
     phase === "Go-Slow"
       ? Math.min(24, desiredRunwayMonths)
@@ -631,9 +599,7 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
     // annuity factor scaled by (1 + g).
     baselineNeed =
       blendedRealG > 0
-        ? targetYearly *
-          ((1 - Math.pow(1 + blendedRealG, -remainingYears)) / blendedRealG) *
-          (1 + blendedRealG)
+        ? targetYearly * ((1 - Math.pow(1 + blendedRealG, -remainingYears)) / blendedRealG) * (1 + blendedRealG)
         : targetYearly * remainingYears;
   }
 
@@ -673,8 +639,6 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
     guardrailColor = COLORS.green;
   }
 
-
-
   return {
     phase,
     stressedEquities,
@@ -705,9 +669,7 @@ export function calculate(inp: CalcInputs, prevEquities: number | null): CalcOut
     pensionActive,
     portfolioExhausted,
   };
-
 }
-
 
 export interface Directive {
   html: string;
@@ -716,11 +678,7 @@ export interface Directive {
   actuarialHtml: string;
 }
 
-export function generateDirectives(
-  o: CalcOutputs,
-  inp: CalcInputs,
-  bucketOverride?: "equities" | "cash",
-): Directive {
+export function generateDirectives(o: CalcOutputs, inp: CalcInputs, bucketOverride?: "equities" | "cash"): Directive {
   // Build 081 — for non-locking states (Normal Draw, Comfortable
   // Amortization, No-Go Amortization) the Pane 3 banner text must match the
   // Defensive-Draw Mode's bucket recommendation. Locking states (Peak Refill,
@@ -773,6 +731,39 @@ export function generateDirectives(
   const hasNominalDrift = !!inflationIndex && Math.abs(inflationIndex - 1) > 0.0005;
   const nom = (v: number) => (hasNominalDrift ? nominalFromReal(v, inflationIndex!) : v);
 
+  // Build 126 — resolve the ACTUAL source bucket for branches that pick one
+  // purely from the Defensive-Draw Mode recommendation, without checking
+  // whether that bucket actually holds enough (Comfortable Amortization,
+  // Normal Draw, No-Go Amortization). By contrast Preservation/Shield
+  // Deficit/Reverse-Shielding all have sufficiency baked into their own
+  // trigger conditions, so they don't need this. Checked against the REAL
+  // current balances (inp.rawEquities / mm) — not `eq` (stressedEquities),
+  // which is a hypothetical Scenario Stress Test preview and would wrongly
+  // treat a stress-tested balance as the real one for a fallback decision.
+  // If the recommended bucket is short, falls back to the other bucket and
+  // returns a note explaining why, rather than instructing a withdrawal
+  // that cannot actually be carried out — this is exactly the "withdraw
+  // from an empty pot" gap Mark caught building the 1996 lifetime ledger.
+  function resolveSource(requiredNominal: number, preferCash: boolean) {
+    const cashOk = mm + 0.005 >= requiredNominal;
+    const eqOk = inp.rawEquities + 0.005 >= requiredNominal;
+    let actualUseCash = preferCash;
+    let fellBack = false;
+    if (preferCash && !cashOk && eqOk) {
+      actualUseCash = false;
+      fellBack = true;
+    } else if (!preferCash && !eqOk && cashOk) {
+      actualUseCash = true;
+      fellBack = true;
+    }
+    const label = actualUseCash ? "the Cash Pot" : "Global Equities";
+    const verb = actualUseCash ? "Withdraw" : "Sell";
+    const note = fellBack
+      ? ` <strong>Note:</strong> ${preferCash ? "the Cash Pot" : "Global Equities"} does not currently hold enough to cover this — funding from ${label} instead.`
+      : "";
+    return { useCash: actualUseCash, srcLabel: label, srcVerb: verb, fallbackNote: note };
+  }
+
   const sC = mm - targetCashAmount;
   const pT = preservationThresholdPct(phase);
   const sT = severeThresholdPct(phase);
@@ -809,11 +800,7 @@ export function generateDirectives(
   // headline text differs from the state name, the state name is shown
   // alongside it, plus any active Guyton-Klinger overlay.
   const overlayNote =
-    !comfortBypass && gF < 1.0
-      ? "G-K Preservation overlay (−10%)"
-      : gF > 1.0
-        ? "G-K Prosperity overlay (+10%)"
-        : "";
+    !comfortBypass && gF < 1.0 ? "G-K Preservation overlay (−10%)" : gF > 1.0 ? "G-K Prosperity overlay (+10%)" : "";
 
   const wrap = (
     variant: "green" | "warning" | "danger" | "purple" | "blue",
@@ -827,10 +814,8 @@ export function generateDirectives(
      * inflation drift worth disclosing. */
     realBaseline?: number,
   ) => {
-    const cls =
-      variant === "blue" ? "directive-box" : `directive-box ${variant}`;
-    const style =
-      variant === "blue" ? ` style="border-left-color:var(--accent-blue);"` : "";
+    const cls = variant === "blue" ? "directive-box" : `directive-box ${variant}`;
+    const style = variant === "blue" ? ` style="border-left-color:var(--accent-blue);"` : "";
     const title = titleOverride ?? DIRECTIVE_STATES[state].title;
     const bits: string[] = [];
     if (title !== state) bits.push(`State: ${state}`);
@@ -864,11 +849,12 @@ export function generateDirectives(
   } else if (phase === "No-Go" && surplus >= 0) {
     cGT = "No-Go Amortization";
     cGC = COLORS.purple;
+    const src = resolveSource(nom(tQ), useCash);
     h = wrap(
       "purple",
       "No-Go Amortization",
-      `You are past ~85 and the plan is in run-down mode. Guardrails are switched off; simply draw the target amount from ${srcLabel} and let the plan amortize.`,
-      `${srcVerb} <strong>${formatGBP(nom(tQ))}</strong> from ${srcLabel} this quarter.`,
+      `You are past ~85 and the plan is in run-down mode. Guardrails are switched off; simply draw the target amount from ${src.srcLabel} and let the plan amortize.`,
+      `${src.srcVerb} <strong>${formatGBP(nom(tQ))}</strong> from ${src.srcLabel} this quarter.${src.fallbackNote}`,
       undefined,
       tQ,
     );
@@ -923,6 +909,7 @@ export function generateDirectives(
   } else if (comfortBypass && draw >= pT) {
     cGT = "Comfortable Amortization";
     cGC = COLORS.green;
+    const src = resolveSource(nom(amt), useCash);
     const legacyNote =
       legacyTarget > 0
         ? ` You are still on track to leave <strong>${formatGBP(legacyTarget)}</strong> (real terms) as a legacy.`
@@ -931,19 +918,20 @@ export function generateDirectives(
       "green",
       "Comfortable Amortization",
       `Portfolio is ${draw.toFixed(1)}% off a past all-time high, but you still hold roughly <strong>${comfortYears.toFixed(1)} years</strong> of surplus beyond lifetime needs${legacyTarget > 0 ? " and legacy target" : ""}. The distant ATH is stale — freezing equities here would just hoard capital you cannot spend.${legacyNote}`,
-      `${srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
-      `Comfortable Amortization — Draw Normally${useCash ? " from Cash" : ""}`,
+      `${src.srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${src.srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}${src.fallbackNote}`,
+      `Comfortable Amortization — Draw Normally${src.useCash ? " from Cash" : ""}`,
       amt,
     );
   } else if (draw < pT) {
     cGT = "Normal Draw";
     cGC = COLORS.green;
+    const src = resolveSource(nom(amt), useCash);
     h = wrap(
       "green",
       "Normal Draw",
-      `Markets are calm (drawdown ${draw.toFixed(1)}% off ATH) and the Cash Shield is at or above its ${modifiedTargetMonths}-month target. Fund this quarter's spending as normal from ${srcLabel}.`,
-      `${srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}`,
-      `Normal Draw from ${useCash ? "Cash" : "Equities"}`,
+      `Markets are calm (drawdown ${draw.toFixed(1)}% off ATH) and the Cash Shield is at or above its ${modifiedTargetMonths}-month target. Fund this quarter's spending as normal from ${src.srcLabel}.`,
+      `${src.srcVerb} <strong>${formatGBP(nom(amt))}</strong> from ${src.srcLabel} for this quarter's ${amtLabel}${amtNote}${amtNote ? "" : "."}${src.fallbackNote}`,
+      `Normal Draw from ${src.useCash ? "Cash" : "Equities"}`,
       amt,
     );
   } else if (mm >= gAdjQ) {
@@ -971,13 +959,9 @@ export function generateDirectives(
     );
   }
 
-
   const legacyBit =
-    legacyTarget > 0
-      ? ` (after reserving <strong>${formatGBP(legacyTarget)}</strong> legacy target)`
-      : "";
+    legacyTarget > 0 ? ` (after reserving <strong>${formatGBP(legacyTarget)}</strong> legacy target)` : "";
   const actuarialHtml = `<span style="color:${cGC}; font-weight:bold;">${cGT}:</span> ${surplus >= 0 ? "Surplus " + formatGBP(surplus) : "Deficit " + formatGBP(Math.abs(surplus))} beyond age ${capA} needs${legacyBit}. <span style="color:var(--text-muted); font-weight:400;">(≈ ${comfortYears.toFixed(1)} years of draw.)</span>`;
-
 
   if (sC > 0.01 && runwayMonths > modifiedTargetMonths)
     h += `<div style="margin-top:1rem; font-size:0.85rem; color:var(--accent-blue);"><strong>Cash Drag Note:</strong> Cash Pot holds <strong>${formatGBP(sC)}</strong> above the ${modifiedTargetMonths}-month target — consider reallocating that surplus into Global Equities.</div>`;
@@ -988,9 +972,7 @@ export function generateDirectives(
     h += `<div style="margin-top:1rem; font-size:0.85rem; color:var(--accent-blue);"><strong>Pension Applied:</strong> Your pension of <strong>${formatGBP(o.pensionIncome)}</strong>/yr is already in payment, so only <strong>${formatGBP(o.netTargetYearly)}</strong>/yr of your <strong>${formatGBP(o.grossTargetYearly)}</strong>/yr lifestyle target has to come from the pot. Every figure and guardrail above is calculated on that net amount.</div>`;
 
   return { html: h, guardrailText: cGT, guardrailColor: cGC, actuarialHtml };
-
 }
-
 
 // Legacy XOR obfuscation for backup files (v1.8 format). READ-ONLY as of
 // Build 117: kept so older .shd backups still restore. New backups are written

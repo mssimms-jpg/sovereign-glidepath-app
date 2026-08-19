@@ -11,52 +11,147 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 127 — Lifestyle-change slider, and Shield Target moves to Pane 2
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>New: a −30% to +30% lifestyle-change slider</strong> under the Initial Annual Withdrawal field.
+              Previously, applying a genuine lifestyle change meant retyping the figure by hand, working out the new
+              nominal amount yourself. The slider does that arithmetic live — but the harder design question was what
+              0% means. It's anchored to the last committed baseline, not wherever the field currently sits: dragging
+              to +15% always means 15% above what was actually last committed, regardless of how many times the
+              slider has already been dragged this session, so repeated drags can't silently compound. That baseline
+              is captured at every Pane 1 load or revert moment — app boot, entering Edit mode, Cancel/Discard, and
+              the re-seed after deleting the newest ledger row — never by the slider itself. Typing directly into the
+              field still works exactly as before; it just repositions the slider to match. The slider's thumb is
+              visually clamped at ±30%, but the field itself, and the % readout above the slider, accept and display
+              values outside that range without complaint.
+            </p>
+            <p>
+              <strong>Caption and live nominal preview rewritten to match.</strong> The old caption said "Set your
+              desired standard of living once"; it now points at the new slider directly. The live preview footnote
+              dropped its worked-example walkthrough since the slider now demonstrates the multiplier itself, live,
+              rather than in words.
+            </p>
+            <p>
+              <strong>Removed the Request: / Shield Target: line from Pane 1.</strong> Stale once a plan's been
+              running a while, and duplicated by the diagnostics below.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Added Shield Target (£ and Months) to Pane 2's diagnostics row</strong>, directly under Total
+              Capital / Peak Drawdown / Fun Bucket Balance — the same £ figure that used to live on the removed Pane 1
+              line, alongside its months figure for the first time. Split into two tiles rather than one combined
+              tile so the type scale stays consistent with the row's existing pattern; sized down from the primary
+              three since these are supplementary figures, not the pane's headline numbers. The months figure shown
+              is the phase-adjusted target — capped in Go-Slow and No-Go — rather than the raw runway setting, so it
+              always matches the £ figure it sits next to. Verified against the real 1996–2021 lifetime ledger: 104
+              rows, £2,007,282.02, 0 mismatches — unchanged from Build 126, since none of this touched the engine.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 126 — Empty-pot fix, the Scenario Test Runner, and a much smaller codebase
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>
+                Fixed a real bug: three directive states could tell you to withdraw from a pot that was already empty.
+              </strong>{" "}
+              Comfortable Amortization, Normal Draw, and No-Go Amortization all pick their funding bucket purely from
+              the Defensive-Draw Mode recommendation, with no check that the recommended bucket actually holds enough —
+              unlike Preservation and Shield Deficit, which have that check built into their own trigger conditions.
+              Building a real 26-year lifetime ledger surfaced this directly: a real quarter's directive said "Withdraw
+              £13,326.71 from the Cash Pot" when the Cash Pot held nothing, and had held nothing for nine years. The
+              three affected branches now check the real balance (not the hypothetical Scenario Stress Test preview,
+              deliberately excluded from the check) before naming a source, and fall back to the other bucket with an
+              explicit note rather than silently instructing something impossible.
+            </p>
+            <p>
+              <strong>Fun Bucket Balance is now recorded on every ledger row</strong>, not just shown live in Pane 2 — a
+              purple sub-line under Portfolio Total in the table, and its own CSV column. Legacy rows committed before
+              this build correctly show blank rather than a fabricated backfilled figure.
+            </p>
+            <p>
+              <strong>New: the Scenario Test Runner</strong> (hidden QA panel, double-click "7. Historical Timeline
+              Ledger" to reveal). Upload a JSON file — starting balances, plan parameters, and a year-by-year sequence
+              of real returns and inflation — and it builds a complete, real ledger in seconds, calling the exact same
+              calculate()/generateDirectives() functions the live app uses for every row, not a re-implementation.
+              Optional expected assertions in the file get checked against the actual result and every mismatch is
+              reported, not just the first. Because running a scenario replaces the current ledger, any existing ledger
+              is auto-backed-up as a plain JSON download (restorable via the normal Restore button) before the
+              replacement is confirmed. Verified against a real hand-built 26-year ledger (1996–2021, real historical
+              MSCI World returns and real UK CPI): £2,007,282.02 from the tool against £2,007,282.03 built by hand, row
+              by row, in the live app — a penny of floating-point rounding across 104 quarters.
+            </p>
+            <p>
+              <strong>Rewrote the lifestyle-change guidance</strong> on the Frozen Baseline field, after a mix-up over
+              which figure a "20% rise" multiplier should apply to. The caption now names the input box directly rather
+              than "the frozen baseline," explicitly says not to scale any other figure shown elsewhere on screen, and
+              states plainly that the State Pension is deliberately excluded from the multiplier — a fixed external
+              income, not a lifestyle choice, netted off separately by the engine after the edit is made.
+            </p>
+            <p>
+              <strong>Ledger table given a visual pass</strong> — zebra striping and a hover highlight on a table that
+              had neither, making a long ledger easier to track a row across.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Under the hood:</strong> SovereignGlidepath.tsx split from 5,038 lines down to 2,111 (58%
+              smaller), across nine new files. Every extraction kept state exactly where it already lived — a pure
+              relocation of markup, never a change to who owns what — and every step was checked against the same real
+              1996 scenario before moving to the next. No user-facing behaviour changed; this was purely to make the
+              codebase easier to work in going forward.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 125 — Realised Inflation Tracking, and a genuine one-number directive
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <p style={{ marginTop: 0 }}>
-              <strong>Realised Inflation Tracking.</strong> The live directive has always spoken in real terms
-              (today's money) — the withdrawal target stays flat, and the model deflates portfolio returns rather
-              than inflating the withdrawal. That was internally consistent, but the pound figure on screen was
-              never the actual nominal amount to withdraw in cash — you had to do that translation yourself, with
-              no help from the app.
+              <strong>Realised Inflation Tracking.</strong> The live directive has always spoken in real terms (today's
+              money) — the withdrawal target stays flat, and the model deflates portfolio returns rather than inflating
+              the withdrawal. That was internally consistent, but the pound figure on screen was never the actual
+              nominal amount to withdraw in cash — you had to do that translation yourself, with no help from the app.
             </p>
             <ul style={{ paddingLeft: "1.25rem" }}>
               <li>
-                <strong>New per-row field:</strong> an optional "Actual CPI since last entry" — enter it each
-                quarter, or leave it blank to fall back to the assumed CPI slider, pro-rated for the real elapsed
-                gap rather than assumed to be a full year.
+                <strong>New per-row field:</strong> an optional "Actual CPI since last entry" — enter it each quarter,
+                or leave it blank to fall back to the assumed CPI slider, pro-rated for the real elapsed gap rather than
+                assumed to be a full year.
               </li>
               <li>
-                <strong>New Pane 2 section:</strong> cumulative realised-inflation index, implied average annual
-                rate, and a "View realised-inflation history" table showing every tracked row, its rate, source
-                (actual vs assumed), and running index.
+                <strong>New Pane 2 section:</strong> cumulative realised-inflation index, implied average annual rate,
+                and a "View realised-inflation history" table showing every tracked row, its rate, source (actual vs
+                assumed), and running index.
               </li>
               <li>
-                <strong>The directive now shows genuine actual pounds.</strong> Every action figure — the main
-                draw, sweep-to-shield amounts, deploy-to-equities amounts, Guyton-Klinger overlay figures — is
-                converted through the realised index before display, so there's exactly one number to act on per
-                instruction. The real-terms baseline appears only as a small reference footnote, explicitly
-                stating it never needs manual updating.
+                <strong>The directive now shows genuine actual pounds.</strong> Every action figure — the main draw,
+                sweep-to-shield amounts, deploy-to-equities amounts, Guyton-Klinger overlay figures — is converted
+                through the realised index before display, so there's exactly one number to act on per instruction. The
+                real-terms baseline appears only as a small reference footnote, explicitly stating it never needs manual
+                updating.
               </li>
               <li>
-                <strong>Withdrawal Recorded now auto-seeds with the same nominal figure the directive shows</strong>{" "}
-                — previously it silently seeded from the real-terms figure, which could quietly diverge from what
-                the directive actually told the user to withdraw.
+                <strong>Withdrawal Recorded now auto-seeds with the same nominal figure the directive shows</strong> —
+                previously it silently seeded from the real-terms figure, which could quietly diverge from what the
+                directive actually told the user to withdraw.
               </li>
             </ul>
             <p>
               <strong>Field renamed for clarity:</strong> "Target Annual Base Withdrawal" is now{" "}
               <strong>"Initial Annual Withdrawal — Frozen Baseline"</strong>, with an explanatory caption and a live
-              nominal preview that updates as you type — including a worked example showing a genuine lifestyle
-              change (e.g. a 20% rise) is a straight multiplier on the frozen figure, never a guess at a nominal
-              number.
+              nominal preview that updates as you type — including a worked example showing a genuine lifestyle change
+              (e.g. a 20% rise) is a straight multiplier on the frozen figure, never a guess at a nominal number.
             </p>
             <p style={{ marginBottom: 0 }}>
               <strong>Documentation:</strong> build-number references stripped from the Quick Start guide and Full
-              Manual; a new Quick Start section explains the Pane 2 Scenario Stress Test slider is a lightweight,
-              local preview distinct from the standalone Risk Simulator companion app; field-name references
-              propagated across all four guide files.
+              Manual; a new Quick Start section explains the Pane 2 Scenario Stress Test slider is a lightweight, local
+              preview distinct from the standalone Risk Simulator companion app; field-name references propagated across
+              all four guide files.
             </p>
           </div>
         </div>
