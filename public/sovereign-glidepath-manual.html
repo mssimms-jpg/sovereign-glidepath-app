@@ -170,6 +170,15 @@
               updating</a
             >
           </li>
+          <li class="toc-chap">
+            <a href="#ch-46">46. The lifestyle-change slider, and Shield Target moves to Pane 2</a>
+          </li>
+          <li class="toc-chap">
+            <a href="#ch-47">47. The real MSCI World data fix, and two Monte Carlo seeding bugs</a>
+          </li>
+          <li class="toc-chap">
+            <a href="#ch-48">48. Editing history: pension and inflation now show what was actually true then</a>
+          </li>
         </ul>
       </div>
     </nav>
@@ -186,7 +195,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.127 · Edition XIX</p>
+        <p class="cover-ver">Version 1.0.128 · Edition XX</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -326,8 +335,9 @@
       </p>
       <p>
         <b>2. Intelligence Diagnostics.</b> The engine's reading of your inputs: total capital, peak drawdown vs ATH,
-        the Fun Bucket surplus, Guyton-Klinger target vs realised withdrawal rate, current guardrail state, actual cash
-        shield runway, actuarial amortisation matrix, and market momentum vector. The Scenario Stress Test slider lives
+        the Fun Bucket surplus, Shield Target in £ and months (chapter 46), Guyton-Klinger target vs realised
+        withdrawal rate, current guardrail state, actual cash shield runway, actuarial amortisation matrix, and market
+        momentum vector. The Scenario Stress Test slider lives
         at the bottom of this pane — see chapter 9 for what it now shows. Below that sits the
         <b>Companion Apps</b> section, from which the Accumulation Simulator, Risk Simulator, and Comparison Builder all
         launch. The Risk Simulator and Comparison Builder both open pre-filled with a live snapshot of your Pane 1
@@ -899,11 +909,14 @@
         returns 1970–2024 — a global-tracker proxy more appropriate for a UK investor than a single-country index. This
         preserves the fat tails — the 1974, 2002, 2008, 2022 drawdowns and the 1985, 1995, 1999, 2019 melt-ups. If a
         sequence-of-returns disaster is going to happen to you, it will look a lot more like one of these than like a
-        tidy bell curve.
+        tidy bell curve. Build 128 replaced this series with the genuine real data — an earlier version had several
+        pre-2000 years off by a wide margin (1971 modelled at +31% against the real +12.43%, for instance) despite
+        this chapter's own description always having said "real returns." See Chapter 46 for the full story.
       </p>
       <p>
         <b>Parametric mode</b> manufactures returns from a normal distribution with a mean and standard deviation you
-        control. The defaults (μ 7%, σ 15%) are reasonable proxies for a global equity portfolio. Parametric is useful
+        control. The defaults (μ 11.85%, σ 17.8%, updated at Build 128 to the real MSCI World full-period 1970–2024
+        arithmetic mean/stdev) are reasonable proxies for a global equity portfolio. Parametric is useful
         for "what-if" experiments: lower the mean to model a more cautious balanced fund, or raise the volatility to see
         what a more concentrated portfolio does to the fan.
       </p>
@@ -2107,13 +2120,14 @@
         now <b>&ldquo;Initial Annual Withdrawal &mdash; Frozen Baseline&rdquo;</b>, with a short caption underneath
         &mdash;
         <i
-          >&ldquo;Set your desired standard of living once. Inflation is applied automatically &mdash; only change this
-          for a genuine lifestyle change.&rdquo;</i
+          >&ldquo;Set your desired initial income at plan start &mdash; inflation adjusts automatically. Use the
+          slider below to apply a % lifestyle change.&rdquo;</i
         >
         &mdash; and a <b>live nominal preview</b>
         that appears beneath the field as you type, before you commit anything: the annual and quarterly actual-pounds
-        equivalent of whatever you've typed, plus a worked example showing that a genuine lifestyle change is a straight
-        multiplier on the frozen figure (a 20% pay rise is old value &times; 1.2), never a guess at a nominal number.
+        equivalent of whatever you've typed. As of Build 127 the caption points at a dedicated
+        <b>Lifestyle Change</b> slider rather than describing the arithmetic in words &mdash; see Chapter 46 for how
+        it works.
       </p>
       <aside class="callout">
         <h4>Working example &mdash; ten years of high inflation, then a genuine lifestyle change</h4>
@@ -2126,6 +2140,8 @@
           &times; 1.2 = &pound;24,000, full stop. No decade of inflation arithmetic is needed to get there, and nothing
           about the size of the nominal figure the directive happens to be showing that quarter is relevant to the
           decision &mdash; that number is already downstream of, and a fixed multiple of, whatever sits in this field.
+          As of Build 127 you don't even need the &times; 1.2 arithmetic by hand: drag the Lifestyle Change slider to
+          +20% and it does this exact calculation live (Chapter 46).
         </p>
       </aside>
       <p>
@@ -2134,6 +2150,127 @@
         walkthrough of the actual app, not a code read-through, caught. The Commit-confirmation modal's mismatch warning
         and its &ldquo;Initial Annual Withdrawal (Frozen)&rdquo; review row were updated to match, so what you review
         before committing is never a stale label for what the row will actually record.
+      </p>
+
+      <h3 class="chapter" id="ch-46">46. The lifestyle-change slider, and Shield Target moves to Pane 2</h3>
+      <p>
+        Chapter 45 covered why the Frozen Baseline field never needs manual inflation-arithmetic, and closed with a
+        worked example: a genuine lifestyle change is just old value &times; 1.2 for a 20% rise. Build 127 turns that
+        arithmetic into a live control instead of a sentence to work through by hand.
+      </p>
+      <p>
+        <b>The Lifestyle Change slider</b> sits directly beneath the Frozen Baseline field, running &minus;30% to
+        +30%. The design question it had to answer is what 0% means. It is anchored to your
+        <b>last committed baseline</b> &mdash; not wherever the field happens to sit after a previous drag. Dragging to
+        +15% always means 15% above what was actually last committed, regardless of how many times the slider has
+        already moved this session, so repeated drags cannot silently compound into a much larger change than the
+        percentage shown suggests. That baseline is refreshed at every point Pane 1 genuinely reloads or reverts &mdash;
+        app boot, entering Edit mode on a ledger row, Cancel / Discard Changes, and the re-seed that happens if you
+        delete the most recent ledger row &mdash; never by the slider itself, and never by typing into the field.
+      </p>
+      <p>
+        Typing directly into the Frozen Baseline field still works exactly as it always has; it simply repositions the
+        slider to match. If you type a figure more than 30% away from baseline, the percentage readout above the
+        slider shows the true, uncapped number (e.g. +60%), but the slider's own thumb visually pins at the end of its
+        track rather than trying to render a position that doesn't exist on a &minus;30/+30 scale. The field is never
+        restricted to &plusmn;30% &mdash; only the thumb's on-screen position is.
+      </p>
+      <p>
+        <b>The Request: / Shield Target: line has been removed from Pane 1.</b> It duplicated information already
+        shown in Pane 2's diagnostics, and grew stale-looking once a plan had been running a while. The Shield Target
+        figure itself has not disappeared &mdash; it has moved.
+      </p>
+      <p>
+        <b>Pane 2's diagnostics row</b> (Total Capital / Peak Drawdown / Fun Bucket Balance &mdash; chapter 13) now
+        carries two further tiles beneath that row: <b>Shield Target (&pound;)</b> and
+        <b>Shield Target (Months)</b>. The &pound; figure is the same one that used to sit on the removed Pane 1 line;
+        the months figure sits next to it for the first time. Both are drawn from the engine's phase-adjusted target
+        &mdash; the same 36 / 24 / 12-month trimming by Go-Go / Go-Slow / No-Go phase described in chapter 14 &mdash;
+        so the two tiles always agree with each other and with the Actual Cash Shield Runway comparison beneath them,
+        rather than one showing your raw setting and the other showing what the engine actually enforced this quarter.
+      </p>
+
+      <h3 class="chapter" id="ch-47">47. The real MSCI World data fix, and two Monte Carlo seeding bugs</h3>
+      <p>
+        Chapter 22 describes Historical mode as drawing from real MSCI World (GBP) annual returns 1970&ndash;2024. That
+        description was always the intent; it wasn't always true. An earlier version of the underlying series had
+        several pre-2000 years off by a wide margin against the genuine index &mdash; 1971 modelled at +31% against
+        the real +12.43%, 1975 (the year after the 1973&ndash;74 oil-shock trough) modelled at +36% against the real
+        +52.99%, 1990 modelled at &minus;21% against the real &minus;31.07%, understating that crash by over 10
+        points. 2000 onward was a close match, evidently rounded from a real series already; the older years weren't.
+        Build 128 replaced the series with the real data, verified index-by-index to within 0.005 percentage points
+        &mdash; pure rounding, not approximation. This affects both the Risk Simulator and the Accumulation Simulator:
+        they share one copy of this series (see chapter 43).
+      </p>
+      <p>
+        Two structural bugs in the Monte Carlo seeding surfaced while independently verifying that fix. First:
+        Historical mode's random seed always included the Parametric tab's mean and standard deviation fields, even
+        though Historical mode never uses them to generate a return &mdash; so tweaking the <i>other</i> tab's sliders
+        silently reshuffled which 10,000 paths Historical mode showed, with no visible cause and no way to reproduce a
+        given run except by chance. Historical mode's seed now depends only on your pot size, years, and mode.
+        Parametric mode is unchanged &mdash; its own seed still depends on mean/stdev, which is what lets its slider
+        produce a smooth delta in the fan chart rather than a full reshuffle on every small tweak.
+      </p>
+      <p>
+        Second: the Parametric-mode defaults (&mu; 7%, &sigma; 15%, referenced in chapter 22 before this build) were
+        closer to the real MSCI World return over 2000&ndash;2024 alone (arithmetic mean ~7.95%) than to the real
+        full 1970&ndash;2024 record (arithmetic mean 11.85%, stdev 17.80%). Updated to the full-period figures, so a
+        fresh Parametric run and a fresh Historical run are both anchored to the same underlying reality rather than
+        one quietly reflecting a stronger, more recent slice of history than the other.
+      </p>
+      <p>
+        A smaller, unrelated finding from the same pass: <code>mulberry32</code> (the seeded random-number generator),
+        <code>gaussian</code>, <code>quantile</code>, and the mean/stdev default constants were each duplicated
+        byte-for-byte between the Risk Simulator and the Accumulation Simulator &mdash; exactly the kind of drift risk
+        that produced the data bug above, just running the other direction (two copies, one gets updated and the
+        other forgotten). Consolidated into a single shared module both simulators import from.
+      </p>
+
+      <h3 class="chapter" id="ch-48">48. Editing history: pension and inflation now show what was actually true then</h3>
+      <p>
+        Two related bugs, both with the same shape: a figure that should have reflected a specific historical ledger
+        row was instead always computed from whatever is live right now, regardless of which row you had open.
+      </p>
+      <p>
+        <b>Inflation.</b> The Live Nominal Preview under the Frozen Baseline field (chapter 45), and the directive
+        amounts it feeds, always used the cumulative inflation index as of your <i>most recently committed</i> ledger
+        row &mdash; not the row you actually had open for editing. Opening an old entry from several years back showed
+        it nominalised using inflation accrued all the way to your latest row, effectively "as of right now," rather
+        than as of that entry's own period. Fixed: editing a row now nominalises using that row's own cumulative
+        index. The caption changes to match &mdash; "in actual pounds as of this entry's period" while editing
+        history, "in actual pounds today" only for a genuinely new entry.
+      </p>
+      <p>
+        <b>Pension.</b> A more consequential version of the same bug. Pension (Annual Pension, Pension Start Age,
+        Pension Real Increase %) had always been a single live, global Pane 1 setting &mdash; never stored on the
+        ledger row itself, unlike Growth Rate / Cash Real Return / Inflation, which have carried a per-row snapshot
+        since Build 095. So the "Gross lifestyle target / Less pension in payment / Net drawn from pot" breakdown
+        under the Frozen Baseline field always recomputed using <i>today's</i> live pension figures, whichever row
+        you had open. This was caught live: editing a Scenario Test Runner row (chapter 38) showed a pension figure
+        compounded forward from the live plan's real pension &mdash; wildly different from the pension that scenario
+        was actually built on. The row's own recorded numbers were always correct; only this explanatory breakdown was
+        reading from the wrong source.
+      </p>
+      <p>
+        Fixed by giving <code>LedgerEntry</code> its own <code>pensionAmount</code> / <code>pensionStartAge</code> /
+        <code>pensionIncreasePct</code>, stamped onto every row at commit time (and, for Scenario Test Runner rows,
+        onto every row the scenario builds, from that scenario's own meta values &mdash; not the live plan's).
+        Editing an old row now loads that row's own pension into Pane 1, and an inline note appears when it differs
+        from your live settings, or when a legacy row (committed before Build 128) has no snapshot recorded at all.
+      </p>
+      <p>
+        Pension is treated deliberately differently from Growth Rate / Cash Real Return / Inflation on exit from
+        Edit, though. Those three are genuine per-quarter assumptions &mdash; it's expected that correcting an old
+        row updates your ongoing baseline too. Pension is documented elsewhere in this manual as "your real figures"
+        &mdash; a single ongoing truth the Risk Simulator and every new commit read live, not something that should
+        silently drift just because you reviewed or corrected an old row's history. So your live pension setting is
+        restored after every exit from Edit &mdash; Discard Changes, Exit Edit, and a successful Commit alike &mdash;
+        while a deliberate correction to a row's own historical pension figure still works exactly as typed, since
+        that gets stamped onto the row itself regardless of the restore. A genuine second bug surfaced testing this
+        exact mechanism: Discard Changes was found to jump pension to today's live value instead of keeping the row's
+        own just-reloaded figure, because the reload and the restore were firing back-to-back in the wrong order.
+        Fixed by giving Discard Changes its own legacyTarget/currency-only restore path, separate from the full
+        restore Exit Edit uses.
       </p>
     </main>
 

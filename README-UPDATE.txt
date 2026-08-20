@@ -1,4 +1,4 @@
-Sovereign Glidepath — Web Update Build 125
+Sovereign Glidepath — Web Update Build 128
 =============================================
 
 This zip is a drop-in replacement for the web-hosted (Cloudflare Pages) copy
@@ -24,15 +24,15 @@ Option A — GitHub web UI
 3. Drag the contents of this zip (not the zip itself) into the upload area.
    Keep the folder structure intact.
 4. Commit directly to the default branch with message:
-   "Sync to Build 125"
+   "Sync to Build 128"
 
 Option B — Git CLI
 ------------------
 1. Unzip into your local clone, overwriting existing files:
-     unzip -o sovereign-glidepath-web-build125.zip -d /path/to/repo
+     unzip -o sovereign-glidepath-web-build128.zip -d /path/to/repo
 2. From the repo root:
      git add -A
-     git commit -m "Sync to Build 125"
+     git commit -m "Sync to Build 128"
      git push
 
 Cloudflare
