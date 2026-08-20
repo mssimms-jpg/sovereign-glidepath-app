@@ -308,6 +308,16 @@ export function runScenario(scenario: ScenarioFile): ScenarioRunResult {
         assumedInflationPct: meta.assumedInflationPct,
         actualCpiSincePriorRow,
         funBucket: Math.max(0, calcResult.surplus),
+        // Build 128 — this scenario's OWN pension inputs, not whatever the
+        // live app's Pane 1 happens to show. This is exactly the gap that
+        // caused a Scenario Test Runner row to display a wildly wrong
+        // "Less pension in payment" figure when later edited/reviewed —
+        // the row's real numbers were always built correctly from these
+        // meta values, but nothing recorded them on the row itself for a
+        // later Edit to read back.
+        pensionAmount,
+        pensionStartAge,
+        pensionIncreasePct,
       };
 
       ledger.unshift(entry);

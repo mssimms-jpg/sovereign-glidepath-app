@@ -2,17 +2,40 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cleanNum, formatGBP } from "@/lib/sovereign/engine";
 import { applyPeriod } from "@/lib/sovereign/drawdown";
 import { exportLedgerCSV } from "@/lib/sovereign/csvExport";
+import {
+  mulberry32,
+  gaussian,
+  quantile,
+  PARAMETRIC_DEFAULT_MEAN_PCT,
+  PARAMETRIC_DEFAULT_STDEV_PCT,
+} from "@/lib/sovereign/monteCarloShared";
 import { DashedLineIcon } from "./DashedLineIcon";
 
-// MSCI World Net Total Return, GBP-denominated, approximate annual returns
-// 1970–2024 (decimal). Proxy for a UK investor holding a global tracker.
+// MSCI World Net Total Return, GBP-denominated, annual returns 1970–2024
+// (decimal). Proxy for a UK investor holding a global tracker.
 // Build 124 — exported (was module-local) so the Accumulation Simulator can
 // reuse this exact series rather than embedding a second copy of it.
+// Build 128 — replaced with the REAL series (computed from monthly index
+// levels, base 10,000 = Dec 1969, year-end values). The previous array was
+// only ever labelled "approximate" in this comment, but the in-app "How to
+// Read This" panel told users it was drawing from real 1970-2024 data —
+// it wasn't, for roughly the first 30 of those 55 years. 2000-2024 was a
+// close match (evidently rounded from a real series already), but several
+// pre-2000 years were off by double digits: 1971 was modelled as +31% vs
+// the real +12.43%; 1975 (the post-oil-shock snapback) was modelled as
+// +36% vs the real +52.99%; 1990 was modelled as -21% vs the real -31.07%,
+// understating that crash by over 10 points. Since the historical bootstrap
+// mode picks years at random, roughly half of every Historical-mode run was
+// drawing from a materially wrong figure. See also accumulationEngine.ts,
+// which imports this same array.
 export const GLOBAL_ANNUAL: number[] = [
-  -0.03, 0.31, 0.16, -0.18, -0.25, 0.36, 0.36, -0.07, 0.06, 0.1, 0.26, 0.1, 0.21, 0.27, 0.31, 0.21,
-  0.31, -0.04, 0.16, 0.34, -0.21, 0.16, 0.16, 0.27, -0.04, 0.18, 0.13, 0.15, 0.18, 0.34, -0.07,
-  -0.13, -0.27, 0.2, 0.07, 0.24, 0.07, 0.09, -0.18, 0.16, 0.16, -0.04, 0.11, 0.25, 0.12, 0.05, 0.29,
-  0.12, -0.03, 0.23, 0.13, 0.23, -0.08, 0.17, 0.21,
+  -0.0308, 0.1243, 0.3197, -0.1424, -0.2585, 0.5299, 0.3662, -0.0889,
+  0.0880, 0.0013, 0.1789, 0.1736, 0.2921, 0.3742, 0.2659, 0.1540,
+  0.4242, -0.0858, 0.2349, 0.3336, -0.3107, 0.2441, 0.1165, 0.2741,
+  0.0053, 0.2215, 0.0506, 0.1606, 0.2351, 0.2782, -0.0590, -0.1438,
+  -0.2803, 0.1975, 0.0641, 0.2287, 0.0538, 0.0653, -0.1855, 0.1709,
+  0.1678, -0.0534, 0.1098, 0.2381, 0.1136, 0.0417, 0.2953, 0.1148,
+  -0.0360, 0.2376, 0.1212, 0.2336, -0.0825, 0.1708, 0.2043,
 ];
 
 type Mode = "historical" | "parametric";
@@ -34,36 +57,10 @@ function useDebouncedValue<T>(value: T, delay: number): T {
   return settled;
 }
 
-// Seeded PRNG (mulberry32) — deterministic so that small slider tweaks
-// produce smooth deltas in the fan chart instead of re-rolling every path.
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gaussian(rng: () => number): number {
-  let u = 0,
-    v = 0;
-  while (u === 0) u = rng();
-  while (v === 0) v = rng();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-function quantile(sorted: number[], q: number): number {
-  if (sorted.length === 0) return 0;
-  const pos = (sorted.length - 1) * q;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-  if (sorted[base + 1] !== undefined)
-    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-  return sorted[base];
-}
+// mulberry32/gaussian/quantile moved to monteCarloShared.ts (Build 128) —
+// were byte-for-byte duplicated in accumulationEngine.ts. mulberry32 is
+// deterministic so that small Parametric-slider tweaks produce smooth
+// deltas in the fan chart instead of re-rolling every path.
 
 type ThresholdMode = "strict" | "standard" | "aggressive";
 type TickMode = "yearly" | "quarterly";
@@ -164,8 +161,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
   const [mode, setMode] = useState<Mode>("historical");
   const [showHelp, setShowHelp] = useState(false);
-  const [meanStr, setMeanStr] = useState<string>(p.meanStr ?? "7");
-  const [stdevStr, setStdevStr] = useState<string>(p.stdevStr ?? "15");
+  // Build 128 — defaults now sourced from monteCarloShared.ts, the single
+  // place these two numbers are defined (see that file for derivation).
+  const [meanStr, setMeanStr] = useState<string>(p.meanStr ?? String(PARAMETRIC_DEFAULT_MEAN_PCT));
+  const [stdevStr, setStdevStr] = useState<string>(p.stdevStr ?? String(PARAMETRIC_DEFAULT_STDEV_PCT));
   const meanPct = cleanNum(meanStr);
   const stdevPct = cleanNum(stdevStr);
   const [inflationPct, setInflationPct] = useState<number>(
@@ -498,13 +497,27 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     // Target cash buffer = the user's starting Cash Pot (refill ceiling).
     const targetCashBuffer = C0;
 
+    // Build 128 — the seed previously always folded in `mean`/`sd`, even in
+    // Historical mode where those Parametric-tab fields are never used to
+    // generate a single return. That meant touching the Parametric sliders
+    // silently reshuffled which 10,000-path draw sequence Historical mode
+    // showed, with no visible cause — a reproducibility bug caught by
+    // comparing a live run against an independent reproduction that didn't
+    // match until the Parametric fields were accounted for. Historical
+    // mode's seed now depends only on {start, yrs, mode} — genuinely
+    // reproducible from the inputs actually visible while on that tab.
+    // Parametric mode is unchanged: mean/sd still feed its seed, which is
+    // what gives its slider a smooth delta instead of a full reshuffle on
+    // every tweak (see mulberry32's seeding comment above).
     const seed =
-      0x9e3779b1 ^
-      (Math.floor(start) >>> 0) ^
-      ((yrs << 16) >>> 0) ^
-      ((mode === "historical" ? 1 : 2) << 24) ^
-      (Math.floor(mean * 1e6) >>> 0) ^
-      (Math.floor(sd * 1e6) >>> 0);
+      mode === "historical"
+        ? 0x9e3779b1 ^ (Math.floor(start) >>> 0) ^ ((yrs << 16) >>> 0) ^ (1 << 24)
+        : 0x9e3779b1 ^
+          (Math.floor(start) >>> 0) ^
+          ((yrs << 16) >>> 0) ^
+          (2 << 24) ^
+          (Math.floor(mean * 1e6) >>> 0) ^
+          (Math.floor(sd * 1e6) >>> 0);
     const rng = mulberry32(seed);
 
     const byYear: number[][] = Array.from({ length: yrs + 1 }, () => []);

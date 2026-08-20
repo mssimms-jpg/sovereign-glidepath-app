@@ -11,6 +11,75 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 128 — Real MSCI World data, pension history, and a QA scenario pool
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>The Risk Simulator and Accumulation Simulator's Historical mode was quietly running on
+              approximate data.</strong> The 1970–2024 MSCI World GBP series both simulators bootstrap from had
+              several pre-2000 years off by double digits — 1971 modelled as +31% vs. the real +12.43%, 1975 (the
+              post-oil-shock snapback) modelled as +36% vs. the real +52.99%, 1990 modelled as −21% vs. the real
+              −31.07%, understating that crash by over 10 points — despite the in-app "How to Read This" panel
+              saying it drew from real data. Replaced with the real series; every one of the 55 years now matches
+              the source to within 0.005pp.
+            </p>
+            <p>
+              <strong>Two structural bugs in the Monte Carlo seeding, caught while verifying the fix.</strong>
+              Historical mode's random seed always folded in the Parametric tab's mean/stdev fields, even though
+              Historical mode never uses them — so touching the other tab's sliders silently reshuffled Historical
+              mode's whole draw sequence with no visible cause. Historical mode's seed now depends only on pot size,
+              years, and mode. Separately, the Parametric-mode defaults (7%/15%) were closer to the post-2000-only
+              period than the real 55-year record — updated to 11.85%/17.8%.
+            </p>
+            <p>
+              <strong>Duplicated PRNG/quantile code and default constants consolidated</strong> into a new
+              monteCarloShared.ts — both simulators previously carried byte-for-byte copies, exactly the kind of
+              drift risk that caused the data bug above.
+            </p>
+            <p>
+              <strong>Volatility slider in the Accumulation Simulator</strong> stepped in 0.5% increments while
+              every other assumption-rate slider in the app steps in 0.1% — fixed to match.
+            </p>
+            <p>
+              <strong>Editing an old ledger row's nominal figures used the wrong inflation reference point.</strong>{" "}
+              The live nominal preview and directive figures always used the ledger's most recent cumulative
+              inflation index, not the specific row being edited — opening a several-year-old entry showed figures
+              inflated to your latest commit, not to that entry's own period. Fixed, and the caption now says "as of
+              this entry's period" rather than "today" when editing history.
+            </p>
+            <p>
+              <strong>Pension is now a genuine per-row snapshot</strong>, not a single global figure silently
+              reapplied to every row you look at. Caught live: editing a Scenario Test Runner row showed a pension
+              figure compounded from your real live pension settings, not the very different pension the scenario
+              was actually built on — the row's own numbers were always correct, only the explanatory breakdown was
+              reading from the wrong source. Pension is deliberately treated differently from growth/cash/inflation
+              on exit — it's "your real figures," not a per-quarter assumption — so your live pension is protected
+              from being overwritten by reviewing or correcting old history. A second bug surfaced testing this —
+              Discard Changes was jumping pension to today's live value instead of keeping the row's own — now
+              fixed with its own separate restore path. Legacy rows and rows whose pension differs from your live
+              settings show an inline indicator so this is visible rather than silently swapped.
+            </p>
+            <p>
+              <strong>Shield Target (£) and (Months) tiles restored to status colour</strong> (green/amber/red,
+              matching Actual Cash Shield Runway) after drifting to a flat blue across two prior cosmetic passes.
+            </p>
+            <p>
+              <strong>Scenario Test Runner panel rebuilt off the app's actual dark-theme conventions</strong> — it
+              was silently rendering as an unstyled light-mode card, since the Tailwind/shadcn classes it used never
+              resolved in this app. Also replaced the native browser confirm before a ledger replace with the app's
+              own modal, since a native confirm can't show the bold filename and coloured warning it needed.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>A 20-scenario QA pool built and verified</strong> — real MSCI World GBP returns and real UK
+              RPI inflation, deflated to nominal-at-plan-start using the app's own Frozen Baseline convention,
+              spanning 1971–2025, each with a matched +1.5pp-aggressive-withdrawal pair. All 40 files carry
+              engine-computed checkpoints, verified at 0 mismatches.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 127 — Lifestyle-change slider, and Shield Target moves to Pane 2
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

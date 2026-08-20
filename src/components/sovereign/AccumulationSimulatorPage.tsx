@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cleanNum, formatGBP, setCurrencySymbol } from "@/lib/sovereign/engine";
 import { runAccumulation, type AccMode } from "@/lib/sovereign/accumulationEngine";
+import {
+  PARAMETRIC_DEFAULT_MEAN_PCT,
+  PARAMETRIC_DEFAULT_STDEV_PCT,
+} from "@/lib/sovereign/monteCarloShared";
 import { DashedLineIcon } from "@/components/sovereign/DashedLineIcon";
 import "@/components/sovereign/desk.css";
 
@@ -148,11 +152,13 @@ export function AccumulationSimulatorPage() {
   const [assumedRatePct, setAssumedRatePct] = useState(
     numParam(sp, "growth", num(persisted.current.assumedRatePct, 5)),
   );
+  // Build 128 — defaults now sourced from monteCarloShared.ts, the single
+  // place these two numbers are defined (see that file for derivation).
   const [meanPct, setMeanPct] = useState(
-    numParam(sp, "meanPct", num(persisted.current.meanPct, 7)),
+    numParam(sp, "meanPct", num(persisted.current.meanPct, PARAMETRIC_DEFAULT_MEAN_PCT)),
   );
   const [stdevPct, setStdevPct] = useState(
-    numParam(sp, "stdevPct", num(persisted.current.stdevPct, 15)),
+    numParam(sp, "stdevPct", num(persisted.current.stdevPct, PARAMETRIC_DEFAULT_STDEV_PCT)),
   );
   const [inflationPct, setInflationPct] = useState(
     numParam(sp, "inflationPct", num(persisted.current.inflationPct, 2.5)),
@@ -732,7 +738,7 @@ export function AccumulationSimulatorPage() {
                   type="range"
                   min={0}
                   max={30}
-                  step={0.5}
+                  step={0.1}
                   value={stdevPct}
                   onChange={(e) => setStdevPct(parseFloat(e.target.value) || 0)}
                   style={{ width: "100%" }}

@@ -110,7 +110,11 @@ export function HelpContent() {
               Instead, the live directive (Pane 3) automatically shows you the actual pounds to withdraw each quarter,
               worked out from Pane 2's Inflation Tracking, and the field itself shows a live nominal preview as you
               type. Only change this field for a genuine lifestyle change — and when you do, it's a straight multiplier
-              on the frozen figure (e.g. a 20% rise is old value × 1.2), never a guess at a nominal number.
+              on the frozen figure (e.g. a 20% rise is old value × 1.2), never a guess at a nominal number. A{" "}
+              <strong>Lifestyle Change slider</strong> sits directly under the field, running −30% to +30%: 0% always
+              means your last <em>committed</em> baseline, not wherever the field currently sits, so repeated drags
+              can't quietly compound. Typing directly into the field still works and just repositions the slider to
+              match.
             </li>
             <li>
               <strong>Legacy Target</strong> (optional, default <strong>0</strong>). A real-terms amount you want to
@@ -124,7 +128,9 @@ export function HelpContent() {
             then launch the <strong>Risk Simulator</strong> from <em>Companion Apps</em> at the foot of Pane 2 to
             stress-test the plan against 10,000 possible futures. Need to record a one-off expense (car, kitchen, gift)?
             Use the purple <em>Commit Special Event</em> button in Pane 5 — it deducts from your pots and lowers the ATH
-            automatically so the plan's baseline stays honest.
+            automatically so the plan's baseline stays honest. Your <strong>Shield Target</strong> — the £ figure and
+            the months it represents — is shown in Pane 2's diagnostics, next to Total Capital / Peak Drawdown / Fun
+            Bucket Balance.
           </p>
         </Section>
 

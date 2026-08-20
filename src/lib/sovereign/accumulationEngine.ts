@@ -8,6 +8,7 @@
 // MonteCarloPanel.tsx, which owns the single copy of the MSCI World / global
 // tracker annual series already used by the Risk Simulator's Historical mode.
 import { GLOBAL_ANNUAL } from "@/components/sovereign/MonteCarloPanel";
+import { mulberry32, gaussian, quantile } from "@/lib/sovereign/monteCarloShared";
 
 export type AccMode = "historical" | "parametric";
 
@@ -52,35 +53,8 @@ export interface AccumulationResult {
   finalP90: number;
 }
 
-/** Seeded PRNG (mulberry32) — same generator the Risk Simulator uses. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gaussian(rng: () => number): number {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = rng();
-  while (v === 0) v = rng();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-function quantile(sorted: number[], q: number): number {
-  if (sorted.length === 0) return 0;
-  const pos = (sorted.length - 1) * q;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-  const lo = sorted[base] ?? 0;
-  const hi = sorted[base + 1];
-  return hi !== undefined ? lo + rest * (hi - lo) : lo;
-}
+// mulberry32/gaussian/quantile now imported from monteCarloShared.ts
+// (Build 128) — were byte-for-byte duplicated with MonteCarloPanel.tsx.
 
 export function runAccumulation(inp: AccumulationInputs): AccumulationResult | null {
   const years = Math.max(1, Math.min(70, Math.floor(inp.retirementAge - inp.startAge)));
@@ -96,14 +70,28 @@ export function runAccumulation(inp: AccumulationInputs): AccumulationResult | n
   const detRNominal = inp.assumedRatePct / 100;
   const detRReal = infl > 0 ? (1 + detRNominal) / (1 + infl) - 1 : detRNominal;
 
+  // Build 128 — same reproducibility fix as the Risk Simulator: Historical
+  // mode's seed previously always folded in `mean`/`sd`, even though those
+  // Parametric-only fields are never used to generate a return in Historical
+  // mode. That meant touching the Parametric sliders silently reshuffled
+  // Historical mode's draw sequence with no visible cause. Historical mode's
+  // seed now depends only on {P0, years, contribution, mode} — genuinely
+  // reproducible from the inputs actually visible while on that tab.
+  // Parametric mode is unchanged: mean/sd still feed its seed.
   const seed =
-    0x9e3779b1 ^
-    (Math.floor(P0) >>> 0) ^
-    ((years << 16) >>> 0) ^
-    ((inp.mode === "historical" ? 1 : 2) << 24) ^
-    (Math.floor(annualContrib0) >>> 0) ^
-    (Math.floor(mean * 1e6) >>> 0) ^
-    (Math.floor(sd * 1e6) >>> 0);
+    inp.mode === "historical"
+      ? 0x9e3779b1 ^
+        (Math.floor(P0) >>> 0) ^
+        ((years << 16) >>> 0) ^
+        (1 << 24) ^
+        (Math.floor(annualContrib0) >>> 0)
+      : 0x9e3779b1 ^
+        (Math.floor(P0) >>> 0) ^
+        ((years << 16) >>> 0) ^
+        (2 << 24) ^
+        (Math.floor(annualContrib0) >>> 0) ^
+        (Math.floor(mean * 1e6) >>> 0) ^
+        (Math.floor(sd * 1e6) >>> 0);
   const rng = mulberry32(seed);
 
   const byYear: number[][] = Array.from({ length: years + 1 }, () => []);

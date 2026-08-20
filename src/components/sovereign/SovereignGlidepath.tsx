@@ -526,6 +526,20 @@ export function SovereignGlidepath() {
     inflationPct: number;
     legacyTarget: number;
     currency: CurrencySymbol;
+    // Build 128 — pension IS captured here (unlike growth/cash/inflation,
+    // which are deliberately per-row and carry forward after a commit).
+    // Pension is documented as "your real figures" — a single ongoing
+    // truth the Risk Simulator and every new commit read live — not a
+    // per-quarter revisable assumption. So editing an old row's pension
+    // for display/correction purposes must NOT leak into your live
+    // settings just because you committed something else on that row;
+    // restorePreEditSliders() puts these back after every exit from Edit,
+    // successful commit included. Deliberately correcting a row's own
+    // historical pension record still works — that's stamped onto the row
+    // at commit time regardless — this only protects the live/ongoing copy.
+    pensionAmountStr: string;
+    pensionStartAge: number;
+    pensionIncreasePct: number;
   } | null>(null);
   // Build 086 — app-wide baseline snapshot used by "Cancel" (new-entry mode)
   // to revert fields that are NOT stored on the ledger row itself
@@ -543,6 +557,19 @@ export function SovereignGlidepath() {
   // assumption snapshot (Growth / Cash Real Return / Inflation). Drives the
   // "not recorded" indicator in Pane 1.
   const [assumptionsNotRecorded, setAssumptionsNotRecorded] = useState(false);
+  // Build 128 — true while editing a legacy row that carries no stored
+  // pension snapshot. Same treatment as assumptionsNotRecorded, separate
+  // flag because a row can have one without the other (pension snapshots
+  // were added in a later build than the growth/cash/inflation ones).
+  const [pensionNotRecorded, setPensionNotRecorded] = useState(false);
+  // Build 128 — true for the duration of an Edit session on a row whose
+  // OWN pension snapshot differs from what was live in Pane 1 when Edit
+  // was entered (e.g. a Scenario Test Runner row, or a real row from
+  // before your pension figures changed). Drives an inline note so it's
+  // visible that the pension figures on screen are that row's history,
+  // not your current ongoing pension settings — without this, it looks
+  // identical to just having typed a correction.
+  const [pensionDiffersFromLive, setPensionDiffersFromLive] = useState(false);
   useEffect(() => {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
@@ -743,13 +770,27 @@ export function SovereignGlidepath() {
   // silently defaulted to £5,000.00, the exact inconsistency Mark caught.
   // Threshold matches engine.ts's hasNominalDrift exactly so the two can
   // never disagree about whether there's meaningful drift to apply.
+  // Build 128 — when editing an EXISTING (historical) ledger row, the
+  // nominal conversion now uses THAT row's own cumulative inflation index,
+  // not the whole ledger's currentIndex (which is pinned to the most recent
+  // committed row regardless of which row is loaded for editing). Before
+  // this fix, opening an old entry — say Q2 2021 — would nominalise its
+  // real figures using inflation accrued all the way to whatever the
+  // newest ledger row happens to be. For a ledger kept close to
+  // real-time, that's functionally close to today's actual date, so
+  // reviewing old history silently imposed large, "as of right now"
+  // numbers onto data that should show what was true back then. New
+  // entries (editIndex === -1) are unaffected — currentIndex genuinely is
+  // the right reference point when you're about to commit today's figure.
   const nominaliseRequest = useCallback(
     (realAmount: number): number => {
-      const idx = inflationTracking.currentIndex;
+      const editingRow =
+        editIndex > -1 ? inflationTracking.rows.find((r) => r.ledgerIndex === editIndex) : undefined;
+      const idx = editingRow ? editingRow.cumulativeIndex : inflationTracking.currentIndex;
       const hasDrift = !!idx && Math.abs(idx - 1) > 0.0005;
       return hasDrift ? nominalFromReal(realAmount, idx) : realAmount;
     },
-    [inflationTracking],
+    [inflationTracking, editIndex],
   );
 
   // Build 112 — QA State Test Presets are self-contained scenarios. While one
@@ -1197,11 +1238,26 @@ export function SovereignGlidepath() {
       // matching the floor-at-zero display convention used everywhere else
       // it's shown (e.g. the live "FUN BUCKET BALANCE" stat).
       funBucket: Math.max(0, calc.surplus),
+      // Build 128 — snapshot the pension inputs in force at commit time too
+      // (see LedgerEntry.pensionAmount doc comment). Whatever is currently
+      // showing in Pane 1's pension fields at the moment Commit is pressed —
+      // which, mid-Edit, may be the row's OWN reloaded snapshot (unchanged)
+      // or a deliberate correction the user just typed.
+      pensionAmount: cleanNum(pensionAmountStr),
+      pensionStartAge,
+      pensionIncreasePct,
     };
     const next = editIndex > -1 ? ledger.map((e, i) => (i === editIndex ? entry : e)) : [entry, ...ledger];
     setLedger(next);
     saveLedger(next);
     setEditIndex(-1);
+    // Build 128 — pension-only restore here (not legacyTarget/currency,
+    // which correctly become the new global baseline below, same as
+    // growth/cash/inflation already do). The row just got its own pension
+    // figures stamped onto it above (correct, preserved forever in the
+    // ledger); this only protects the ONGOING live setting from picking up
+    // whatever pension happened to be on screen during this edit.
+    restorePensionToLive();
     preEditSlidersRef.current = null;
     // Build 086 — refresh the new-entry baseline so Cancel reverts to
     // the just-committed app-wide values (cashRealPct, inflationPct,
@@ -1338,7 +1394,15 @@ export function SovereignGlidepath() {
     // `editIndex === -1` prevents Discard-during-Edit (which re-calls
     // editEntry) from overwriting the original snapshot with mid-edit values.
     if (editIndex === -1) {
-      preEditSlidersRef.current = { cashRealPct, inflationPct, legacyTarget, currency };
+      preEditSlidersRef.current = {
+        cashRealPct,
+        inflationPct,
+        legacyTarget,
+        currency,
+        pensionAmountStr,
+        pensionStartAge,
+        pensionIncreasePct,
+      };
     }
     setLabel(d.label || "");
     // Build 073 — populate the date picker with the stored real date. Empty
@@ -1364,6 +1428,32 @@ export function SovereignGlidepath() {
     setCashRealPct(hasAssumptions ? (d.assumedCashRealPct ?? 0) : 0);
     setInflationPct(hasAssumptions ? (d.assumedInflationPct ?? 0) : 0);
     setAssumptionsNotRecorded(!hasAssumptions);
+    // Build 128 — load the row's OWN stored pension snapshot, same treatment
+    // as growth/cash/inflation above: legacy rows (no snapshot) show 0 /
+    // "not recorded" rather than silently inheriting today's live pension.
+    // Live values captured FIRST, before any setter below runs, so the
+    // "differs from live" comparison is explicit rather than relying on
+    // React's setState-is-deferred semantics to read the pre-update value.
+    const livePensionAmount = cleanNum(pensionAmountStr);
+    const livePensionStartAge = pensionStartAge;
+    const livePensionIncreasePct = pensionIncreasePct;
+    const hasPension =
+      typeof d.pensionAmount === "number" ||
+      typeof d.pensionStartAge === "number" ||
+      typeof d.pensionIncreasePct === "number";
+    const rowPensionAmount = hasPension ? (d.pensionAmount ?? 0) : 0;
+    const rowPensionStartAge = hasPension ? (d.pensionStartAge ?? 67) : 67;
+    const rowPensionIncreasePct = hasPension ? (d.pensionIncreasePct ?? 0) : 0;
+    setPensionAmount(rowPensionAmount);
+    setPensionStartAge(rowPensionStartAge);
+    setPensionIncreasePct(rowPensionIncreasePct);
+    setPensionNotRecorded(!hasPension);
+    setPensionDiffersFromLive(
+      hasPension &&
+        (Math.abs(rowPensionAmount - livePensionAmount) > 0.005 ||
+          rowPensionStartAge !== livePensionStartAge ||
+          Math.abs(rowPensionIncreasePct - livePensionIncreasePct) > 0.005),
+    );
     if (typeof d.legacyTarget === "number" && d.legacyTarget >= 0) setLegacyTarget(d.legacyTarget);
     if (typeof d.withdrawnAmount === "number") {
       setWithdrawnStr(d.withdrawnAmount ? d.withdrawnAmount.toFixed(2) : "");
@@ -1455,15 +1545,32 @@ export function SovereignGlidepath() {
     if (typeof latest.legacyTarget === "number") setLegacyTarget(latest.legacyTarget);
   };
 
-  // Build 095 — Growth / Cash Real Return / Inflation are now stored PER ROW,
-  // so Discard Changes and Exit Edit must NOT restore them from a pre-edit
-  // global snapshot: editEntry() reloads them from the row itself (or 0 /
-  // "not recorded" for legacy rows), and loadNewEntry() restores the global
-  // baseline when leaving Edit. This helper now only covers the remaining
-  // non-row settings (legacyTarget, currency).
-  // No-op when no snapshot exists (e.g. Cancel in new-entry mode —
-  // that path uses newEntryBaselineRef instead).
-  const restorePreEditSliders = () => {
+  // Build 128 — pension-only slice of the restore below. Used on successful
+  // Commit, where legacyTarget/currency must KEEP their existing behaviour
+  // (become the new global baseline — see the newEntryBaselineRef refresh
+  // right after this is called) while pension must NOT: pension restores to
+  // its pre-edit live value on every exit from Edit, commit included.
+  const restorePensionToLive = () => {
+    const snap = preEditSlidersRef.current;
+    if (!snap) return;
+    setPensionAmountStr(snap.pensionAmountStr);
+    setPensionStartAge(snap.pensionStartAge);
+    setPensionIncreasePct(snap.pensionIncreasePct);
+    setPensionNotRecorded(false);
+    setPensionDiffersFromLive(false);
+  };
+
+  // Build 128 — legacyTarget/currency-only slice of the restore below. Used
+  // by Discard Changes (revertPane1, mid-edit): that path calls editEntry()
+  // FIRST, which already correctly reloads the row's OWN pension (and
+  // growth/cash/inflation) from its stored snapshot — calling the pension
+  // part of restorePreEditSliders() right after would immediately overwrite
+  // that correct reload with the pre-edit-SESSION live value, which is
+  // exactly backwards for Discard Changes (caught live: discarding a change
+  // was jumping pension to today's live figures instead of keeping the
+  // row's own recorded ones). legacyTarget/currency have no such per-row
+  // reload to clobber, so they still restore here as before.
+  const restoreLegacyAndCurrencyToLive = () => {
     const snap = preEditSlidersRef.current;
     if (!snap) return;
     setLegacyTarget(snap.legacyTarget);
@@ -1471,10 +1578,31 @@ export function SovereignGlidepath() {
     setCurrencySymbol(snap.currency);
   };
 
+  // Build 095 — Growth / Cash Real Return / Inflation are stored PER ROW,
+  // so Discard Changes and Exit Edit must NOT restore them from a pre-edit
+  // global snapshot: editEntry() reloads them from the row itself (or 0 /
+  // "not recorded" for legacy rows), and loadNewEntry() restores the global
+  // baseline when leaving Edit. Pension is different (Build 128): it is
+  // also now stored per row, but unlike growth/cash/inflation it is
+  // documented as "your real figures" — a single ongoing truth the Risk
+  // Simulator and every new commit read live, not a per-quarter revisable
+  // assumption. So pension DOES get restored to the live value — but ONLY
+  // when actually leaving Edit entirely (this function, used by
+  // exitEditToNewEntry) or on a successful Commit (restorePensionToLive()
+  // above, called directly by the commit handler) — never on a mid-edit
+  // Discard Changes, where editEntry() has already put the row's own
+  // pension back and this must not fight it. (A deliberate correction to a
+  // row's own historical pension figure still works — it's stamped onto
+  // that row at commit time regardless of this restore.)
+  const restorePreEditSliders = () => {
+    restoreLegacyAndCurrencyToLive();
+    restorePensionToLive();
+  };
+
   const revertPane1 = () => {
     if (editIndex > -1) {
       editEntry(editIndex);
-      restorePreEditSliders();
+      restoreLegacyAndCurrencyToLive();
       return;
     }
     loadNewEntry();
@@ -1981,6 +2109,8 @@ export function SovereignGlidepath() {
               setCashRealPct={setCashRealPct}
               editIndex={editIndex}
               assumptionsNotRecorded={assumptionsNotRecorded}
+              pensionNotRecorded={pensionNotRecorded}
+              pensionDiffersFromLive={pensionDiffersFromLive}
               inflationPct={inflationPct}
               setInflationPct={setInflationPct}
               targetYearly={targetYearly}

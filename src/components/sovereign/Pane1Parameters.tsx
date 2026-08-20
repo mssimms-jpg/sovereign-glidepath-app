@@ -64,6 +64,11 @@ export interface Pane1ParametersProps {
 
   editIndex: number;
   assumptionsNotRecorded: boolean;
+  // Build 128 — pension-history indicators, same rationale as
+  // assumptionsNotRecorded but pension-specific (see engine.ts's
+  // LedgerEntry.pensionAmount doc comment for the full story).
+  pensionNotRecorded: boolean;
+  pensionDiffersFromLive: boolean;
 
   inflationPct: number;
   setInflationPct: (v: number) => void;
@@ -127,6 +132,8 @@ export function Pane1Parameters({
   setCashRealPct,
   editIndex,
   assumptionsNotRecorded,
+  pensionNotRecorded,
+  pensionDiffersFromLive,
   inflationPct,
   setInflationPct,
   targetYearly,
@@ -447,13 +454,20 @@ export function Pane1Parameters({
             // actually mean in real pounds today?" on the spot. Build 127
             // — worked-example walkthrough dropped from the footnote below:
             // the slider above now demonstrates the multiplier directly.
-            const idx = inflationTracking.currentIndex;
-            const hasDrift = !!idx && Math.abs(idx - 1) > 0.0005;
-            if (!hasDrift) return null;
+            // Build 128 — hasDrift is now derived from nominaliseRequest's
+            // actual output rather than re-checking inflationTracking.
+            // currentIndex directly: the parent's nominaliseRequest is
+            // row-aware when editIndex > -1 (uses that row's own cumulative
+            // index, not the ledger's most-recent one), and this box needs
+            // to show/hide and word itself consistently with whatever
+            // number it actually displays, not a different index.
             const annualReal = cleanNum(targetYearly);
             if (annualReal <= 0) return null;
             const annualNominal = nominaliseRequest(annualReal);
+            const hasDrift = Math.abs(annualNominal - annualReal) > 0.005;
+            if (!hasDrift) return null;
             const quarterlyNominal = annualNominal / 4;
+            const isEditingOldRow = editIndex > -1;
             return (
               <div
                 style={{
@@ -469,11 +483,13 @@ export function Pane1Parameters({
                 <strong style={{ color: "var(--accent-blue)" }}>{formatGBP(annualNominal)}/year</strong>
                 <span style={{ color: "var(--text-muted)" }}>
                   {" "}
-                  ({formatGBP(quarterlyNominal)}/quarter) in actual pounds today
+                  ({formatGBP(quarterlyNominal)}/quarter) in actual pounds
+                  {isEditingOldRow ? " as of this entry's period" : " today"}
                 </span>
                 <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                  Based on realised inflation since plan start (see Pane 2's Inflation Tracking). State Pension is
-                  excluded from this — it's fixed, not a lifestyle choice, and is netted off separately.
+                  {isEditingOldRow
+                    ? "Based on realised inflation from plan start up to this entry's own period — not up to your latest ledger row. State Pension is excluded from this — it's fixed, not a lifestyle choice, and is netted off separately."
+                    : "Based on realised inflation since plan start (see Pane 2's Inflation Tracking). State Pension is excluded from this — it's fixed, not a lifestyle choice, and is netted off separately."}
                 </div>
               </div>
             );
@@ -529,6 +545,38 @@ export function Pane1Parameters({
             >
               State / Other Pension
             </div>
+            {/* Build 128 — legacy row / differs-from-live indicators. See
+                engine.ts's LedgerEntry.pensionAmount doc comment for why
+                this exists: pension is a live, global Pane 1 setting, so
+                without a per-row snapshot, editing an old row silently
+                recomputed "Less pension in payment" using today's pension
+                figures rather than what was actually true for that row. */}
+            {editIndex > -1 && pensionNotRecorded && (
+              <div
+                style={{
+                  marginBottom: "0.6rem",
+                  fontSize: "0.7rem",
+                  color: "var(--accent-amber, #e0a33e)",
+                  fontStyle: "italic",
+                }}
+              >
+                Pension not recorded on this row (committed before Build 128) — fields show 0 / blank rather than
+                today's live pension. Set them and re-save the row to record what was actually true then.
+              </div>
+            )}
+            {editIndex > -1 && !pensionNotRecorded && pensionDiffersFromLive && (
+              <div
+                style={{
+                  marginBottom: "0.6rem",
+                  fontSize: "0.7rem",
+                  color: "var(--accent-blue)",
+                  fontStyle: "italic",
+                }}
+              >
+                Showing this row's own recorded pension — it differs from your current live pension settings. Your
+                live settings are unaffected and will be restored when you leave Edit.
+              </div>
+            )}
             <div
               style={{
                 display: "grid",

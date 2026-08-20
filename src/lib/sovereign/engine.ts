@@ -81,6 +81,22 @@ export interface LedgerEntry {
   // Assumed Real Growth Rate and Cash Buffer Target in force at the time,
   // which may since have changed.
   funBucket?: number;
+  // Build 128 — per-row snapshot of the pension inputs (Pane 1's Annual
+  // Pension / Pension Start Age / Pension Real Increase %) in force when
+  // this row was committed. Same rationale as the Build 095 assumedGrowthRate
+  // /assumedCashRealPct/assumedInflationPct snapshot above: pension is a
+  // live, global Pane 1 setting, so without this, editing an old row
+  // recomputed "Less pension in payment" using whatever pension figures are
+  // live RIGHT NOW, not what was true when the row was actually built —
+  // silently wrong for any row built under different pension assumptions,
+  // whether from a genuine real-world pension change over time or (where
+  // this was actually caught) a Scenario Test Runner file whose own pension
+  // figures differ entirely from the live plan's. Undefined on legacy rows:
+  // do NOT backfill from today's globals, same discipline as every other
+  // per-row snapshot field.
+  pensionAmount?: number;
+  pensionStartAge?: number;
+  pensionIncreasePct?: number;
 }
 
 export interface CalcInputs {

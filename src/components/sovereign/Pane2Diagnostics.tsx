@@ -227,16 +227,22 @@ export function Pane2Diagnostics({
             £-and-months-combined tile: the existing three tiles in this
             row are each a single readout, so splitting keeps the type
             scale consistent instead of cramming two numbers into one
-            box at a smaller size to make them fit. */}
+            box at a smaller size to make them fit. Sized to match the
+            three tiles above (Build 127 cosmetic follow-up). Build 128 —
+            colour restored to calc.runwayColor (the same green/amber/red
+            status the Actual Cash Shield Runway tile already uses,
+            thresholded on runwayMonths vs modifiedTargetMonths) rather
+            than a flat blue — these two numbers ARE the shield's status,
+            not just a value related to it. */}
         <div>
           <label>Shield Target (£)</label>
-          <div className="shd-readout" style={{ fontSize: "1.3rem" }}>
+          <div className="shd-readout" style={{ color: calc.runwayColor }}>
             {formatGBP(calc.targetCashAmount)}
           </div>
         </div>
         <div>
           <label>Shield Target (Months)</label>
-          <div className="shd-readout" style={{ fontSize: "1.3rem" }}>
+          <div className="shd-readout" style={{ color: calc.runwayColor }}>
             {calc.modifiedTargetMonths}
           </div>
         </div>
