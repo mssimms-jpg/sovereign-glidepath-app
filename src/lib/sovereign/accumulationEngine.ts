@@ -8,6 +8,11 @@
 // MonteCarloPanel.tsx, which owns the single copy of the MSCI World / global
 // tracker annual series already used by the Risk Simulator's Historical mode.
 import { GLOBAL_ANNUAL } from "@/components/sovereign/MonteCarloPanel";
+// mulberry32/gaussian/quantile imported from monteCarloShared.ts (Build 128)
+// — this file previously carried its own byte-for-byte duplicate copies of
+// all three, the same drift risk that caused the GLOBAL_ANNUAL data bug in
+// the first place. See monteCarloShared.ts for the single source of truth
+// both simulators now import from.
 import { mulberry32, gaussian, quantile } from "@/lib/sovereign/monteCarloShared";
 
 export type AccMode = "historical" | "parametric";
@@ -53,9 +58,6 @@ export interface AccumulationResult {
   finalP90: number;
 }
 
-// mulberry32/gaussian/quantile now imported from monteCarloShared.ts
-// (Build 128) — were byte-for-byte duplicated with MonteCarloPanel.tsx.
-
 export function runAccumulation(inp: AccumulationInputs): AccumulationResult | null {
   const years = Math.max(1, Math.min(70, Math.floor(inp.retirementAge - inp.startAge)));
   if (!Number.isFinite(years) || years < 1) return null;
@@ -80,11 +82,7 @@ export function runAccumulation(inp: AccumulationInputs): AccumulationResult | n
   // Parametric mode is unchanged: mean/sd still feed its seed.
   const seed =
     inp.mode === "historical"
-      ? 0x9e3779b1 ^
-        (Math.floor(P0) >>> 0) ^
-        ((years << 16) >>> 0) ^
-        (1 << 24) ^
-        (Math.floor(annualContrib0) >>> 0)
+      ? 0x9e3779b1 ^ (Math.floor(P0) >>> 0) ^ ((years << 16) >>> 0) ^ (1 << 24) ^ (Math.floor(annualContrib0) >>> 0)
       : 0x9e3779b1 ^
         (Math.floor(P0) >>> 0) ^
         ((years << 16) >>> 0) ^
@@ -131,7 +129,6 @@ export function runAccumulation(inp: AccumulationInputs): AccumulationResult | n
     totalContributions += contribThisYear;
     deterministic.push(dP);
   }
-
 
   const final = bands[years]!;
   return {

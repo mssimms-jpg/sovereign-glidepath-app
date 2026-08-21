@@ -45,7 +45,7 @@ import { CommitConfirmModal } from "./CommitConfirmModal";
 import { Pane2Diagnostics } from "./Pane2Diagnostics";
 import { Pane1Parameters } from "./Pane1Parameters";
 import { type CurrencySymbol } from "./FormInputs";
-import { exportSovereignLedgerCSV } from "@/lib/sovereign/csvExport";
+import { exportSovereignLedgerCSV, exportSovereignLedgerXLSX } from "@/lib/sovereign/csvExport";
 import { computeDefensiveRecommendation, type DefensiveRecResult } from "@/lib/sovereign/defensiveRec";
 import type { ThresholdMode } from "@/lib/sovereign/drawdown";
 
@@ -784,8 +784,7 @@ export function SovereignGlidepath() {
   // the right reference point when you're about to commit today's figure.
   const nominaliseRequest = useCallback(
     (realAmount: number): number => {
-      const editingRow =
-        editIndex > -1 ? inflationTracking.rows.find((r) => r.ledgerIndex === editIndex) : undefined;
+      const editingRow = editIndex > -1 ? inflationTracking.rows.find((r) => r.ledgerIndex === editIndex) : undefined;
       const idx = editingRow ? editingRow.cumulativeIndex : inflationTracking.currentIndex;
       const hasDrift = !!idx && Math.abs(idx - 1) > 0.0005;
       return hasDrift ? nominalFromReal(realAmount, idx) : realAmount;
@@ -1669,6 +1668,38 @@ export function SovereignGlidepath() {
     });
   };
 
+  // --- Ledger XLSX export (Build 130) ---
+  // Styled two-sheet workbook alongside the plain CSV export — see the XLSX
+  // section at the bottom of src/lib/sovereign/csvExport.ts for why its
+  // column set deliberately does not clone the one-off sample workbook Mark
+  // supplied. Passes the fuller set of live Pane 1 assumptions the CSV
+  // export doesn't need, since the XLSX's Summary sheet documents more of
+  // them.
+  const [xlsxExporting, setXlsxExporting] = useState(false);
+  const exportLedgerXlsx = async () => {
+    setXlsxExporting(true);
+    try {
+      await exportSovereignLedgerXLSX(ledger, {
+        cappingAge,
+        growthRate,
+        desiredRunwayMonths,
+        targetYearly: cleanNum(targetYearly),
+        currency,
+        legacyTarget,
+        cashRealPct,
+        inflationPct,
+        pensionAmount,
+        pensionStartAge,
+        pensionIncreasePct,
+        defensiveMode,
+      });
+    } catch (ex) {
+      alert(`XLSX export failed: ${ex instanceof Error ? ex.message : String(ex)}`);
+    } finally {
+      setXlsxExporting(false);
+    }
+  };
+
   // --- Backup / restore ---
   // Build 117 — backups are now really encrypted (AES-256-GCM with a key
   // derived from the password), not obfuscated. Old XOR files still restore.
@@ -2243,6 +2274,8 @@ export function SovereignGlidepath() {
             showScenarioRunner={showScenarioRunner}
             setShowScenarioRunner={setShowScenarioRunner}
             exportLedgerCsv={exportLedgerCsv}
+            exportLedgerXlsx={exportLedgerXlsx}
+            xlsxExporting={xlsxExporting}
             clearLedger={clearLedger}
             editEntry={editEntry}
             deleteEntry={deleteEntry}

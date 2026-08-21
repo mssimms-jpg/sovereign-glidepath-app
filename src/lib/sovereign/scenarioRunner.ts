@@ -353,7 +353,12 @@ export function runScenario(scenario: ScenarioFile): ScenarioRunResult {
     const checkNum = (field: string, expectedVal: number | undefined, actualVal: number | undefined) => {
       if (expectedVal === undefined) return;
       if (actualVal === undefined || Math.abs(actualVal - expectedVal) > tol) {
-        mismatches.push({ rowIndex: exp.rowIndex, field, expected: fmt(expectedVal), actual: actualVal !== undefined ? fmt(actualVal) : "undefined" });
+        mismatches.push({
+          rowIndex: exp.rowIndex,
+          field,
+          expected: fmt(expectedVal),
+          actual: actualVal !== undefined ? fmt(actualVal) : "undefined",
+        });
       }
     };
     checkNum("totalCapital", exp.totalCapital, row.totalCapital);

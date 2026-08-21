@@ -38,6 +38,9 @@ export interface LedgerTableProps {
   showScenarioRunner: boolean;
   setShowScenarioRunner: (updater: (v: boolean) => boolean) => void;
   exportLedgerCsv: () => void;
+  /** Build 130 — styled two-sheet XLSX export, alongside the plain CSV. */
+  exportLedgerXlsx: () => void;
+  xlsxExporting: boolean;
   clearLedger: () => void;
   editEntry: (i: number) => void;
   deleteEntry: (i: number) => void;
@@ -51,6 +54,8 @@ export function LedgerTable({
   showScenarioRunner,
   setShowScenarioRunner,
   exportLedgerCsv,
+  exportLedgerXlsx,
+  xlsxExporting,
   clearLedger,
   editEntry,
   deleteEntry,
@@ -120,6 +125,26 @@ export function LedgerTable({
               ⬇
             </span>
             Download Ledger (CSV)
+          </button>
+          <button
+            type="button"
+            style={{
+              fontSize: "0.8rem",
+              padding: "0.5rem 0.9rem",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+            }}
+            onClick={exportLedgerXlsx}
+            disabled={xlsxExporting}
+            title="Download the full ledger as a styled two-sheet Excel workbook (Summary & Assumptions, Full Ledger)"
+          >
+            <span aria-hidden="true" style={{ fontSize: "0.9rem", lineHeight: 1 }}>
+              ⬇
+            </span>
+            {xlsxExporting ? "Exporting…" : "Export as XLSX"}
           </button>
           <button
             className="secondary"
@@ -408,4 +433,3 @@ export function LedgerTable({
     </div>
   );
 }
-

@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cleanNum, formatGBP, setCurrencySymbol } from "@/lib/sovereign/engine";
 import { runAccumulation, type AccMode } from "@/lib/sovereign/accumulationEngine";
-import {
-  PARAMETRIC_DEFAULT_MEAN_PCT,
-  PARAMETRIC_DEFAULT_STDEV_PCT,
-} from "@/lib/sovereign/monteCarloShared";
+import { PARAMETRIC_DEFAULT_MEAN_PCT, PARAMETRIC_DEFAULT_STDEV_PCT } from "@/lib/sovereign/monteCarloShared";
 import { DashedLineIcon } from "@/components/sovereign/DashedLineIcon";
 import "@/components/sovereign/desk.css";
 
@@ -116,32 +113,16 @@ export function AccumulationSimulatorPage() {
     String(Math.max(0, Math.floor(numParam(sp, "startAge", num(persisted.current.startAge, 22))))),
   );
   const [retirementAgeStr, setRetirementAgeStr] = useState(
-    String(
-      Math.max(
-        1,
-        Math.floor(numParam(sp, "retirementAge", num(persisted.current.retirementAge, 65))),
-      ),
-    ),
+    String(Math.max(1, Math.floor(numParam(sp, "retirementAge", num(persisted.current.retirementAge, 65))))),
   );
   const [startingPotStr, setStartingPotStr] = useState(
     String(Math.max(0, numParam(sp, "startingPot", num(persisted.current.startingPot, 0)))),
   );
   const [monthlyStr, setMonthlyStr] = useState(
-    String(
-      Math.max(
-        0,
-        numParam(sp, "monthlyContribution", num(persisted.current.monthlyContribution, 200)),
-      ),
-    ),
+    String(Math.max(0, numParam(sp, "monthlyContribution", num(persisted.current.monthlyContribution, 200)))),
   );
   const [escStr, setEscStr] = useState(
-    String(
-      numParam(
-        sp,
-        "contributionEscalationPct",
-        num(persisted.current.contributionEscalationPct, 2),
-      ),
-    ),
+    String(numParam(sp, "contributionEscalationPct", num(persisted.current.contributionEscalationPct, 2))),
   );
 
   const [mode, setMode] = useState<AccMode>(
@@ -307,9 +288,7 @@ export function AccumulationSimulatorPage() {
     const getY = (v: number) => h - pB - (v / maxVal) * (h - pT - pB);
 
     const band = (() => {
-      const up = visibleBands
-        .map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p90)}`)
-        .join(" ");
+      const up = visibleBands.map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p90)}`).join(" ");
       const down = [...visibleBands]
         .map((b, k) => ({ b, k }))
         .reverse()
@@ -318,12 +297,8 @@ export function AccumulationSimulatorPage() {
       return `${up} ${down} Z`;
     })();
 
-    const median = visibleBands
-      .map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p50)}`)
-      .join(" ");
-    const detPath = visibleDet
-      .map((v, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(v)}`)
-      .join(" ");
+    const median = visibleBands.map((b, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(b.p50)}`).join(" ");
+    const detPath = visibleDet.map((v, k) => `${k === 0 ? "M" : "L"}${getX(z0 + k)},${getY(v)}`).join(" ");
 
     const gridLines = [0, 0.25, 0.5, 0.75, 1].map((f) => {
       const v = maxVal * f;
@@ -342,14 +317,7 @@ export function AccumulationSimulatorPage() {
     const xTicks: React.ReactNode[] = [];
     for (let i = z0; i <= z1; i += tickStep) {
       xTicks.push(
-        <text
-          key={i}
-          x={getX(i)}
-          y={h - pB + 18}
-          textAnchor="middle"
-          fontSize={11}
-          fill="var(--text-muted)"
-        >
+        <text key={i} x={getX(i)} y={h - pB + 18} textAnchor="middle" fontSize={11} fill="var(--text-muted)">
           {startAge + i}
         </text>,
       );
@@ -388,10 +356,7 @@ export function AccumulationSimulatorPage() {
   const brushTrackH = brushH - brushPT - brushPB;
   const brushXFor = (i: number) => pL + (i / Math.max(1, yrsTotal)) * brushW;
 
-  const startBrushDrag = (
-    e: React.PointerEvent<SVGElement>,
-    which: "left" | "right" | "window",
-  ) => {
+  const startBrushDrag = (e: React.PointerEvent<SVGElement>, which: "left" | "right" | "window") => {
     e.preventDefault();
     e.stopPropagation();
     const host = (e.currentTarget.ownerSVGElement ?? e.currentTarget) as SVGSVGElement;
@@ -406,9 +371,7 @@ export function AccumulationSimulatorPage() {
     const host = e.currentTarget;
     const rect = host.getBoundingClientRect();
     const scale = w / rect.width;
-    const deltaYears = Math.round(
-      ((e.clientX - anchor.startX) * scale) / (brushW / Math.max(1, yrsTotal)),
-    );
+    const deltaYears = Math.round(((e.clientX - anchor.startX) * scale) / (brushW / Math.max(1, yrsTotal)));
     const MIN = 2;
     if (which === "left") {
       const next = Math.max(0, Math.min(anchor.z1 - MIN, anchor.z0 + deltaYears));
@@ -442,13 +405,10 @@ export function AccumulationSimulatorPage() {
 
   // Brush mini-preview (full-range p10/p90), same as MonteCarloPanel.tsx.
   const brushMaxV = sim ? Math.max(...sim.bands.map((b) => b.p90), 1) : 1;
-  const brushTopY = (v: number) =>
-    brushPT + brushTrackH - (Math.max(0, v) / brushMaxV) * brushTrackH;
+  const brushTopY = (v: number) => brushPT + brushTrackH - (Math.max(0, v) / brushMaxV) * brushTrackH;
   const brushBandPath = sim
     ? (() => {
-        const top = sim.bands
-          .map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p90)}`)
-          .join(" ");
+        const top = sim.bands.map((b, i) => `${i === 0 ? "M" : "L"}${brushXFor(i)},${brushTopY(b.p90)}`).join(" ");
         const bot = [...sim.bands]
           .map((b, i) => ({ b, i }))
           .reverse()
@@ -469,10 +429,7 @@ export function AccumulationSimulatorPage() {
   // confirmation modal can show the same numbers it's about to send.
   const handoffPreview = useMemo(() => {
     if (!sim) return null;
-    const startingPot =
-      potSource === "median"
-        ? sim.finalP50
-        : (sim.deterministic[sim.deterministic.length - 1] ?? 0);
+    const startingPot = potSource === "median" ? sim.finalP50 : (sim.deterministic[sim.deterministic.length - 1] ?? 0);
     const cash = Math.round(startingPot * 0.15);
     const equities = Math.round(startingPot * 0.85);
     const spaVal = Math.max(0, Math.floor(cleanNum(spaStr)));
@@ -579,8 +536,8 @@ export function AccumulationSimulatorPage() {
           Accumulation Simulator — Building the Pot
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: 0 }}>
-          Runs 10,000 possible saving-up paths from your current age to your chosen retirement age,
-          showing the full spread of pot sizes your contributions could realistically reach.
+          Runs 10,000 possible saving-up paths from your current age to your chosen retirement age, showing the full
+          spread of pot sizes your contributions could realistically reach.
         </p>
         <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "1rem" }}>
           <button
@@ -588,9 +545,7 @@ export function AccumulationSimulatorPage() {
             onClick={() => {
               const isFile = typeof window !== "undefined" && window.location.protocol === "file:";
               window.open(
-                isFile
-                  ? "./accumulation-simulator-guide.html"
-                  : "/accumulation-simulator-guide.html",
+                isFile ? "./accumulation-simulator-guide.html" : "/accumulation-simulator-guide.html",
                 "_blank",
                 "noopener",
               );
@@ -611,13 +566,7 @@ export function AccumulationSimulatorPage() {
             marginBottom: "1rem",
           }}
         >
-          {field(
-            "Current Age",
-            startAgeStr,
-            setStartAgeStr,
-            "22",
-            "Age you start contributing from",
-          )}
+          {field("Current Age", startAgeStr, setStartAgeStr, "22", "Age you start contributing from")}
           {field(
             "Desired Retirement Age",
             retirementAgeStr,
@@ -660,9 +609,7 @@ export function AccumulationSimulatorPage() {
             title="Moves only the dashed 'Assumed Rate' line. It does not change the 10,000 simulated paths behind the fan."
           >
             Shown on chart as <DashedLineIcon /> Assumed Real Growth Rate %{" "}
-            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
-              {assumedRatePct.toFixed(1)}%
-            </span>
+            <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{assumedRatePct.toFixed(1)}%</span>
           </label>
           <input
             type="range"
@@ -674,9 +621,7 @@ export function AccumulationSimulatorPage() {
             style={{ width: "100%" }}
             aria-label="Assumed real growth rate"
           />
-          <div style={CAPTION}>
-            Real (after-inflation) growth assumed for the dashed projection line
-          </div>
+          <div style={CAPTION}>Real (after-inflation) growth assumed for the dashed projection line</div>
         </div>
 
         <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.9rem" }}>
@@ -711,9 +656,7 @@ export function AccumulationSimulatorPage() {
               <div>
                 <label style={LABEL}>
                   Mean Nominal Return %{" "}
-                  <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
-                    {meanPct.toFixed(1)}%
-                  </span>
+                  <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{meanPct.toFixed(1)}%</span>
                 </label>
                 <input
                   type="range"
@@ -730,9 +673,7 @@ export function AccumulationSimulatorPage() {
               <div>
                 <label style={LABEL}>
                   Volatility (stdev) %{" "}
-                  <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
-                    {stdevPct.toFixed(1)}%
-                  </span>
+                  <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{stdevPct.toFixed(1)}%</span>
                 </label>
                 <input
                   type="range"
@@ -751,9 +692,7 @@ export function AccumulationSimulatorPage() {
           <div>
             <label style={LABEL}>
               Inflation / CPI %{" "}
-              <span style={{ color: "var(--text-main)", fontWeight: 700 }}>
-                {inflationPct.toFixed(1)}%
-              </span>
+              <span style={{ color: "var(--text-main)", fontWeight: 700 }}>{inflationPct.toFixed(1)}%</span>
             </label>
             <input
               type="range"
@@ -766,8 +705,7 @@ export function AccumulationSimulatorPage() {
               aria-label="Inflation"
             />
             <div style={CAPTION}>
-              Chart shown in today's{" "}
-              {currency === "£" ? "pounds" : currency === "€" ? "euros" : "dollars"}
+              Chart shown in today's {currency === "£" ? "pounds" : currency === "€" ? "euros" : "dollars"}
             </div>
           </div>
         </div>
@@ -796,21 +734,8 @@ export function AccumulationSimulatorPage() {
                 {chart.gridLines}
                 <path d={chart.band} fill="var(--accent-blue)" opacity={0.14} />
                 <path d={chart.median} fill="none" stroke="var(--accent-blue)" strokeWidth={2} />
-                <path
-                  d={chart.detPath}
-                  fill="none"
-                  stroke="var(--text-main)"
-                  strokeWidth={2.5}
-                  strokeDasharray="6,4"
-                />
-                <line
-                  x1={pL}
-                  y1={h - pB}
-                  x2={w - pR}
-                  y2={h - pB}
-                  stroke="var(--border-color)"
-                  opacity={0.6}
-                />
+                <path d={chart.detPath} fill="none" stroke="var(--text-main)" strokeWidth={2.5} strokeDasharray="6,4" />
+                <line x1={pL} y1={h - pB} x2={w - pR} y2={h - pB} stroke="var(--border-color)" opacity={0.6} />
                 {chart.xTicks}
                 {hoverX != null && hoverBand && hoverDet != null && (
                   <g pointerEvents="none">
@@ -837,12 +762,7 @@ export function AccumulationSimulatorPage() {
                       fill="var(--accent-blue)"
                       opacity={0.7}
                     />
-                    <circle
-                      cx={hoverX}
-                      cy={chart.getY(hoverBand.p50)}
-                      r={4}
-                      fill="var(--accent-blue)"
-                    />
+                    <circle cx={hoverX} cy={chart.getY(hoverBand.p50)} r={4} fill="var(--accent-blue)" />
                     <circle cx={hoverX} cy={chart.getY(hoverDet)} r={4} fill="var(--text-main)" />
                   </g>
                 )}
@@ -892,9 +812,7 @@ export function AccumulationSimulatorPage() {
                         zIndex: 5,
                       }}
                     >
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                        Age {startAge + hoverAbs}
-                      </div>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Age {startAge + hoverAbs}</div>
                       {[
                         {
                           label: "Assumed Rate",
@@ -973,20 +891,8 @@ export function AccumulationSimulatorPage() {
                     rx={4}
                   />
                   <path d={brushBandPath} fill="var(--accent-blue)" opacity={0.18} />
-                  <path
-                    d={brushMedianPath}
-                    fill="none"
-                    stroke="var(--accent-blue)"
-                    strokeWidth={1}
-                    opacity={0.6}
-                  />
-                  <rect
-                    x={pL}
-                    y={brushPT}
-                    width={brushXFor(z0) - pL}
-                    height={brushTrackH}
-                    fill="rgba(15,23,42,0.55)"
-                  />
+                  <path d={brushMedianPath} fill="none" stroke="var(--accent-blue)" strokeWidth={1} opacity={0.6} />
+                  <rect x={pL} y={brushPT} width={brushXFor(z0) - pL} height={brushTrackH} fill="rgba(15,23,42,0.55)" />
                   <rect
                     x={brushXFor(z1)}
                     y={brushPT}
@@ -1088,9 +994,7 @@ export function AccumulationSimulatorPage() {
               </div>
             )}
 
-            <div
-              style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginTop: "0.75rem" }}
-            >
+            <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
               <div
                 style={{
                   display: "flex",
@@ -1099,10 +1003,7 @@ export function AccumulationSimulatorPage() {
                   fontSize: "0.72rem",
                 }}
               >
-                <div
-                  className="legend-line"
-                  style={{ backgroundColor: "var(--accent-blue)", opacity: 0.3 }}
-                />
+                <div className="legend-line" style={{ backgroundColor: "var(--accent-blue)", opacity: 0.3 }} />
                 <span style={{ color: "var(--text-muted)" }}>10th–90th percentile range</span>
               </div>
               <div
@@ -1124,10 +1025,7 @@ export function AccumulationSimulatorPage() {
                   fontSize: "0.72rem",
                 }}
               >
-                <div
-                  className="legend-line"
-                  style={{ borderTop: "3px dashed var(--text-main)", height: 0 }}
-                />
+                <div className="legend-line" style={{ borderTop: "3px dashed var(--text-main)", height: 0 }} />
                 <span style={{ color: "var(--text-muted)" }}>Assumed Rate (real)</span>
               </div>
             </div>
@@ -1146,9 +1044,7 @@ export function AccumulationSimulatorPage() {
               </div>
               <div>
                 <div style={LABEL}>Median (p50)</div>
-                <div style={{ fontWeight: 800, color: "var(--accent-blue)" }}>
-                  {formatGBP(sim.finalP50)}
-                </div>
+                <div style={{ fontWeight: 800, color: "var(--accent-blue)" }}>{formatGBP(sim.finalP50)}</div>
               </div>
               <div>
                 <div style={LABEL}>Strong (p90)</div>
@@ -1189,8 +1085,8 @@ export function AccumulationSimulatorPage() {
                 🎲 Move this pot to the Risk Simulator
               </button>
               <div style={{ ...CAPTION, maxWidth: 420 }}>
-                See if this projected pot survives retirement — set your desired income, State
-                Pension, and how the split works, then open it in the Risk Simulator.
+                See if this projected pot survives retirement — set your desired income, State Pension, and how the
+                split works, then open it in the Risk Simulator.
               </div>
             </div>
           </>
@@ -1212,14 +1108,10 @@ export function AccumulationSimulatorPage() {
             fontWeight: 600,
             textAlign: "right",
           };
-          const { startingPot, cash, equities, spaVal, horizonAge, withdrawal, pensionAmount } =
-            handoffPreview;
+          const { startingPot, cash, equities, spaVal, horizonAge, withdrawal, pensionAmount } = handoffPreview;
           return (
             <div className="shd-overlay" role="dialog" aria-modal="true">
-              <div
-                className="shd-modal"
-                style={{ width: 560, maxHeight: "90vh", overflowY: "auto" }}
-              >
+              <div className="shd-modal" style={{ width: 560, maxHeight: "90vh", overflowY: "auto" }}>
                 <h2
                   style={{
                     fontSize: "1.15rem",
@@ -1231,12 +1123,10 @@ export function AccumulationSimulatorPage() {
                 >
                   Move to Risk Simulator
                 </h2>
-                <p
-                  style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}
-                >
-                  Set your desired income and State Pension details below — the review updates as
-                  you go. Nothing here is written back to this page or your real plan, and every
-                  value is still editable once you arrive at the Risk Simulator.
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                  Set your desired income and State Pension details below — the review updates as you go. Nothing here
+                  is written back to this page or your real plan, and every value is still editable once you arrive at
+                  the Risk Simulator.
                 </p>
                 <div
                   style={{
@@ -1254,13 +1144,7 @@ export function AccumulationSimulatorPage() {
                     "Yearly income you want to take once retired",
                     currency,
                   )}
-                  {field(
-                    "State Pension Age",
-                    spaStr,
-                    setSpaStr,
-                    "67",
-                    "When your state pension is expected to start",
-                  )}
+                  {field("State Pension Age", spaStr, setSpaStr, "67", "When your state pension is expected to start")}
                   {field(
                     `State Pension Amount (${currency})`,
                     spAmountStr,
@@ -1298,14 +1182,10 @@ export function AccumulationSimulatorPage() {
                     </div>
                   </div>
                 </div>
-                <table
-                  style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.25rem" }}
-                >
+                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.25rem" }}>
                   <tbody>
                     <tr>
-                      <td style={kcell}>
-                        Starting Pot ({potSource === "median" ? "Median" : "Assumed Growth Rate"})
-                      </td>
+                      <td style={kcell}>Starting Pot ({potSource === "median" ? "Median" : "Assumed Growth Rate"})</td>
                       <td style={vcell}>{formatGBP(startingPot)}</td>
                     </tr>
                     <tr>

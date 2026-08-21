@@ -573,8 +573,8 @@ export function Pane1Parameters({
                   fontStyle: "italic",
                 }}
               >
-                Showing this row's own recorded pension — it differs from your current live pension settings. Your
-                live settings are unaffected and will be restored when you leave Edit.
+                Showing this row's own recorded pension — it differs from your current live pension settings. Your live
+                settings are unaffected and will be restored when you leave Edit.
               </div>
             )}
             <div

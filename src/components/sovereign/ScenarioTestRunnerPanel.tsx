@@ -28,11 +28,30 @@
 //     CommitConfirmModal), because a native confirm() can only show plain
 //     text — no bold, no colour — and the backup-filename callout and the
 //     unencrypted-backup warning both need that.
+//
+// Build 129 — added a picker for the bundled 40-file QA scenario pool
+// (public/scenarios/base|aggressive/), alongside the existing "upload your
+// own file" flow. Both paths now funnel through one shared stageScenario()
+// so the backup/replace-confirm behaviour is identical either way. Adding
+// scenario #41 later is a manifest-only change — see scenarioManifest.ts.
+//
+// Build 131 — three fixes from live use:
+//  1. Dropped the "last scenario actually run" caption entirely. It only
+//     updated on Run, not on selection change, so after picking a new
+//     scenario from the dropdown without running it yet, the page showed
+//     two different scenario names at once (selected vs. last-run) — read
+//     as a bug, not as two different pieces of information.
+//  2. Dropped the "★ marks..." explanatory caption — not needed.
+//  3. Every <select> in the app (this one, and Pane 1's Currency picker)
+//     had no dark theme applied at all — see desk.css for the fix. This
+//     panel's select is also now bigger/clearly labelled ("Select
+//     scenario") rather than relying on the native chevron alone.
 
 import { useRef, useState } from "react";
 import { runScenario, type ScenarioFile, type ScenarioRunResult } from "@/lib/sovereign/scenarioRunner";
 import { formatGBP, type LedgerEntry } from "@/lib/sovereign/engine";
 import { localTimestamp } from "@/lib/sovereign/csvExport";
+import { BUNDLED_SCENARIOS, scenarioAssetPath, type BundledScenario } from "@/lib/sovereign/scenarioManifest";
 
 export interface ScenarioTestRunnerPanelProps {
   visible: boolean;
@@ -49,6 +68,20 @@ interface PendingReplace {
   rowCount: number;
 }
 
+/** Groups BUNDLED_SCENARIOS for the picker, oldest start-year first within each group. */
+function groupBundled(): { base: BundledScenario[]; aggressive: BundledScenario[] } {
+  const base = BUNDLED_SCENARIOS.filter((s) => s.category === "base").sort((a, b) => a.startYear - b.startYear);
+  const aggressive = BUNDLED_SCENARIOS.filter((s) => s.category === "aggressive").sort(
+    (a, b) => a.startYear - b.startYear,
+  );
+  return { base, aggressive };
+}
+
+function bundledOptionLabel(s: BundledScenario): string {
+  const star = s.isCanonical ? "★ " : "";
+  return `${star}${s.startYear}–${s.endYear} — ${s.label} (${s.withdrawalRatePct}% draw)`;
+}
+
 export function ScenarioTestRunnerPanel({
   visible,
   ledger,
@@ -58,10 +91,13 @@ export function ScenarioTestRunnerPanel({
 }: ScenarioTestRunnerPanelProps) {
   const [scenarioResult, setScenarioResult] = useState<ScenarioRunResult | null>(null);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
-  const [scenarioFileName, setScenarioFileName] = useState("");
   const [scenarioRunning, setScenarioRunning] = useState(false);
   const [pendingReplace, setPendingReplace] = useState<PendingReplace | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const { base: baseScenarios, aggressive: aggressiveScenarios } = groupBundled();
+  const [selectedBundledId, setSelectedBundledId] = useState(baseScenarios[0]?.id ?? "");
+  const [bundledLoading, setBundledLoading] = useState(false);
 
   if (!visible) return null;
 
@@ -83,10 +119,24 @@ export function ScenarioTestRunnerPanel({
     }
   };
 
-  const runScenarioFile = (file: File) => {
+  // Build 129 — shared by both the file-upload path and the bundled-picker
+  // path, so a scenario chosen from the dropdown gets exactly the same
+  // ledger-backup-and-confirm treatment as one uploaded by hand. Neither
+  // path should ever call runScenarioNow() directly.
+  const stageScenario = (scenario: ScenarioFile) => {
     setScenarioError(null);
     setScenarioResult(null);
-    setScenarioFileName(file.name);
+
+    if (ledger.length > 0) {
+      const backupFilename = `sovereign-ledger-backup-before-scenario_${localTimestamp()}.json`;
+      downloadAsFile(JSON.stringify(ledger, null, 2), backupFilename);
+      setPendingReplace({ scenario, backupFilename, rowCount: ledger.length });
+      return;
+    }
+    runScenarioNow(scenario);
+  };
+
+  const runScenarioFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       let scenario: ScenarioFile;
@@ -96,27 +146,75 @@ export function ScenarioTestRunnerPanel({
         setScenarioError("Could not parse this file as JSON.");
         return;
       }
-
-      if (ledger.length > 0) {
-        const backupFilename = `sovereign-ledger-backup-before-scenario_${localTimestamp()}.json`;
-        downloadAsFile(JSON.stringify(ledger, null, 2), backupFilename);
-        setPendingReplace({ scenario, backupFilename, rowCount: ledger.length });
-        return;
-      }
-      runScenarioNow(scenario);
+      stageScenario(scenario);
     };
     reader.readAsText(file);
+  };
+
+  const runBundledScenario = async () => {
+    const entry = BUNDLED_SCENARIOS.find((s) => s.id === selectedBundledId);
+    if (!entry) return;
+    setBundledLoading(true);
+    setScenarioError(null);
+    try {
+      const res = await fetch(scenarioAssetPath(entry));
+      if (!res.ok) throw new Error(`Could not load ${entry.file} (HTTP ${res.status}).`);
+      const scenario: ScenarioFile = await res.json();
+      stageScenario(scenario);
+    } catch (ex) {
+      setScenarioError(ex instanceof Error ? ex.message : String(ex));
+    } finally {
+      setBundledLoading(false);
+    }
   };
 
   return (
     <div className="shd-cluster" style={{ marginBottom: "1.25rem" }}>
       <div style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.4rem" }}>Scenario Test Runner (QA aid)</div>
       <p className="shd-sub" style={{ marginTop: 0, marginBottom: "1rem", lineHeight: 1.6 }}>
-        Builds a complete ledger from a JSON scenario file, driven through the real engine — the same
-        calculate()/generateDirectives() logic the live app uses. This replaces your current ledger. If a ledger
-        already exists, a plain JSON backup downloads automatically first, restorable via the Restore button above.
+        Builds a complete ledger from a scenario — bundled from the QA pool below, or your own JSON file — driven
+        through the real engine, the same calculate()/generateDirectives() logic the live app uses. This replaces your
+        current ledger. If a ledger already exists, a plain JSON backup downloads automatically first, restorable via
+        the Restore button above.
       </p>
 
+      <div style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+        Bundled QA scenarios ({BUNDLED_SCENARIOS.length})
+      </div>
+      <label htmlFor="bundledScenarioSelect" style={{ marginBottom: "0.4rem" }}>
+        Select scenario
+      </label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem", alignItems: "center" }}>
+        <select
+          id="bundledScenarioSelect"
+          value={selectedBundledId}
+          onChange={(e) => setSelectedBundledId(e.target.value)}
+          disabled={bundledLoading || scenarioRunning}
+          style={{ flex: "1 1 340px", minWidth: 260 }}
+        >
+          <optgroup label="Base (historical withdrawal rate)">
+            {baseScenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {bundledOptionLabel(s)}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Aggressive (+1.5pp draw)">
+            {aggressiveScenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {bundledOptionLabel(s)}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        <button type="button" onClick={runBundledScenario} disabled={bundledLoading || scenarioRunning}>
+          {bundledLoading ? "Loading…" : "Run selected scenario"}
+        </button>
+      </div>
+
+      <div style={{ fontSize: "0.9rem", fontWeight: 700, marginTop: "1.25rem", marginBottom: "0.5rem" }}>
+        Or upload your own scenario file
+      </div>
       <input
         ref={fileInputRef}
         type="file"
@@ -131,11 +229,6 @@ export function ScenarioTestRunnerPanel({
       <button type="button" onClick={() => fileInputRef.current?.click()} disabled={scenarioRunning}>
         {scenarioRunning ? "Running…" : "Choose scenario file & run"}
       </button>
-      {scenarioFileName && (
-        <p className="shd-sub" style={{ marginTop: "0.6rem", marginBottom: 0 }}>
-          {scenarioFileName}
-        </p>
-      )}
 
       {scenarioError && (
         <div
@@ -185,8 +278,7 @@ export function ScenarioTestRunnerPanel({
           ) : (
             <div style={{ marginTop: "0.85rem" }}>
               <p style={{ color: "var(--accent-red)", fontWeight: 700, marginBottom: "0.6rem" }}>
-                ✗ {scenarioResult.mismatches.length} mismatch{scenarioResult.mismatches.length === 1 ? "" : "es"}{" "}
-                found:
+                ✗ {scenarioResult.mismatches.length} mismatch{scenarioResult.mismatches.length === 1 ? "" : "es"} found:
               </p>
 
               <div className="table-container">
@@ -252,8 +344,8 @@ export function ScenarioTestRunnerPanel({
               }}
             >
               ⚠ That backup file is <strong>unencrypted</strong>. If that isn't acceptable, click Cancel below, make
-              your own encrypted backup, use <strong>Wipe Records</strong>, then come back to Scenario Test Runner
-              and run again.
+              your own encrypted backup, use <strong>Wipe Records</strong>, then come back to Scenario Test Runner and
+              run again.
             </div>
             <p className="shd-sub" style={{ marginBottom: "1.5rem" }}>
               Restore this backup any time via the Restore button if you need to undo this.

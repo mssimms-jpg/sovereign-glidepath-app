@@ -175,9 +175,7 @@ export function Pane2Diagnostics({
             if (v.legacyTarget != null) setLegacyTarget(v.legacyTarget);
             if (v.growthRate != null) setGrowthRate(v.growthRate);
             if (v.periodEndDate != null) setPeriodEndDate(v.periodEndDate);
-            setPresetBaselineTotal(
-              typeof v.baselineTotal === "number" && v.baselineTotal > 0 ? v.baselineTotal : null,
-            );
+            setPresetBaselineTotal(typeof v.baselineTotal === "number" && v.baselineTotal > 0 ? v.baselineTotal : null);
             // Re-arm auto-seed so split fields reflect the new state.
             setWdSplitTouched(false);
             setWithdrawnTouched(false);
@@ -215,9 +213,7 @@ export function Pane2Diagnostics({
           >
             {formatGBP(Math.max(0, calc.surplus))}
             {calc.runwayMonths < 3 && (
-              <div style={{ fontSize: "0.7rem", color: "var(--accent-red)", marginTop: 5 }}>
-                ⚠ Consuming Capital
-              </div>
+              <div style={{ fontSize: "0.7rem", color: "var(--accent-red)", marginTop: 5 }}>⚠ Consuming Capital</div>
             )}
           </div>
         </div>
@@ -266,8 +262,7 @@ export function Pane2Diagnostics({
               Target Draw Rate: <strong style={{ color: "var(--text-main)" }}>{calc.targetWR.toFixed(2)}%</strong>
             </span>
             <span>
-              Realized Draw Rate:{" "}
-              <strong style={{ color: "var(--text-main)" }}>{calc.currentWR.toFixed(2)}%</strong>
+              Realized Draw Rate: <strong style={{ color: "var(--text-main)" }}>{calc.currentWR.toFixed(2)}%</strong>
             </span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
@@ -376,9 +371,7 @@ export function Pane2Diagnostics({
           borderRadius: "0.5rem",
         }}
       >
-        <label style={{ color: "var(--accent-blue)", fontWeight: 800, fontSize: "0.8rem" }}>
-          Inflation Tracking
-        </label>
+        <label style={{ color: "var(--accent-blue)", fontWeight: 800, fontSize: "0.8rem" }}>Inflation Tracking</label>
         <div
           style={{
             display: "grid",
@@ -395,7 +388,9 @@ export function Pane2Diagnostics({
               border: "1px solid var(--border-color)",
             }}
           >
-            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+            <div
+              style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}
+            >
               Cumulative Index
             </div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{inflationTracking.currentIndex.toFixed(3)}×</div>
@@ -408,7 +403,9 @@ export function Pane2Diagnostics({
               border: "1px solid var(--border-color)",
             }}
           >
-            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+            <div
+              style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}
+            >
               Implied Average
             </div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>
@@ -423,7 +420,9 @@ export function Pane2Diagnostics({
               border: "1px solid var(--border-color)",
             }}
           >
-            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}>
+            <div
+              style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 800, textTransform: "uppercase" }}
+            >
               Since
             </div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{inflationBaseYear ?? "—"}</div>
@@ -443,8 +442,8 @@ export function Pane2Diagnostics({
             aria-label="Actual CPI observed since the previous ledger entry"
           />
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-            Look up the real inflation figure for this period if you want an accurate record; leaving it
-            blank falls back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
+            Look up the real inflation figure for this period if you want an accurate record; leaving it blank falls
+            back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
           </div>
         </div>
 
@@ -474,7 +473,12 @@ export function Pane2Diagnostics({
                   <tr key={r.ledgerIndex} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                     <td style={{ padding: "0.35rem 0.5rem" }}>{r.periodEndDate}</td>
                     <td style={{ padding: "0.35rem 0.5rem" }}>{r.rateAppliedPct.toFixed(2)}%</td>
-                    <td style={{ padding: "0.35rem 0.5rem", color: r.isActual ? "var(--accent-blue)" : "var(--text-muted)" }}>
+                    <td
+                      style={{
+                        padding: "0.35rem 0.5rem",
+                        color: r.isActual ? "var(--accent-blue)" : "var(--text-muted)",
+                      }}
+                    >
                       {r.isActual ? "Actual" : "Assumed"}
                     </td>
                     <td style={{ padding: "0.35rem 0.5rem" }}>{r.cumulativeIndex.toFixed(3)}×</td>
@@ -586,8 +590,8 @@ export function Pane2Diagnostics({
                       color: hypCalc.surplus > 0 ? "var(--accent-purple)" : "var(--text-muted)",
                     }}
                   >
-                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{money(calc.surplus)}</span>{" "}
-                    → {money(hypCalc.surplus)}
+                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{money(calc.surplus)}</span> →{" "}
+                    {money(hypCalc.surplus)}
                   </strong>
                 </div>
 
@@ -641,8 +645,8 @@ export function Pane2Diagnostics({
                     fontSize: "0.72rem",
                   }}
                 >
-                  Preview only — Pane 1's real values, Pane 3's directive, and every committed calculation still
-                  use the unstressed baseline.
+                  Preview only — Pane 1's real values, Pane 3's directive, and every committed calculation still use the
+                  unstressed baseline.
                 </div>
               </div>
             );
@@ -697,9 +701,9 @@ export function Pane2Diagnostics({
                 lineHeight: 1.45,
               }}
             >
-              Shows how a pot could grow from an early starting age to a chosen retirement age, across 10,000
-              possible market paths — a good one to share with younger family members starting out. Opens in its
-              own tab with its own sensible starting defaults, not your live Pane 1 figures.
+              Shows how a pot could grow from an early starting age to a chosen retirement age, across 10,000 possible
+              market paths — a good one to share with younger family members starting out. Opens in its own tab with its
+              own sensible starting defaults, not your live Pane 1 figures.
             </div>
           </div>
 
@@ -745,9 +749,8 @@ export function Pane2Diagnostics({
                 lineHeight: 1.45,
               }}
             >
-              Stress-tests your plan across 10,000 possible market paths and plots the fan chart of outcomes.
-              Opens in its own tab as a sandbox, seeded from your live Pane 1 figures — nothing you change there
-              writes back.
+              Stress-tests your plan across 10,000 possible market paths and plots the fan chart of outcomes. Opens in
+              its own tab as a sandbox, seeded from your live Pane 1 figures — nothing you change there writes back.
             </div>
           </div>
 
@@ -789,8 +792,8 @@ export function Pane2Diagnostics({
                 lineHeight: 1.45,
               }}
             >
-              Backtests your plan against every real rolling retirement since 1928, using the same engine as
-              this app. Opens with your live Pane 1 figures already filled in.
+              Backtests your plan against every real rolling retirement since 1928, using the same engine as this app.
+              Opens with your live Pane 1 figures already filled in.
             </div>
           </div>
         </div>
@@ -798,4 +801,3 @@ export function Pane2Diagnostics({
     </div>
   );
 }
-

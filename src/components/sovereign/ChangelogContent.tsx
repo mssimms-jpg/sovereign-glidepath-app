@@ -11,17 +11,63 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 130 — Pane 7 gets a styled XLSX export
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>"Download Ledger (CSV)" in Pane 7 now has a companion "Export as XLSX" button.</strong> Produces a
+              two-sheet workbook — a Summary & Assumptions sheet and a Full Ledger sheet — styled to match a sample
+              workbook built in an earlier session: navy header row, white bold wrapped text, frozen header row,
+              currency and percentage number formats throughout. Deliberately does not clone that sample's exact column
+              set — two of its columns only exist for a ledger built via the Scenario Test Runner, not a hand-committed
+              real one — so this uses the same proven column set the CSV export already relies on instead. The sample's
+              dead last column ("Actual CPI to enter (%)", a placeholder on every row) is not reproduced.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Built with ExcelJS, imported dynamically rather than at module scope.</strong> It's a large
+              dependency needed only when someone actually clicks the button — a static import was pulling it into the
+              app's main bundle on every load, nearly tripling the desktop build's JS payload. The dynamic import puts
+              it in its own chunk, fetched once, on demand.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 129 — Scenario Test Runner gets a bundled scenario picker
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>The Scenario Test Runner panel now has a dropdown of 40 pre-loaded QA scenarios</strong> (20 base
+              + 20 matched +1.5pp-aggressive pairs, spanning 1971–2025), grouped into Base and Aggressive and sorted
+              oldest-era-first, alongside the existing upload-your-own-file flow. Both paths now funnel through one
+              shared staging step, so picking a scenario from the dropdown gets the exact same ledger-backup-and-confirm
+              treatment a manual upload does.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Two rendering bugs, caught in real use and fixed before this ever shipped as "done."</strong>{" "}
+              Selecting a new scenario without running it yet showed two different scenario names on screen at once —
+              fixed by removing the redundant "last run" caption entirely. Separately, every dropdown in the app had no
+              dark theme applied to its native options popup, so the option list rendered white text on a white
+              background — fixed app-wide with one CSS rule, not a per-dropdown patch.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 128 — Real MSCI World data, pension history, and a QA scenario pool
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <p style={{ marginTop: 0 }}>
-              <strong>The Risk Simulator and Accumulation Simulator's Historical mode was quietly running on
-              approximate data.</strong> The 1970–2024 MSCI World GBP series both simulators bootstrap from had
-              several pre-2000 years off by double digits — 1971 modelled as +31% vs. the real +12.43%, 1975 (the
-              post-oil-shock snapback) modelled as +36% vs. the real +52.99%, 1990 modelled as −21% vs. the real
-              −31.07%, understating that crash by over 10 points — despite the in-app "How to Read This" panel
-              saying it drew from real data. Replaced with the real series; every one of the 55 years now matches
-              the source to within 0.005pp.
+              <strong>
+                The Risk Simulator and Accumulation Simulator's Historical mode was quietly running on approximate data.
+              </strong>{" "}
+              The 1970–2024 MSCI World GBP series both simulators bootstrap from had several pre-2000 years off by
+              double digits — 1971 modelled as +31% vs. the real +12.43%, 1975 (the post-oil-shock snapback) modelled as
+              +36% vs. the real +52.99%, 1990 modelled as −21% vs. the real −31.07%, understating that crash by over 10
+              points — despite the in-app "How to Read This" panel saying it drew from real data. Replaced with the real
+              series; every one of the 55 years now matches the source to within 0.005pp.
             </p>
             <p>
               <strong>Two structural bugs in the Monte Carlo seeding, caught while verifying the fix.</strong>
@@ -33,47 +79,47 @@ export function ChangelogContent() {
             </p>
             <p>
               <strong>Duplicated PRNG/quantile code and default constants consolidated</strong> into a new
-              monteCarloShared.ts — both simulators previously carried byte-for-byte copies, exactly the kind of
-              drift risk that caused the data bug above.
+              monteCarloShared.ts — both simulators previously carried byte-for-byte copies, exactly the kind of drift
+              risk that caused the data bug above.
             </p>
             <p>
-              <strong>Volatility slider in the Accumulation Simulator</strong> stepped in 0.5% increments while
-              every other assumption-rate slider in the app steps in 0.1% — fixed to match.
+              <strong>Volatility slider in the Accumulation Simulator</strong> stepped in 0.5% increments while every
+              other assumption-rate slider in the app steps in 0.1% — fixed to match.
             </p>
             <p>
-              <strong>Editing an old ledger row's nominal figures used the wrong inflation reference point.</strong>{" "}
-              The live nominal preview and directive figures always used the ledger's most recent cumulative
-              inflation index, not the specific row being edited — opening a several-year-old entry showed figures
-              inflated to your latest commit, not to that entry's own period. Fixed, and the caption now says "as of
-              this entry's period" rather than "today" when editing history.
+              <strong>Editing an old ledger row's nominal figures used the wrong inflation reference point.</strong> The
+              live nominal preview and directive figures always used the ledger's most recent cumulative inflation
+              index, not the specific row being edited — opening a several-year-old entry showed figures inflated to
+              your latest commit, not to that entry's own period. Fixed, and the caption now says "as of this entry's
+              period" rather than "today" when editing history.
             </p>
             <p>
-              <strong>Pension is now a genuine per-row snapshot</strong>, not a single global figure silently
-              reapplied to every row you look at. Caught live: editing a Scenario Test Runner row showed a pension
-              figure compounded from your real live pension settings, not the very different pension the scenario
-              was actually built on — the row's own numbers were always correct, only the explanatory breakdown was
-              reading from the wrong source. Pension is deliberately treated differently from growth/cash/inflation
-              on exit — it's "your real figures," not a per-quarter assumption — so your live pension is protected
-              from being overwritten by reviewing or correcting old history. A second bug surfaced testing this —
-              Discard Changes was jumping pension to today's live value instead of keeping the row's own — now
-              fixed with its own separate restore path. Legacy rows and rows whose pension differs from your live
-              settings show an inline indicator so this is visible rather than silently swapped.
+              <strong>Pension is now a genuine per-row snapshot</strong>, not a single global figure silently reapplied
+              to every row you look at. Caught live: editing a Scenario Test Runner row showed a pension figure
+              compounded from your real live pension settings, not the very different pension the scenario was actually
+              built on — the row's own numbers were always correct, only the explanatory breakdown was reading from the
+              wrong source. Pension is deliberately treated differently from growth/cash/inflation on exit — it's "your
+              real figures," not a per-quarter assumption — so your live pension is protected from being overwritten by
+              reviewing or correcting old history. A second bug surfaced testing this — Discard Changes was jumping
+              pension to today's live value instead of keeping the row's own — now fixed with its own separate restore
+              path. Legacy rows and rows whose pension differs from your live settings show an inline indicator so this
+              is visible rather than silently swapped.
             </p>
             <p>
-              <strong>Shield Target (£) and (Months) tiles restored to status colour</strong> (green/amber/red,
-              matching Actual Cash Shield Runway) after drifting to a flat blue across two prior cosmetic passes.
+              <strong>Shield Target (£) and (Months) tiles restored to status colour</strong> (green/amber/red, matching
+              Actual Cash Shield Runway) after drifting to a flat blue across two prior cosmetic passes.
             </p>
             <p>
-              <strong>Scenario Test Runner panel rebuilt off the app's actual dark-theme conventions</strong> — it
-              was silently rendering as an unstyled light-mode card, since the Tailwind/shadcn classes it used never
-              resolved in this app. Also replaced the native browser confirm before a ledger replace with the app's
-              own modal, since a native confirm can't show the bold filename and coloured warning it needed.
+              <strong>Scenario Test Runner panel rebuilt off the app's actual dark-theme conventions</strong> — it was
+              silently rendering as an unstyled light-mode card, since the Tailwind/shadcn classes it used never
+              resolved in this app. Also replaced the native browser confirm before a ledger replace with the app's own
+              modal, since a native confirm can't show the bold filename and coloured warning it needed.
             </p>
             <p style={{ marginBottom: 0 }}>
-              <strong>A 20-scenario QA pool built and verified</strong> — real MSCI World GBP returns and real UK
-              RPI inflation, deflated to nominal-at-plan-start using the app's own Frozen Baseline convention,
-              spanning 1971–2025, each with a matched +1.5pp-aggressive-withdrawal pair. All 40 files carry
-              engine-computed checkpoints, verified at 0 mismatches.
+              <strong>A 20-scenario QA pool built and verified</strong> — real MSCI World GBP returns and real UK RPI
+              inflation, deflated to nominal-at-plan-start using the app's own Frozen Baseline convention, spanning
+              1971–2025, each with a matched +1.5pp-aggressive-withdrawal pair. All 40 files carry engine-computed
+              checkpoints, verified at 0 mismatches.
             </p>
           </div>
         </div>
@@ -86,15 +132,15 @@ export function ChangelogContent() {
             <p style={{ marginTop: 0 }}>
               <strong>New: a −30% to +30% lifestyle-change slider</strong> under the Initial Annual Withdrawal field.
               Previously, applying a genuine lifestyle change meant retyping the figure by hand, working out the new
-              nominal amount yourself. The slider does that arithmetic live — but the harder design question was what
-              0% means. It's anchored to the last committed baseline, not wherever the field currently sits: dragging
-              to +15% always means 15% above what was actually last committed, regardless of how many times the
-              slider has already been dragged this session, so repeated drags can't silently compound. That baseline
-              is captured at every Pane 1 load or revert moment — app boot, entering Edit mode, Cancel/Discard, and
-              the re-seed after deleting the newest ledger row — never by the slider itself. Typing directly into the
-              field still works exactly as before; it just repositions the slider to match. The slider's thumb is
-              visually clamped at ±30%, but the field itself, and the % readout above the slider, accept and display
-              values outside that range without complaint.
+              nominal amount yourself. The slider does that arithmetic live — but the harder design question was what 0%
+              means. It's anchored to the last committed baseline, not wherever the field currently sits: dragging to
+              +15% always means 15% above what was actually last committed, regardless of how many times the slider has
+              already been dragged this session, so repeated drags can't silently compound. That baseline is captured at
+              every Pane 1 load or revert moment — app boot, entering Edit mode, Cancel/Discard, and the re-seed after
+              deleting the newest ledger row — never by the slider itself. Typing directly into the field still works
+              exactly as before; it just repositions the slider to match. The slider's thumb is visually clamped at
+              ±30%, but the field itself, and the % readout above the slider, accept and display values outside that
+              range without complaint.
             </p>
             <p>
               <strong>Caption and live nominal preview rewritten to match.</strong> The old caption said "Set your
@@ -103,18 +149,18 @@ export function ChangelogContent() {
               rather than in words.
             </p>
             <p>
-              <strong>Removed the Request: / Shield Target: line from Pane 1.</strong> Stale once a plan's been
-              running a while, and duplicated by the diagnostics below.
+              <strong>Removed the Request: / Shield Target: line from Pane 1.</strong> Stale once a plan's been running
+              a while, and duplicated by the diagnostics below.
             </p>
             <p style={{ marginBottom: 0 }}>
               <strong>Added Shield Target (£ and Months) to Pane 2's diagnostics row</strong>, directly under Total
               Capital / Peak Drawdown / Fun Bucket Balance — the same £ figure that used to live on the removed Pane 1
-              line, alongside its months figure for the first time. Split into two tiles rather than one combined
-              tile so the type scale stays consistent with the row's existing pattern; sized down from the primary
-              three since these are supplementary figures, not the pane's headline numbers. The months figure shown
-              is the phase-adjusted target — capped in Go-Slow and No-Go — rather than the raw runway setting, so it
-              always matches the £ figure it sits next to. Verified against the real 1996–2021 lifetime ledger: 104
-              rows, £2,007,282.02, 0 mismatches — unchanged from Build 126, since none of this touched the engine.
+              line, alongside its months figure for the first time. Split into two tiles rather than one combined tile
+              so the type scale stays consistent with the row's existing pattern; sized down from the primary three
+              since these are supplementary figures, not the pane's headline numbers. The months figure shown is the
+              phase-adjusted target — capped in Go-Slow and No-Go — rather than the raw runway setting, so it always
+              matches the £ figure it sits next to. Verified against the real 1996–2021 lifetime ledger: 104 rows,
+              £2,007,282.02, 0 mismatches — unchanged from Build 126, since none of this touched the engine.
             </p>
           </div>
         </div>
