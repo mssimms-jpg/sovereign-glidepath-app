@@ -1,0 +1,163 @@
+{
+  "_description": "1999 Dot-Com Peak (Worst-Case Timing). AGGRESSIVE PAIR of the original 5.05% scenario, bumped by a fixed +1.5pp to 6.55% withdrawal rate (£62,250/yr on the same £950,000 pot, today's money) — same era, ages, and pot size, only the withdrawal choice differs. Illustrative QA scenario, not financial advice; see the original scenario file for full data provenance notes (real MSCI World GBP returns, real UK RPI inflation, deflated using the same convention).",
+  "meta": {
+    "startAge": 65,
+    "cappingAge": 90,
+    "startEquities": 320693.28,
+    "startCash": 78466.38,
+    "targetYearly": 26155.46,
+    "desiredRunwayMonths": 36,
+    "legacyTarget": 0,
+    "assumedGrowthRatePct": 5,
+    "assumedCashRealPct": 1,
+    "assumedInflationPct": 2.5,
+    "defensiveMode": "standard",
+    "pensionAmount": 5272.1,
+    "pensionStartAge": 65,
+    "pensionIncreasePct": 0
+  },
+  "years": [
+    {
+      "year": 1999,
+      "equityReturnPct": 27.82,
+      "cpiPct": 1.5
+    },
+    {
+      "year": 2000,
+      "equityReturnPct": -5.9,
+      "cpiPct": 3
+    },
+    {
+      "year": 2001,
+      "equityReturnPct": -14.38,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2002,
+      "equityReturnPct": -28.03,
+      "cpiPct": 1.7
+    },
+    {
+      "year": 2003,
+      "equityReturnPct": 19.75,
+      "cpiPct": 2.9
+    },
+    {
+      "year": 2004,
+      "equityReturnPct": 6.41,
+      "cpiPct": 3
+    },
+    {
+      "year": 2005,
+      "equityReturnPct": 22.87,
+      "cpiPct": 2.8
+    },
+    {
+      "year": 2006,
+      "equityReturnPct": 5.38,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2007,
+      "equityReturnPct": 6.53,
+      "cpiPct": 4.3
+    },
+    {
+      "year": 2008,
+      "equityReturnPct": -18.55,
+      "cpiPct": 4
+    },
+    {
+      "year": 2009,
+      "equityReturnPct": 17.09,
+      "cpiPct": -0.5
+    },
+    {
+      "year": 2010,
+      "equityReturnPct": 16.78,
+      "cpiPct": 4.6
+    },
+    {
+      "year": 2011,
+      "equityReturnPct": -5.34,
+      "cpiPct": 5.2
+    },
+    {
+      "year": 2012,
+      "equityReturnPct": 10.98,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2013,
+      "equityReturnPct": 23.81,
+      "cpiPct": 3
+    },
+    {
+      "year": 2014,
+      "equityReturnPct": 11.36,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 2015,
+      "equityReturnPct": 4.17,
+      "cpiPct": 1
+    },
+    {
+      "year": 2016,
+      "equityReturnPct": 29.53,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2017,
+      "equityReturnPct": 11.48,
+      "cpiPct": 3.6
+    },
+    {
+      "year": 2018,
+      "equityReturnPct": -3.6,
+      "cpiPct": 3.3
+    },
+    {
+      "year": 2019,
+      "equityReturnPct": 23.76,
+      "cpiPct": 2.6
+    },
+    {
+      "year": 2020,
+      "equityReturnPct": 12.12,
+      "cpiPct": 1.5
+    },
+    {
+      "year": 2021,
+      "equityReturnPct": 23.36,
+      "cpiPct": 4.1
+    },
+    {
+      "year": 2022,
+      "equityReturnPct": -8.25,
+      "cpiPct": 11.6
+    },
+    {
+      "year": 2023,
+      "equityReturnPct": 17.08,
+      "cpiPct": 9.7
+    }
+  ],
+  "expected": [
+    {
+      "rowIndex": 0,
+      "totalCapital": 399159.66
+    },
+    {
+      "rowIndex": 49,
+      "totalCapital": 201829.03,
+      "tolerance": 1
+    },
+    {
+      "rowIndex": 99,
+      "totalCapital": 0,
+      "exhausted": true,
+      "tolerance": 1
+    }
+  ]
+}

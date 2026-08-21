@@ -1,0 +1,198 @@
+{
+  "_description": "1972 Pre-Oil-Shock, Moderate 4.0% Draw. Implied withdrawal rate 4.00% (£26,000/yr on a £650,000 pot, today's money). AGGRESSIVE PAIR of the original 4.00% scenario, bumped by a fixed +1.5pp to 5.50% withdrawal rate (£35,750/yr on the same £650,000 pot, today's money) — same era, ages, and pot size, only the withdrawal choice differs. Illustrative QA scenario, not financial advice; see the original scenario file for full data provenance notes (real MSCI World GBP returns, real UK RPI inflation, deflated using the same convention).",
+  "meta": {
+    "startAge": 61,
+    "cappingAge": 93,
+    "startEquities": 30287.95,
+    "startCash": 3743.46,
+    "targetYearly": 1871.73,
+    "desiredRunwayMonths": 24,
+    "legacyTarget": 0,
+    "assumedGrowthRatePct": 5,
+    "assumedCashRealPct": 1,
+    "assumedInflationPct": 2.5,
+    "defensiveMode": "standard",
+    "pensionAmount": 656.94,
+    "pensionStartAge": 65,
+    "pensionIncreasePct": 0
+  },
+  "years": [
+    {
+      "year": 1972,
+      "equityReturnPct": 31.97,
+      "cpiPct": 7.1
+    },
+    {
+      "year": 1973,
+      "equityReturnPct": -14.24,
+      "cpiPct": 9.2
+    },
+    {
+      "year": 1974,
+      "equityReturnPct": -25.85,
+      "cpiPct": 16
+    },
+    {
+      "year": 1975,
+      "equityReturnPct": 52.99,
+      "cpiPct": 24.2
+    },
+    {
+      "year": 1976,
+      "equityReturnPct": 36.62,
+      "cpiPct": 16.5
+    },
+    {
+      "year": 1977,
+      "equityReturnPct": -8.89,
+      "cpiPct": 15.8
+    },
+    {
+      "year": 1978,
+      "equityReturnPct": 8.8,
+      "cpiPct": 8.3
+    },
+    {
+      "year": 1979,
+      "equityReturnPct": 0.13,
+      "cpiPct": 13.4
+    },
+    {
+      "year": 1980,
+      "equityReturnPct": 17.89,
+      "cpiPct": 18
+    },
+    {
+      "year": 1981,
+      "equityReturnPct": 17.36,
+      "cpiPct": 11.9
+    },
+    {
+      "year": 1982,
+      "equityReturnPct": 29.21,
+      "cpiPct": 8.6
+    },
+    {
+      "year": 1983,
+      "equityReturnPct": 37.42,
+      "cpiPct": 4.6
+    },
+    {
+      "year": 1984,
+      "equityReturnPct": 26.59,
+      "cpiPct": 5
+    },
+    {
+      "year": 1985,
+      "equityReturnPct": 15.4,
+      "cpiPct": 6.1
+    },
+    {
+      "year": 1986,
+      "equityReturnPct": 42.42,
+      "cpiPct": 3.4
+    },
+    {
+      "year": 1987,
+      "equityReturnPct": -8.58,
+      "cpiPct": 4.2
+    },
+    {
+      "year": 1988,
+      "equityReturnPct": 23.49,
+      "cpiPct": 4.9
+    },
+    {
+      "year": 1989,
+      "equityReturnPct": 33.36,
+      "cpiPct": 7.8
+    },
+    {
+      "year": 1990,
+      "equityReturnPct": -31.07,
+      "cpiPct": 9.5
+    },
+    {
+      "year": 1991,
+      "equityReturnPct": 24.41,
+      "cpiPct": 5.9
+    },
+    {
+      "year": 1992,
+      "equityReturnPct": 11.65,
+      "cpiPct": 3.7
+    },
+    {
+      "year": 1993,
+      "equityReturnPct": 27.41,
+      "cpiPct": 1.6
+    },
+    {
+      "year": 1994,
+      "equityReturnPct": 0.53,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1995,
+      "equityReturnPct": 22.15,
+      "cpiPct": 3.5
+    },
+    {
+      "year": 1996,
+      "equityReturnPct": 5.06,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1997,
+      "equityReturnPct": 16.06,
+      "cpiPct": 3.1
+    },
+    {
+      "year": 1998,
+      "equityReturnPct": 23.51,
+      "cpiPct": 3.4
+    },
+    {
+      "year": 1999,
+      "equityReturnPct": 27.82,
+      "cpiPct": 1.5
+    },
+    {
+      "year": 2000,
+      "equityReturnPct": -5.9,
+      "cpiPct": 3
+    },
+    {
+      "year": 2001,
+      "equityReturnPct": -14.38,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2002,
+      "equityReturnPct": -28.03,
+      "cpiPct": 1.7
+    },
+    {
+      "year": 2003,
+      "equityReturnPct": 19.75,
+      "cpiPct": 2.9
+    }
+  ],
+  "expected": [
+    {
+      "rowIndex": 0,
+      "totalCapital": 34031.41
+    },
+    {
+      "rowIndex": 63,
+      "totalCapital": 65682.39,
+      "tolerance": 1
+    },
+    {
+      "rowIndex": 127,
+      "totalCapital": 14701.31,
+      "exhausted": false,
+      "tolerance": 1
+    }
+  ]
+}

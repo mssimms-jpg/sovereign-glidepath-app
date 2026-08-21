@@ -179,6 +179,17 @@
           <li class="toc-chap">
             <a href="#ch-48">48. Editing history: pension and inflation now show what was actually true then</a>
           </li>
+          <li class="toc-chap">
+            <a href="#ch-49">49. The Scenario Test Runner's bundled scenario picker</a>
+          </li>
+          <li class="toc-chap">
+            <a href="#ch-50">50. Exporting the ledger as a styled Excel workbook</a>
+          </li>
+          <li class="toc-chap">
+            <a href="#ch-51"
+              >51. Appendix &mdash; the historical market and inflation data behind the QA scenario pool</a
+            >
+          </li>
         </ul>
       </div>
     </nav>
@@ -195,7 +206,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.128 · Edition XX</p>
+        <p class="cover-ver">Version 1.0.130 · Edition XXI</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -335,18 +346,17 @@
       </p>
       <p>
         <b>2. Intelligence Diagnostics.</b> The engine's reading of your inputs: total capital, peak drawdown vs ATH,
-        the Fun Bucket surplus, Shield Target in £ and months (chapter 46), Guyton-Klinger target vs realised
-        withdrawal rate, current guardrail state, actual cash shield runway, actuarial amortisation matrix, and market
-        momentum vector. The Scenario Stress Test slider lives
-        at the bottom of this pane — see chapter 9 for what it now shows. Below that sits the
-        <b>Companion Apps</b> section, from which the Accumulation Simulator, Risk Simulator, and Comparison Builder all
-        launch. The Risk Simulator and Comparison Builder both open pre-filled with a live snapshot of your Pane 1
-        figures; the Accumulation Simulator deliberately opens with its own small, standalone starting defaults instead
-        (chapter 43) — it's built to model someone decades from retirement, so your own real pot figures wouldn't be a
-        useful starting point there. Double-clicking this pane's header (Pane 2 title) opens the hidden
-        <b>State Test Presets</b> pane — eight one-click buttons that populate Pane 1 with a canonical recipe for each
-        directive state, for testing and verification without touching your real ledger. Closing it (double-click again)
-        automatically reverts Pane 1 back to your real committed values.
+        the Fun Bucket surplus, Shield Target in £ and months (chapter 46), Guyton-Klinger target vs realised withdrawal
+        rate, current guardrail state, actual cash shield runway, actuarial amortisation matrix, and market momentum
+        vector. The Scenario Stress Test slider lives at the bottom of this pane — see chapter 9 for what it now shows.
+        Below that sits the <b>Companion Apps</b> section, from which the Accumulation Simulator, Risk Simulator, and
+        Comparison Builder all launch. The Risk Simulator and Comparison Builder both open pre-filled with a live
+        snapshot of your Pane 1 figures; the Accumulation Simulator deliberately opens with its own small, standalone
+        starting defaults instead (chapter 43) — it's built to model someone decades from retirement, so your own real
+        pot figures wouldn't be a useful starting point there. Double-clicking this pane's header (Pane 2 title) opens
+        the hidden <b>State Test Presets</b> pane — eight one-click buttons that populate Pane 1 with a canonical recipe
+        for each directive state, for testing and verification without touching your real ledger. Closing it
+        (double-click again) automatically reverts Pane 1 back to your real committed values.
       </p>
       <p>
         <b>3. Actionable Brokerage Desk Directives.</b> A plain-English instruction, refreshed every keystroke, telling
@@ -910,15 +920,15 @@
         preserves the fat tails — the 1974, 2002, 2008, 2022 drawdowns and the 1985, 1995, 1999, 2019 melt-ups. If a
         sequence-of-returns disaster is going to happen to you, it will look a lot more like one of these than like a
         tidy bell curve. Build 128 replaced this series with the genuine real data — an earlier version had several
-        pre-2000 years off by a wide margin (1971 modelled at +31% against the real +12.43%, for instance) despite
-        this chapter's own description always having said "real returns." See Chapter 46 for the full story.
+        pre-2000 years off by a wide margin (1971 modelled at +31% against the real +12.43%, for instance) despite this
+        chapter's own description always having said "real returns." See Chapter 46 for the full story.
       </p>
       <p>
         <b>Parametric mode</b> manufactures returns from a normal distribution with a mean and standard deviation you
         control. The defaults (μ 11.85%, σ 17.8%, updated at Build 128 to the real MSCI World full-period 1970–2024
-        arithmetic mean/stdev) are reasonable proxies for a global equity portfolio. Parametric is useful
-        for "what-if" experiments: lower the mean to model a more cautious balanced fund, or raise the volatility to see
-        what a more concentrated portfolio does to the fan.
+        arithmetic mean/stdev) are reasonable proxies for a global equity portfolio. Parametric is useful for "what-if"
+        experiments: lower the mean to model a more cautious balanced fund, or raise the volatility to see what a more
+        concentrated portfolio does to the fan.
       </p>
       <p>
         Toggle between the two. If your conclusion changes dramatically between Historical and Parametric, the
@@ -2120,14 +2130,14 @@
         now <b>&ldquo;Initial Annual Withdrawal &mdash; Frozen Baseline&rdquo;</b>, with a short caption underneath
         &mdash;
         <i
-          >&ldquo;Set your desired initial income at plan start &mdash; inflation adjusts automatically. Use the
-          slider below to apply a % lifestyle change.&rdquo;</i
+          >&ldquo;Set your desired initial income at plan start &mdash; inflation adjusts automatically. Use the slider
+          below to apply a % lifestyle change.&rdquo;</i
         >
         &mdash; and a <b>live nominal preview</b>
         that appears beneath the field as you type, before you commit anything: the annual and quarterly actual-pounds
         equivalent of whatever you've typed. As of Build 127 the caption points at a dedicated
-        <b>Lifestyle Change</b> slider rather than describing the arithmetic in words &mdash; see Chapter 46 for how
-        it works.
+        <b>Lifestyle Change</b> slider rather than describing the arithmetic in words &mdash; see Chapter 46 for how it
+        works.
       </p>
       <aside class="callout">
         <h4>Working example &mdash; ten years of high inflation, then a genuine lifestyle change</h4>
@@ -2159,8 +2169,8 @@
         arithmetic into a live control instead of a sentence to work through by hand.
       </p>
       <p>
-        <b>The Lifestyle Change slider</b> sits directly beneath the Frozen Baseline field, running &minus;30% to
-        +30%. The design question it had to answer is what 0% means. It is anchored to your
+        <b>The Lifestyle Change slider</b> sits directly beneath the Frozen Baseline field, running &minus;30% to +30%.
+        The design question it had to answer is what 0% means. It is anchored to your
         <b>last committed baseline</b> &mdash; not wherever the field happens to sit after a previous drag. Dragging to
         +15% always means 15% above what was actually last committed, regardless of how many times the slider has
         already moved this session, so repeated drags cannot silently compound into a much larger change than the
@@ -2170,37 +2180,37 @@
       </p>
       <p>
         Typing directly into the Frozen Baseline field still works exactly as it always has; it simply repositions the
-        slider to match. If you type a figure more than 30% away from baseline, the percentage readout above the
-        slider shows the true, uncapped number (e.g. +60%), but the slider's own thumb visually pins at the end of its
-        track rather than trying to render a position that doesn't exist on a &minus;30/+30 scale. The field is never
+        slider to match. If you type a figure more than 30% away from baseline, the percentage readout above the slider
+        shows the true, uncapped number (e.g. +60%), but the slider's own thumb visually pins at the end of its track
+        rather than trying to render a position that doesn't exist on a &minus;30/+30 scale. The field is never
         restricted to &plusmn;30% &mdash; only the thumb's on-screen position is.
       </p>
       <p>
-        <b>The Request: / Shield Target: line has been removed from Pane 1.</b> It duplicated information already
-        shown in Pane 2's diagnostics, and grew stale-looking once a plan had been running a while. The Shield Target
-        figure itself has not disappeared &mdash; it has moved.
+        <b>The Request: / Shield Target: line has been removed from Pane 1.</b> It duplicated information already shown
+        in Pane 2's diagnostics, and grew stale-looking once a plan had been running a while. The Shield Target figure
+        itself has not disappeared &mdash; it has moved.
       </p>
       <p>
         <b>Pane 2's diagnostics row</b> (Total Capital / Peak Drawdown / Fun Bucket Balance &mdash; chapter 13) now
-        carries two further tiles beneath that row: <b>Shield Target (&pound;)</b> and
-        <b>Shield Target (Months)</b>. The &pound; figure is the same one that used to sit on the removed Pane 1 line;
-        the months figure sits next to it for the first time. Both are drawn from the engine's phase-adjusted target
-        &mdash; the same 36 / 24 / 12-month trimming by Go-Go / Go-Slow / No-Go phase described in chapter 14 &mdash;
-        so the two tiles always agree with each other and with the Actual Cash Shield Runway comparison beneath them,
-        rather than one showing your raw setting and the other showing what the engine actually enforced this quarter.
+        carries two further tiles beneath that row: <b>Shield Target (&pound;)</b> and <b>Shield Target (Months)</b>.
+        The &pound; figure is the same one that used to sit on the removed Pane 1 line; the months figure sits next to
+        it for the first time. Both are drawn from the engine's phase-adjusted target &mdash; the same 36 / 24 /
+        12-month trimming by Go-Go / Go-Slow / No-Go phase described in chapter 14 &mdash; so the two tiles always agree
+        with each other and with the Actual Cash Shield Runway comparison beneath them, rather than one showing your raw
+        setting and the other showing what the engine actually enforced this quarter.
       </p>
 
       <h3 class="chapter" id="ch-47">47. The real MSCI World data fix, and two Monte Carlo seeding bugs</h3>
       <p>
         Chapter 22 describes Historical mode as drawing from real MSCI World (GBP) annual returns 1970&ndash;2024. That
         description was always the intent; it wasn't always true. An earlier version of the underlying series had
-        several pre-2000 years off by a wide margin against the genuine index &mdash; 1971 modelled at +31% against
-        the real +12.43%, 1975 (the year after the 1973&ndash;74 oil-shock trough) modelled at +36% against the real
-        +52.99%, 1990 modelled at &minus;21% against the real &minus;31.07%, understating that crash by over 10
-        points. 2000 onward was a close match, evidently rounded from a real series already; the older years weren't.
-        Build 128 replaced the series with the real data, verified index-by-index to within 0.005 percentage points
-        &mdash; pure rounding, not approximation. This affects both the Risk Simulator and the Accumulation Simulator:
-        they share one copy of this series (see chapter 43).
+        several pre-2000 years off by a wide margin against the genuine index &mdash; 1971 modelled at +31% against the
+        real +12.43%, 1975 (the year after the 1973&ndash;74 oil-shock trough) modelled at +36% against the real
+        +52.99%, 1990 modelled at &minus;21% against the real &minus;31.07%, understating that crash by over 10 points.
+        2000 onward was a close match, evidently rounded from a real series already; the older years weren't. Build 128
+        replaced the series with the real data, verified index-by-index to within 0.005 percentage points &mdash; pure
+        rounding, not approximation. This affects both the Risk Simulator and the Accumulation Simulator: they share one
+        copy of this series (see chapter 43).
       </p>
       <p>
         Two structural bugs in the Monte Carlo seeding surfaced while independently verifying that fix. First:
@@ -2213,64 +2223,436 @@
       </p>
       <p>
         Second: the Parametric-mode defaults (&mu; 7%, &sigma; 15%, referenced in chapter 22 before this build) were
-        closer to the real MSCI World return over 2000&ndash;2024 alone (arithmetic mean ~7.95%) than to the real
-        full 1970&ndash;2024 record (arithmetic mean 11.85%, stdev 17.80%). Updated to the full-period figures, so a
-        fresh Parametric run and a fresh Historical run are both anchored to the same underlying reality rather than
-        one quietly reflecting a stronger, more recent slice of history than the other.
+        closer to the real MSCI World return over 2000&ndash;2024 alone (arithmetic mean ~7.95%) than to the real full
+        1970&ndash;2024 record (arithmetic mean 11.85%, stdev 17.80%). Updated to the full-period figures, so a fresh
+        Parametric run and a fresh Historical run are both anchored to the same underlying reality rather than one
+        quietly reflecting a stronger, more recent slice of history than the other.
       </p>
       <p>
         A smaller, unrelated finding from the same pass: <code>mulberry32</code> (the seeded random-number generator),
         <code>gaussian</code>, <code>quantile</code>, and the mean/stdev default constants were each duplicated
         byte-for-byte between the Risk Simulator and the Accumulation Simulator &mdash; exactly the kind of drift risk
-        that produced the data bug above, just running the other direction (two copies, one gets updated and the
-        other forgotten). Consolidated into a single shared module both simulators import from.
+        that produced the data bug above, just running the other direction (two copies, one gets updated and the other
+        forgotten). Consolidated into a single shared module both simulators import from.
       </p>
 
-      <h3 class="chapter" id="ch-48">48. Editing history: pension and inflation now show what was actually true then</h3>
+      <h3 class="chapter" id="ch-48">
+        48. Editing history: pension and inflation now show what was actually true then
+      </h3>
       <p>
-        Two related bugs, both with the same shape: a figure that should have reflected a specific historical ledger
-        row was instead always computed from whatever is live right now, regardless of which row you had open.
+        Two related bugs, both with the same shape: a figure that should have reflected a specific historical ledger row
+        was instead always computed from whatever is live right now, regardless of which row you had open.
       </p>
       <p>
         <b>Inflation.</b> The Live Nominal Preview under the Frozen Baseline field (chapter 45), and the directive
         amounts it feeds, always used the cumulative inflation index as of your <i>most recently committed</i> ledger
         row &mdash; not the row you actually had open for editing. Opening an old entry from several years back showed
         it nominalised using inflation accrued all the way to your latest row, effectively "as of right now," rather
-        than as of that entry's own period. Fixed: editing a row now nominalises using that row's own cumulative
-        index. The caption changes to match &mdash; "in actual pounds as of this entry's period" while editing
-        history, "in actual pounds today" only for a genuinely new entry.
+        than as of that entry's own period. Fixed: editing a row now nominalises using that row's own cumulative index.
+        The caption changes to match &mdash; "in actual pounds as of this entry's period" while editing history, "in
+        actual pounds today" only for a genuinely new entry.
       </p>
       <p>
         <b>Pension.</b> A more consequential version of the same bug. Pension (Annual Pension, Pension Start Age,
-        Pension Real Increase %) had always been a single live, global Pane 1 setting &mdash; never stored on the
-        ledger row itself, unlike Growth Rate / Cash Real Return / Inflation, which have carried a per-row snapshot
-        since Build 095. So the "Gross lifestyle target / Less pension in payment / Net drawn from pot" breakdown
-        under the Frozen Baseline field always recomputed using <i>today's</i> live pension figures, whichever row
-        you had open. This was caught live: editing a Scenario Test Runner row (chapter 38) showed a pension figure
-        compounded forward from the live plan's real pension &mdash; wildly different from the pension that scenario
-        was actually built on. The row's own recorded numbers were always correct; only this explanatory breakdown was
-        reading from the wrong source.
+        Pension Real Increase %) had always been a single live, global Pane 1 setting &mdash; never stored on the ledger
+        row itself, unlike Growth Rate / Cash Real Return / Inflation, which have carried a per-row snapshot since Build
+        095. So the "Gross lifestyle target / Less pension in payment / Net drawn from pot" breakdown under the Frozen
+        Baseline field always recomputed using <i>today's</i> live pension figures, whichever row you had open. This was
+        caught live: editing a Scenario Test Runner row (chapter 38) showed a pension figure compounded forward from the
+        live plan's real pension &mdash; wildly different from the pension that scenario was actually built on. The
+        row's own recorded numbers were always correct; only this explanatory breakdown was reading from the wrong
+        source.
       </p>
       <p>
         Fixed by giving <code>LedgerEntry</code> its own <code>pensionAmount</code> / <code>pensionStartAge</code> /
-        <code>pensionIncreasePct</code>, stamped onto every row at commit time (and, for Scenario Test Runner rows,
-        onto every row the scenario builds, from that scenario's own meta values &mdash; not the live plan's).
-        Editing an old row now loads that row's own pension into Pane 1, and an inline note appears when it differs
-        from your live settings, or when a legacy row (committed before Build 128) has no snapshot recorded at all.
+        <code>pensionIncreasePct</code>, stamped onto every row at commit time (and, for Scenario Test Runner rows, onto
+        every row the scenario builds, from that scenario's own meta values &mdash; not the live plan's). Editing an old
+        row now loads that row's own pension into Pane 1, and an inline note appears when it differs from your live
+        settings, or when a legacy row (committed before Build 128) has no snapshot recorded at all.
       </p>
       <p>
-        Pension is treated deliberately differently from Growth Rate / Cash Real Return / Inflation on exit from
-        Edit, though. Those three are genuine per-quarter assumptions &mdash; it's expected that correcting an old
-        row updates your ongoing baseline too. Pension is documented elsewhere in this manual as "your real figures"
-        &mdash; a single ongoing truth the Risk Simulator and every new commit read live, not something that should
-        silently drift just because you reviewed or corrected an old row's history. So your live pension setting is
-        restored after every exit from Edit &mdash; Discard Changes, Exit Edit, and a successful Commit alike &mdash;
-        while a deliberate correction to a row's own historical pension figure still works exactly as typed, since
-        that gets stamped onto the row itself regardless of the restore. A genuine second bug surfaced testing this
-        exact mechanism: Discard Changes was found to jump pension to today's live value instead of keeping the row's
-        own just-reloaded figure, because the reload and the restore were firing back-to-back in the wrong order.
-        Fixed by giving Discard Changes its own legacyTarget/currency-only restore path, separate from the full
-        restore Exit Edit uses.
+        Pension is treated deliberately differently from Growth Rate / Cash Real Return / Inflation on exit from Edit,
+        though. Those three are genuine per-quarter assumptions &mdash; it's expected that correcting an old row updates
+        your ongoing baseline too. Pension is documented elsewhere in this manual as "your real figures" &mdash; a
+        single ongoing truth the Risk Simulator and every new commit read live, not something that should silently drift
+        just because you reviewed or corrected an old row's history. So your live pension setting is restored after
+        every exit from Edit &mdash; Discard Changes, Exit Edit, and a successful Commit alike &mdash; while a
+        deliberate correction to a row's own historical pension figure still works exactly as typed, since that gets
+        stamped onto the row itself regardless of the restore. A genuine second bug surfaced testing this exact
+        mechanism: Discard Changes was found to jump pension to today's live value instead of keeping the row's own
+        just-reloaded figure, because the reload and the restore were firing back-to-back in the wrong order. Fixed by
+        giving Discard Changes its own legacyTarget/currency-only restore path, separate from the full restore Exit Edit
+        uses.
+      </p>
+
+      <h3 class="chapter" id="ch-49">49. The Scenario Test Runner's bundled scenario picker</h3>
+      <p>
+        Chapter 38 covers the Scenario Test Runner itself. As of this build, it offers a second way to run a scenario
+        alongside uploading your own JSON file: a dropdown of 40 pre-loaded QA scenarios, grouped into <b>Base</b> (each
+        scenario's own historical withdrawal rate) and <b>Aggressive</b> (the same era with a fixed +1.5
+        percentage-point withdrawal bump), sorted oldest era first within each group. Your own real 1996&ndash;2021
+        lifetime ledger scenario is included in the pool and marked with a &#9733;.
+      </p>
+      <p>
+        Picking a scenario from the dropdown and clicking <b>Run selected scenario</b> goes through exactly the same
+        path as uploading a file by hand &mdash; if a ledger already exists, it's backed up first and you confirm the
+        replacement, identically either way. The 40 files aren't bundled into the app's code; they're separate JSON
+        files the app fetches when you run one, referenced by a small internal list. Adding a 41st scenario later is a
+        one-line addition to that list plus dropping the file in &mdash; no other changes needed.
+      </p>
+      <p style="margin-bottom:0;">
+        Two rendering issues were caught and fixed before this ever reached a documented release: selecting a new
+        scenario without running it yet used to show two different scenario names on screen at once, and every dropdown
+        in the app (this one, and the Currency picker in Pane 1) had no dark-theme styling on its native options list,
+        so the list rendered pale text on a pale background. Both fixed &mdash; see the Build 129 changelog entry for
+        the detail.
+      </p>
+
+      <h3 class="chapter" id="ch-50">50. Exporting the ledger as a styled Excel workbook</h3>
+      <p>
+        Pane 7 has always offered <b>Download Ledger (CSV)</b>. As of this build there's a second option beside it,
+        <b>Export as XLSX</b>, producing a two-sheet Excel workbook instead of a plain CSV: a
+        <i>Summary &amp; Assumptions</i> sheet (your live Pane 1 assumptions, plus a short results summary &mdash; row
+        count, date range, whether the pot was ever exhausted, final total capital, final cumulative inflation index)
+        and a <i>Full Ledger</i> sheet with the same data CSV export uses, styled with a frozen header row, currency and
+        percentage number formatting, and column widths sized to the content.
+      </p>
+      <p style="margin-bottom:0;">
+        The XLSX export uses the same underlying ledger data the CSV export does &mdash; not a richer or different data
+        source &mdash; so anything the CSV export can show, the XLSX export can too, just formatted. A handful of
+        columns some prior one-off exports have shown (year-by-year assumed market return and inflation figures) are
+        deliberately not included here: those only make sense for a ledger built by the Scenario Test Runner from a
+        specific scenario file, not for your real hand-committed history, where Pane 1's assumptions are a live setting
+        rather than a per-row record of what actually happened that quarter.
+      </p>
+
+      <h3 class="chapter" id="ch-51">
+        51. Appendix &mdash; the historical market and inflation data behind the QA scenario pool
+      </h3>
+      <p>
+        The 40-file QA scenario pool referenced in chapters 38 and 49 (and the Build 128 changelog entry that first
+        built it) is constructed from two real historical data series: MSCI World GBP annual real returns
+        (1970&ndash;2024, the same series both the Risk Simulator's and Accumulation Simulator's Historical mode
+        bootstrap from &mdash; see chapter 47), and UK consumer-price inflation year by year. The full table below is
+        provided for transparency, so any scenario result in the pool can be traced back to the specific year's actual
+        figures rather than taken on trust.
+      </p>
+      <p>
+        <b style="color:var(--danger, #dc2626);"
+          >One thing worth flagging plainly, found while assembling this table: the pool does not use a single
+          consistent inflation series.</b
+        >
+        38 of the 40 files (everything except your own real 1996&ndash;2021 lifetime ledger scenario and its matched
+        aggressive pair) share one UK inflation series for the years they overlap. Your own canonical scenario file uses
+        a <i>different</i> series for that same 1996&ndash;2021 span &mdash; not a rounding difference, a substantively
+        different figure in most years, and in one year (2009) even a different sign: the 38-file pool has that year at
+        &minus;0.5%, your own scenario file has it at +2.17%. Every individual scenario file is internally consistent
+        and verified against its own checkpoints &mdash; this doesn't call any single result into question &mdash; but
+        it does mean two different "real UK inflation, 1996&ndash;2021" datasets exist side by side in the pool, which
+        the Build 128 changelog's description of one consistent ONS-sourced series across all 40 files didn't account
+        for. Worth reconciling in a future session; not fixed here since it's a data-provenance decision, not a bug with
+        an obvious correct answer.
+      </p>
+      <p>
+        The table below uses the series the 38-file majority shares for any year both are present; years where your own
+        canonical scenario's figure differs are marked <sup>&dagger;</sup>. Years present in the MSCI series but before
+        any scenario's start, or present in scenario inflation data but beyond the MSCI series' end, show &mdash; for
+        the missing column.
+      </p>
+      <table class="directives">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>MSCI World GBP (real annual return)</th>
+            <th>UK Inflation (annual)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1970</td>
+            <td>-3.08%</td>
+            <td>&mdash;</td>
+          </tr>
+          <tr>
+            <td>1971</td>
+            <td>+12.43%</td>
+            <td>9.40%</td>
+          </tr>
+          <tr>
+            <td>1972</td>
+            <td>+31.97%</td>
+            <td>7.10%</td>
+          </tr>
+          <tr>
+            <td>1973</td>
+            <td>-14.24%</td>
+            <td>9.20%</td>
+          </tr>
+          <tr>
+            <td>1974</td>
+            <td>-25.85%</td>
+            <td>16.00%</td>
+          </tr>
+          <tr>
+            <td>1975</td>
+            <td>+52.99%</td>
+            <td>24.20%</td>
+          </tr>
+          <tr>
+            <td>1976</td>
+            <td>+36.62%</td>
+            <td>16.50%</td>
+          </tr>
+          <tr>
+            <td>1977</td>
+            <td>-8.89%</td>
+            <td>15.80%</td>
+          </tr>
+          <tr>
+            <td>1978</td>
+            <td>+8.80%</td>
+            <td>8.30%</td>
+          </tr>
+          <tr>
+            <td>1979</td>
+            <td>+0.13%</td>
+            <td>13.40%</td>
+          </tr>
+          <tr>
+            <td>1980</td>
+            <td>+17.89%</td>
+            <td>18.00%</td>
+          </tr>
+          <tr>
+            <td>1981</td>
+            <td>+17.36%</td>
+            <td>11.90%</td>
+          </tr>
+          <tr>
+            <td>1982</td>
+            <td>+29.21%</td>
+            <td>8.60%</td>
+          </tr>
+          <tr>
+            <td>1983</td>
+            <td>+37.42%</td>
+            <td>4.60%</td>
+          </tr>
+          <tr>
+            <td>1984</td>
+            <td>+26.59%</td>
+            <td>5.00%</td>
+          </tr>
+          <tr>
+            <td>1985</td>
+            <td>+15.40%</td>
+            <td>6.10%</td>
+          </tr>
+          <tr>
+            <td>1986</td>
+            <td>+42.42%</td>
+            <td>3.40%</td>
+          </tr>
+          <tr>
+            <td>1987</td>
+            <td>-8.58%</td>
+            <td>4.20%</td>
+          </tr>
+          <tr>
+            <td>1988</td>
+            <td>+23.49%</td>
+            <td>4.90%</td>
+          </tr>
+          <tr>
+            <td>1989</td>
+            <td>+33.36%</td>
+            <td>7.80%</td>
+          </tr>
+          <tr>
+            <td>1990</td>
+            <td>-31.07%</td>
+            <td>9.50%</td>
+          </tr>
+          <tr>
+            <td>1991</td>
+            <td>+24.41%</td>
+            <td>5.90%</td>
+          </tr>
+          <tr>
+            <td>1992</td>
+            <td>+11.65%</td>
+            <td>3.70%</td>
+          </tr>
+          <tr>
+            <td>1993</td>
+            <td>+27.41%</td>
+            <td>1.60%</td>
+          </tr>
+          <tr>
+            <td>1994</td>
+            <td>+0.53%</td>
+            <td>2.40%</td>
+          </tr>
+          <tr>
+            <td>1995</td>
+            <td>+22.15%</td>
+            <td>3.50%</td>
+          </tr>
+          <tr>
+            <td>1996</td>
+            <td>+5.06%</td>
+            <td>2.40% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>1997</td>
+            <td>+16.06%</td>
+            <td>3.10% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>1998</td>
+            <td>+23.51%</td>
+            <td>3.40% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>1999</td>
+            <td>+27.82%</td>
+            <td>1.50% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2000</td>
+            <td>-5.90%</td>
+            <td>3.00% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2001</td>
+            <td>-14.38%</td>
+            <td>1.80% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2002</td>
+            <td>-28.03%</td>
+            <td>1.70% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2003</td>
+            <td>+19.75%</td>
+            <td>2.90% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2004</td>
+            <td>+6.41%</td>
+            <td>3.00% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2005</td>
+            <td>+22.87%</td>
+            <td>2.80% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2006</td>
+            <td>+5.38%</td>
+            <td>3.20% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2007</td>
+            <td>+6.53%</td>
+            <td>4.30% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2008</td>
+            <td>-18.55%</td>
+            <td>4.00% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2009</td>
+            <td>+17.09%</td>
+            <td>-0.50% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2010</td>
+            <td>+16.78%</td>
+            <td>4.60% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2011</td>
+            <td>-5.34%</td>
+            <td>5.20% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2012</td>
+            <td>+10.98%</td>
+            <td>3.20% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2013</td>
+            <td>+23.81%</td>
+            <td>3.00% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2014</td>
+            <td>+11.36%</td>
+            <td>2.40% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2015</td>
+            <td>+4.17%</td>
+            <td>1.00% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2016</td>
+            <td>+29.53%</td>
+            <td>1.80% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2017</td>
+            <td>+11.48%</td>
+            <td>3.60% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2018</td>
+            <td>-3.60%</td>
+            <td>3.30% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2019</td>
+            <td>+23.76%</td>
+            <td>2.60% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2020</td>
+            <td>+12.12%</td>
+            <td>1.50% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2021</td>
+            <td>+23.36%</td>
+            <td>4.10% <sup>&dagger;</sup></td>
+          </tr>
+          <tr>
+            <td>2022</td>
+            <td>-8.25%</td>
+            <td>11.60%</td>
+          </tr>
+          <tr>
+            <td>2023</td>
+            <td>+17.08%</td>
+            <td>9.70%</td>
+          </tr>
+          <tr>
+            <td>2024</td>
+            <td>+20.43%</td>
+            <td>3.60%</td>
+          </tr>
+          <tr>
+            <td>2025</td>
+            <td>&mdash;</td>
+            <td>4.20%</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px; margin-bottom:0; font-size:13px; color:var(--muted);">
+        <sup>&dagger;</sup> Your own real 1996&ndash;2021 lifetime ledger scenario (and its aggressive pair) use a
+        different inflation figure for this year than the rest of the pool &mdash; see the flag above.
       </p>
     </main>
 

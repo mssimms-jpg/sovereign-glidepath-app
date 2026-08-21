@@ -1,0 +1,188 @@
+{
+  "_description": "1989 Japan-Bubble-Peak Era, Aggressive 6.0% Draw. Implied withdrawal rate 6.00% (£36,000/yr on a £600,000 pot, today's money). Illustrative QA scenario, not financial advice. Equity returns are the real MSCI World Index (GBP, total return) computed from the user-supplied monthly series (base 10,000 = Dec 1969). Inflation is real UK RPI (ONS series CZBH/MM23, via iamkate.com's published table), not CPI — RPI runs somewhat higher than CPI, especially before 2003. Starting pot and withdrawal are given in today's money (2025 terms) and deflated back to 1989 nominal terms using the RPI cumulative multiplier, the same convention the app itself uses for the Frozen Baseline. State Pension deflated the same way from the 2025/26 full new State Pension (£11,973/yr).",
+  "meta": {
+    "startAge": 60,
+    "cappingAge": 90,
+    "startEquities": 135537.18,
+    "startCash": 29752.08,
+    "targetYearly": 9917.36,
+    "desiredRunwayMonths": 36,
+    "legacyTarget": 0,
+    "assumedGrowthRatePct": 5,
+    "assumedCashRealPct": 1,
+    "assumedInflationPct": 2.5,
+    "defensiveMode": "standard",
+    "pensionAmount": 3456.64,
+    "pensionStartAge": 65,
+    "pensionIncreasePct": 0
+  },
+  "years": [
+    {
+      "year": 1989,
+      "equityReturnPct": 33.36,
+      "cpiPct": 7.8
+    },
+    {
+      "year": 1990,
+      "equityReturnPct": -31.07,
+      "cpiPct": 9.5
+    },
+    {
+      "year": 1991,
+      "equityReturnPct": 24.41,
+      "cpiPct": 5.9
+    },
+    {
+      "year": 1992,
+      "equityReturnPct": 11.65,
+      "cpiPct": 3.7
+    },
+    {
+      "year": 1993,
+      "equityReturnPct": 27.41,
+      "cpiPct": 1.6
+    },
+    {
+      "year": 1994,
+      "equityReturnPct": 0.53,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1995,
+      "equityReturnPct": 22.15,
+      "cpiPct": 3.5
+    },
+    {
+      "year": 1996,
+      "equityReturnPct": 5.06,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1997,
+      "equityReturnPct": 16.06,
+      "cpiPct": 3.1
+    },
+    {
+      "year": 1998,
+      "equityReturnPct": 23.51,
+      "cpiPct": 3.4
+    },
+    {
+      "year": 1999,
+      "equityReturnPct": 27.82,
+      "cpiPct": 1.5
+    },
+    {
+      "year": 2000,
+      "equityReturnPct": -5.9,
+      "cpiPct": 3
+    },
+    {
+      "year": 2001,
+      "equityReturnPct": -14.38,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2002,
+      "equityReturnPct": -28.03,
+      "cpiPct": 1.7
+    },
+    {
+      "year": 2003,
+      "equityReturnPct": 19.75,
+      "cpiPct": 2.9
+    },
+    {
+      "year": 2004,
+      "equityReturnPct": 6.41,
+      "cpiPct": 3
+    },
+    {
+      "year": 2005,
+      "equityReturnPct": 22.87,
+      "cpiPct": 2.8
+    },
+    {
+      "year": 2006,
+      "equityReturnPct": 5.38,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2007,
+      "equityReturnPct": 6.53,
+      "cpiPct": 4.3
+    },
+    {
+      "year": 2008,
+      "equityReturnPct": -18.55,
+      "cpiPct": 4
+    },
+    {
+      "year": 2009,
+      "equityReturnPct": 17.09,
+      "cpiPct": -0.5
+    },
+    {
+      "year": 2010,
+      "equityReturnPct": 16.78,
+      "cpiPct": 4.6
+    },
+    {
+      "year": 2011,
+      "equityReturnPct": -5.34,
+      "cpiPct": 5.2
+    },
+    {
+      "year": 2012,
+      "equityReturnPct": 10.98,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2013,
+      "equityReturnPct": 23.81,
+      "cpiPct": 3
+    },
+    {
+      "year": 2014,
+      "equityReturnPct": 11.36,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 2015,
+      "equityReturnPct": 4.17,
+      "cpiPct": 1
+    },
+    {
+      "year": 2016,
+      "equityReturnPct": 29.53,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2017,
+      "equityReturnPct": 11.48,
+      "cpiPct": 3.6
+    },
+    {
+      "year": 2018,
+      "equityReturnPct": -3.6,
+      "cpiPct": 3.3
+    }
+  ],
+  "expected": [
+    {
+      "rowIndex": 0,
+      "totalCapital": 165289.26
+    },
+    {
+      "rowIndex": 59,
+      "totalCapital": 189778.34,
+      "tolerance": 1
+    },
+    {
+      "rowIndex": 119,
+      "totalCapital": 246888.23,
+      "exhausted": false,
+      "tolerance": 1
+    }
+  ]
+}

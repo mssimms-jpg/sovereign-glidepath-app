@@ -1,0 +1,198 @@
+{
+  "_description": "1985 Lawson-Boom Prelude, Large Pot. AGGRESSIVE PAIR of the original 5.00% scenario, bumped by a fixed +1.5pp to 6.50% withdrawal rate (£65,000/yr on the same £1,000,000 pot, today's money) — same era, ages, and pot size, only the withdrawal choice differs. Illustrative QA scenario, not financial advice; see the original scenario file for full data provenance notes (real MSCI World GBP returns, real UK RPI inflation, deflated using the same convention).",
+  "meta": {
+    "startAge": 63,
+    "cappingAge": 95,
+    "startEquities": 185057.47,
+    "startCash": 44827.59,
+    "targetYearly": 14942.53,
+    "desiredRunwayMonths": 36,
+    "legacyTarget": 0,
+    "assumedGrowthRatePct": 5,
+    "assumedCashRealPct": 1,
+    "assumedInflationPct": 2.5,
+    "defensiveMode": "standard",
+    "pensionAmount": 2884.51,
+    "pensionStartAge": 65,
+    "pensionIncreasePct": 0
+  },
+  "years": [
+    {
+      "year": 1985,
+      "equityReturnPct": 15.4,
+      "cpiPct": 6.1
+    },
+    {
+      "year": 1986,
+      "equityReturnPct": 42.42,
+      "cpiPct": 3.4
+    },
+    {
+      "year": 1987,
+      "equityReturnPct": -8.58,
+      "cpiPct": 4.2
+    },
+    {
+      "year": 1988,
+      "equityReturnPct": 23.49,
+      "cpiPct": 4.9
+    },
+    {
+      "year": 1989,
+      "equityReturnPct": 33.36,
+      "cpiPct": 7.8
+    },
+    {
+      "year": 1990,
+      "equityReturnPct": -31.07,
+      "cpiPct": 9.5
+    },
+    {
+      "year": 1991,
+      "equityReturnPct": 24.41,
+      "cpiPct": 5.9
+    },
+    {
+      "year": 1992,
+      "equityReturnPct": 11.65,
+      "cpiPct": 3.7
+    },
+    {
+      "year": 1993,
+      "equityReturnPct": 27.41,
+      "cpiPct": 1.6
+    },
+    {
+      "year": 1994,
+      "equityReturnPct": 0.53,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1995,
+      "equityReturnPct": 22.15,
+      "cpiPct": 3.5
+    },
+    {
+      "year": 1996,
+      "equityReturnPct": 5.06,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 1997,
+      "equityReturnPct": 16.06,
+      "cpiPct": 3.1
+    },
+    {
+      "year": 1998,
+      "equityReturnPct": 23.51,
+      "cpiPct": 3.4
+    },
+    {
+      "year": 1999,
+      "equityReturnPct": 27.82,
+      "cpiPct": 1.5
+    },
+    {
+      "year": 2000,
+      "equityReturnPct": -5.9,
+      "cpiPct": 3
+    },
+    {
+      "year": 2001,
+      "equityReturnPct": -14.38,
+      "cpiPct": 1.8
+    },
+    {
+      "year": 2002,
+      "equityReturnPct": -28.03,
+      "cpiPct": 1.7
+    },
+    {
+      "year": 2003,
+      "equityReturnPct": 19.75,
+      "cpiPct": 2.9
+    },
+    {
+      "year": 2004,
+      "equityReturnPct": 6.41,
+      "cpiPct": 3
+    },
+    {
+      "year": 2005,
+      "equityReturnPct": 22.87,
+      "cpiPct": 2.8
+    },
+    {
+      "year": 2006,
+      "equityReturnPct": 5.38,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2007,
+      "equityReturnPct": 6.53,
+      "cpiPct": 4.3
+    },
+    {
+      "year": 2008,
+      "equityReturnPct": -18.55,
+      "cpiPct": 4
+    },
+    {
+      "year": 2009,
+      "equityReturnPct": 17.09,
+      "cpiPct": -0.5
+    },
+    {
+      "year": 2010,
+      "equityReturnPct": 16.78,
+      "cpiPct": 4.6
+    },
+    {
+      "year": 2011,
+      "equityReturnPct": -5.34,
+      "cpiPct": 5.2
+    },
+    {
+      "year": 2012,
+      "equityReturnPct": 10.98,
+      "cpiPct": 3.2
+    },
+    {
+      "year": 2013,
+      "equityReturnPct": 23.81,
+      "cpiPct": 3
+    },
+    {
+      "year": 2014,
+      "equityReturnPct": 11.36,
+      "cpiPct": 2.4
+    },
+    {
+      "year": 2015,
+      "equityReturnPct": 4.17,
+      "cpiPct": 1
+    },
+    {
+      "year": 2016,
+      "equityReturnPct": 29.53,
+      "cpiPct": 1.8
+    }
+  ],
+  "expected": [
+    {
+      "rowIndex": 0,
+      "totalCapital": 229885.06
+    },
+    {
+      "rowIndex": 63,
+      "totalCapital": 613450.16,
+      "tolerance": 1
+    },
+    {
+      "rowIndex": 127,
+      "totalCapital": 461552.27,
+      "exhausted": false,
+      "tolerance": 1
+    }
+  ]
+}
