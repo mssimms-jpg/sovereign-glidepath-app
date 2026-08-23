@@ -508,6 +508,15 @@ export function formatGBP(n: number): string {
     })
   );
 }
+// Build 131 — whole-pounds variant for chart tooltips and axis labels in the
+// Risk Simulator and Accumulation Simulator. Those show large numbers in a
+// small fixed-width space (a hover card, an axis gridline label) where two
+// decimal places just adds visual noise and, in the tooltip's case, was
+// overflowing its box. Ledger rows, forms, and everywhere else keep using
+// formatGBP's full pence precision — this is deliberately narrow in scope.
+export function formatGBPWhole(n: number): string {
+  return CURRENCY_SYMBOL + Number(n || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 });
+}
 // Alias for forward-compat / readability at call-sites that want the intent
 // to read as "format the active currency".
 export const formatCurrency = formatGBP;

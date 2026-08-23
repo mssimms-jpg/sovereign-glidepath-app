@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cleanNum, formatGBP, setCurrencySymbol } from "@/lib/sovereign/engine";
+import { cleanNum, formatGBP, formatGBPWhole, setCurrencySymbol } from "@/lib/sovereign/engine";
 import { runAccumulation, type AccMode } from "@/lib/sovereign/accumulationEngine";
 import { PARAMETRIC_DEFAULT_MEAN_PCT, PARAMETRIC_DEFAULT_STDEV_PCT } from "@/lib/sovereign/monteCarloShared";
 import { DashedLineIcon } from "@/components/sovereign/DashedLineIcon";
@@ -307,7 +307,7 @@ export function AccumulationSimulatorPage() {
         <g key={f}>
           <line x1={pL} y1={y} x2={w - pR} y2={y} stroke="var(--border-color)" opacity={0.4} />
           <text x={pL - 8} y={y + 4} textAnchor="end" fontSize={11} fill="var(--text-muted)">
-            {formatGBP(v)}
+            {formatGBPWhole(v)}
           </text>
         </g>
       );
@@ -859,7 +859,7 @@ export function AccumulationSimulatorPage() {
                             <span style={{ color: "var(--text-muted)" }}>{row.label}</span>
                           </span>
                           <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                            {formatGBP(row.value)}
+                            {formatGBPWhole(row.value)}
                           </span>
                         </div>
                       ))}

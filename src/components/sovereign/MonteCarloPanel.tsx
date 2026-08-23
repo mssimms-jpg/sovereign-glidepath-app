@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { cleanNum, formatGBP } from "@/lib/sovereign/engine";
+import { cleanNum, formatGBP, formatGBPWhole } from "@/lib/sovereign/engine";
 import { applyPeriod } from "@/lib/sovereign/drawdown";
 import { exportLedgerCSV } from "@/lib/sovereign/csvExport";
 import {
@@ -2011,7 +2011,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                         >
                           <span style={{ color: "var(--text-muted)" }}>{row.label}</span>
                           <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                            {formatGBP(row.value)}
+                            {formatGBPWhole(row.value)}
                           </span>
                         </div>
                       ))}
@@ -2065,7 +2065,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                         <span style={{ color: "var(--text-muted)" }}>{row.label}</span>
                       </span>
                       <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                        {formatGBP(row.value)}
+                        {formatGBPWhole(row.value)}
                       </span>
                     </div>
                     {row.sub && (
@@ -2127,7 +2127,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                           color: funBucket > 0 ? "var(--accent-purple)" : "var(--text-muted)",
                         }}
                       >
-                        {formatGBP(Math.max(0, funBucket))}
+                        {formatGBPWhole(Math.max(0, funBucket))}
                       </span>
                     </div>
                   );
