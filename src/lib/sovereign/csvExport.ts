@@ -87,17 +87,62 @@ export interface SovereignLedgerExportMeta {
   currency: string;
 }
 
-export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignLedgerExportMeta): void {
-  if (ledger.length === 0) {
-    alert("Ledger is empty — nothing to export.");
-    return;
-  }
-  // Build 073 — sort by Period End Date ascending (real chronological order).
-  // Event rows use `eventDate`; Normal rows use `periodEndDate`. Rows with
-  // no date at all (unmigrated legacy) sink to the end but keep insertion
-  // order. Age is deliberately NOT used as a sort proxy any more.
-  const dateOf = (e: LedgerEntry): string => (e.isSpecialEvent ? e.eventDate : e.periodEndDate) || "";
-  const chronological = ledger
+// Build 132 — shared row-building logic for both the CSV and XLSX ledger
+// exports. Previously each exporter carried its own copy of the same
+// chronological-sort, row-classification, and derived-field logic
+// (dateOf/chronological/kindOf/hasSplit/rebalLabel/eventAmountOf/
+// targetWrPctOf) — genuinely duplicated, and it had already quietly
+// drifted once: the CSV had a "Status/Directive" column the XLSX didn't
+// (both were just d.rule, a leftover duplicate — removed here). Both
+// exporters now consume the exact same buildLedgerExportRows() output, so
+// their column sets literally cannot drift apart again — a column added
+// to one is either added to both formatters below or it doesn't exist in
+// either export.
+//
+// Also adds the one column neither format had at all: quarterly growth
+// (%) on Equities. Not stored anywhere on LedgerEntry — no field tracks
+// the actual per-quarter market return the way a scenario file's
+// equityReturnPct does, since a real hand-committed row just records the
+// balance you actually saw on your statement, not a rate. Derived here by
+// comparing consecutive rows' Equities balances and backing out that
+// quarter's own withdrawal-from-equities and any equities<->cash
+// rebalance, so it isolates market return from cash flow rather than
+// conflating them. Only computable for Normal rows with a recorded bucket
+// split (Build 070+) that have a real previous row to compare against —
+// left blank everywhere else rather than guessed, matching how this file
+// already treats every other "not recorded" case (see hasSplit below).
+
+export interface LedgerExportRow {
+  label: string;
+  date: string;
+  age: number | undefined;
+  cappingAge: number | undefined;
+  phase: string;
+  equities: number | undefined;
+  quarterlyGrowthPct: number | undefined;
+  cash: number | undefined;
+  total: number | undefined;
+  ath: number | undefined;
+  drawdownPct: number | undefined;
+  funBucket: number | undefined;
+  entryKind: string;
+  withdrawnFromEquities: number | undefined;
+  withdrawnFromCash: number | undefined;
+  withdrawnAmount: number | undefined;
+  rebalanceDirection: string;
+  rebalanceAmount: number | undefined;
+  eventAmount: number | undefined;
+  targetWrPct: number | undefined;
+  guardrailStatus: string;
+  rule: string;
+}
+
+function dateOf(e: LedgerEntry): string {
+  return (e.isSpecialEvent ? e.eventDate : e.periodEndDate) ?? "";
+}
+
+function chronological(ledger: LedgerEntry[]): LedgerEntry[] {
+  return ledger
     .map((e, idx) => ({ e, idx }))
     .sort((a, b) => {
       const da = dateOf(a.e);
@@ -110,119 +155,160 @@ export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignL
       return a.idx - b.idx;
     })
     .map((x) => x.e);
+}
 
-  const blank = "";
-  const num = (n: number | undefined | null) => (typeof n === "number" && isFinite(n) ? n.toFixed(2) : blank);
-  const pct = (n: number | undefined | null) => (typeof n === "number" && isFinite(n) ? n.toFixed(4) : blank);
+function kindOf(d: LedgerEntry): "normal" | "special_withdrawal" | "windfall" {
+  if (d.entryKind) return d.entryKind;
+  if (d.isInflowEvent) return "windfall";
+  if (d.isSpecialEvent) return "special_withdrawal";
+  return "normal";
+}
 
-  const kindOf = (d: LedgerEntry): "normal" | "special_withdrawal" | "windfall" => {
-    if (d.entryKind) return d.entryKind;
-    if (d.isInflowEvent) return "windfall";
-    if (d.isSpecialEvent) return "special_withdrawal";
-    return "normal";
-  };
-
-  // A row has "recorded" bucket-split data only when the Phase 1 fields are
-  // actually present (Build 070+ Normal rows). Legacy Normal rows and event
-  // rows must show blanks, not zeros.
-  const hasSplit = (d: LedgerEntry) =>
+// A row has "recorded" bucket-split data only when the Build 070+ fields
+// are actually present. Legacy Normal rows and event rows show blanks,
+// not zeros or guesses.
+function hasSplit(d: LedgerEntry): boolean {
+  return (
     kindOf(d) === "normal" &&
     (typeof d.withdrawnFromEquities === "number" ||
       typeof d.withdrawnFromCash === "number" ||
       typeof d.rebalanceAmount === "number" ||
-      d.rebalanceDirection !== undefined);
+      d.rebalanceDirection !== undefined)
+  );
+}
 
-  const rebalLabel = (dir: LedgerEntry["rebalanceDirection"]) =>
-    dir === "eq_to_cash"
-      ? "Equities → Cash"
-      : dir === "cash_to_eq"
-        ? "Cash → Equities"
-        : dir === "none"
-          ? "None"
-          : blank;
+function rebalLabel(dir: LedgerEntry["rebalanceDirection"]): string {
+  if (dir === "eq_to_cash") return "Equities → Cash";
+  if (dir === "cash_to_eq") return "Cash → Equities";
+  if (dir === "none") return "None";
+  return "";
+}
 
-  const eventAmount = (d: LedgerEntry): string => {
+function eventAmountOf(d: LedgerEntry): number | undefined {
+  const kind = kindOf(d);
+  if (kind === "windfall") return d.eventAmount;
+  if (kind === "special_withdrawal") {
+    const amt = typeof d.eventAmount === "number" ? d.eventAmount : (d.eventFromEq || 0) + (d.eventFromCash || 0);
+    return amt || undefined;
+  }
+  return undefined;
+}
+
+function targetWrPctOf(d: LedgerEntry): number | undefined {
+  const tot = Number(d.totalCapital) || 0;
+  const ty = Number(d.targetYearly) || 0;
+  if (tot <= 0) return undefined;
+  return (ty / tot) * 100;
+}
+
+export function buildLedgerExportRows(ledger: LedgerEntry[]): LedgerExportRow[] {
+  const chron = chronological(ledger);
+  const rows: LedgerExportRow[] = [];
+
+  for (let i = 0; i < chron.length; i++) {
+    const d = chron[i];
     const kind = kindOf(d);
-    if (kind === "windfall") return num(d.eventAmount);
-    if (kind === "special_withdrawal") {
-      const amt = typeof d.eventAmount === "number" ? d.eventAmount : (d.eventFromEq || 0) + (d.eventFromCash || 0);
-      return amt ? num(amt) : blank;
+    const split = hasSplit(d);
+
+    // Quarterly growth %: each row's stored Equities balance is what that
+    // quarter's directive was calculated FROM — i.e. after that quarter's
+    // own market growth, but BEFORE that quarter's own withdrawal/rebalance
+    // (which only gets subtracted going into the NEXT row's starting
+    // balance — confirmed by tracing both the scenario engine's commit
+    // order and the real hand-commit flow, which follow the same
+    // convention: you enter today's balance, the app tells you what to
+    // withdraw, you withdraw it, and that reduced balance is what next
+    // quarter's growth actually compounds on). So deriving THIS row's
+    // growth rate needs the PREVIOUS row's withdrawal/rebalance backed out
+    // of the previous row's balance — not this row's own. Verified against
+    // real 1996 data (13% annual, real MSCI World): every quarter
+    // independently reproduces exactly the expected 3.1026% compounded
+    // rate using this formula.
+    let quarterlyGrowthPct: number | undefined;
+    if (kind === "normal" && split && i > 0 && typeof d.equities === "number") {
+      const prev = chron[i - 1];
+      if (typeof prev.equities === "number" && hasSplit(prev)) {
+        const prevRebalAdj =
+          prev.rebalanceDirection === "eq_to_cash"
+            ? prev.rebalanceAmount || 0
+            : prev.rebalanceDirection === "cash_to_eq"
+              ? -(prev.rebalanceAmount || 0)
+              : 0;
+        const startingBalance = prev.equities - (prev.withdrawnFromEquities || 0) - prevRebalAdj;
+        if (startingBalance > 0) {
+          quarterlyGrowthPct = (d.equities / startingBalance - 1) * 100;
+        }
+      }
     }
-    return blank;
-  };
 
-  const targetWrPct = (d: LedgerEntry): string => {
-    const tot = Number(d.totalCapital) || 0;
-    const ty = Number(d.targetYearly) || 0;
-    if (tot <= 0) return blank;
-    return ((ty / tot) * 100).toFixed(4);
-  };
+    rows.push({
+      label: d.label ?? "",
+      date: dateOf(d),
+      age: typeof d.age === "number" ? d.age : undefined,
+      cappingAge: typeof d.cappingAge === "number" && d.cappingAge > 0 ? d.cappingAge : undefined,
+      phase: d.phase ?? "",
+      equities: typeof d.equities === "number" ? d.equities : undefined,
+      quarterlyGrowthPct,
+      cash: typeof d.mmFund === "number" ? d.mmFund : undefined,
+      total: typeof d.totalCapital === "number" ? d.totalCapital : undefined,
+      ath: typeof d.ath === "number" ? d.ath : undefined,
+      drawdownPct: typeof d.drawdownPct === "number" ? d.drawdownPct : undefined,
+      funBucket: typeof d.funBucket === "number" ? d.funBucket : undefined,
+      entryKind: kind,
+      withdrawnFromEquities: split ? d.withdrawnFromEquities : undefined,
+      withdrawnFromCash: split ? d.withdrawnFromCash : undefined,
+      withdrawnAmount: kind === "normal" ? d.withdrawnAmount : undefined,
+      rebalanceDirection: split ? rebalLabel(d.rebalanceDirection) : "",
+      rebalanceAmount: split ? d.rebalanceAmount : undefined,
+      eventAmount: eventAmountOf(d),
+      targetWrPct: targetWrPctOf(d),
+      guardrailStatus: d.guardrailStatus ?? "",
+      rule: d.rule ?? "",
+    });
+  }
 
-  exportLedgerCSV<LedgerEntry>(
-    chronological,
+  return rows;
+}
+
+export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignLedgerExportMeta): void {
+  if (ledger.length === 0) {
+    alert("Ledger is empty — nothing to export.");
+    return;
+  }
+
+  const rows = buildLedgerExportRows(ledger);
+  const blank = "";
+  const num = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(2) : blank);
+  const pct = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(4) : blank);
+
+  exportLedgerCSV<LedgerExportRow>(
+    rows,
     [
-      { header: "Reporting Period", value: (d) => d.label ?? "" },
-      {
-        header: "Period End Date",
-        // Build 073 — real ISO date. Normal rows use periodEndDate; event
-        // rows use eventDate. Blank for unmigrated legacy rows.
-        value: (d) => (d.isSpecialEvent ? d.eventDate : d.periodEndDate) ?? "",
-      },
-      { header: "Age", value: (d) => (typeof d.age === "number" ? d.age : "") },
-      {
-        // Build 078 — per-row Horizon (capping) Age. The metadata header
-        // shows the current live setting; this column preserves each row's
-        // own stored cappingAge at commit time (may differ across rows).
-        header: "Horizon Age",
-        value: (d) => (typeof d.cappingAge === "number" && d.cappingAge > 0 ? d.cappingAge : ""),
-      },
-
-      { header: "Phase", value: (d) => d.phase ?? "" },
-      { header: "Equities", value: (d) => num(d.equities) },
-      { header: "Cash", value: (d) => num(d.mmFund) },
-      { header: "Portfolio Total", value: (d) => num(d.totalCapital) },
-      { header: "ATH", value: (d) => num(d.ath) },
-      { header: "Drawdown from ATH (%)", value: (d) => pct(d.drawdownPct) },
-      {
-        header: "Fun Bucket Balance",
-        // Build 126 — undefined on legacy rows (committed before this
-        // field existed), NOT recomputed from today's assumptions — that
-        // would fabricate a figure using assumptions that weren't actually
-        // in force at the time.
-        value: (d) => (typeof d.funBucket === "number" ? num(d.funBucket) : blank),
-      },
-      { header: "entryKind", value: (d) => kindOf(d) },
-      {
-        header: "Withdrawn from Equities",
-        value: (d) => (hasSplit(d) ? num(d.withdrawnFromEquities) : blank),
-      },
-      {
-        header: "Withdrawn from Cash",
-        value: (d) => (hasSplit(d) ? num(d.withdrawnFromCash) : blank),
-      },
-      {
-        header: "Withdrawal Total",
-        value: (d) => (kindOf(d) === "normal" ? num(d.withdrawnAmount) : blank),
-      },
-      {
-        header: "Rebalance Direction",
-        value: (d) => (hasSplit(d) ? rebalLabel(d.rebalanceDirection) : blank),
-      },
-      {
-        header: "Rebalance Amount",
-        value: (d) => (hasSplit(d) ? num(d.rebalanceAmount) : blank),
-      },
-      { header: "Event Amount", value: (d) => eventAmount(d) },
-      { header: "Target Withdrawal Rate (%)", value: (d) => targetWrPct(d) },
-      // Build 079 — snapshot of Pane 2's Withdrawal Status + Guardrail State
-      // (stored per-row at commit time). Positioned near Horizon Age so the
-      // full Pane 2 context travels with the row into external tools.
-      { header: "Withdrawal Status", value: (d) => d.guardrailStatus ?? "" },
-      { header: "Guardrail State", value: (d) => d.rule ?? "" },
-      { header: "Status/Directive", value: (d) => d.rule ?? "" },
+      { header: "Reporting Period", value: (r) => r.label },
+      { header: "Period End Date", value: (r) => r.date },
+      { header: "Age", value: (r) => (typeof r.age === "number" ? r.age : blank) },
+      { header: "Horizon Age", value: (r) => (typeof r.cappingAge === "number" ? r.cappingAge : blank) },
+      { header: "Phase", value: (r) => r.phase },
+      { header: "Equities", value: (r) => num(r.equities) },
+      { header: "Quarterly Growth (%)", value: (r) => pct(r.quarterlyGrowthPct) },
+      { header: "Cash", value: (r) => num(r.cash) },
+      { header: "Portfolio Total", value: (r) => num(r.total) },
+      { header: "ATH", value: (r) => num(r.ath) },
+      { header: "Drawdown from ATH (%)", value: (r) => pct(r.drawdownPct) },
+      { header: "Fun Bucket Balance", value: (r) => num(r.funBucket) },
+      { header: "entryKind", value: (r) => r.entryKind },
+      { header: "Withdrawn from Equities", value: (r) => num(r.withdrawnFromEquities) },
+      { header: "Withdrawn from Cash", value: (r) => num(r.withdrawnFromCash) },
+      { header: "Withdrawal Total", value: (r) => num(r.withdrawnAmount) },
+      { header: "Rebalance Direction", value: (r) => r.rebalanceDirection },
+      { header: "Rebalance Amount", value: (r) => num(r.rebalanceAmount) },
+      { header: "Event Amount", value: (r) => num(r.eventAmount) },
+      { header: "Target Withdrawal Rate (%)", value: (r) => pct(r.targetWrPct) },
+      { header: "Withdrawal Status", value: (r) => r.guardrailStatus },
+      { header: "Guardrail State", value: (r) => r.rule },
     ],
     {
-      "Row count": chronological.length,
+      "Row count": rows.length,
       "Target Horizon Age": meta.cappingAge,
       "Assumed Growth Rate (%)": Number(meta.growthRate).toString(),
       "Cash Buffer Target (months)": meta.desiredRunwayMonths,
@@ -242,18 +328,20 @@ export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignL
 // two-sheet workbook — "Summary & Assumptions" then "Full Ledger" — styled
 // to match the sample workbook Mark supplied from an earlier session.
 //
-// Deliberately does NOT clone that sample's exact column set. Two of its
-// columns (Annual Eq Return / Annual UK CPI) came from that specific
-// scenario file's own year-by-year inputs, which only exist for a ledger
-// built via the Scenario Test Runner — a hand-committed real ledger has no
-// equivalent field, since Pane 1's assumptions are live settings, not a
-// per-row record of "what actually happened in the market that quarter."
-// This export instead uses the same proven column set exportSovereignLedgerCSV
-// above already relies on, which is populated correctly for both real and
-// scenario-built ledgers, styled in the sample's visual language instead of
-// literally recreating its columns. The sample's dead last column ("Actual
-// CPI to enter (%)", "(first row)" on every single row) is not reproduced
-// here at all, per Mark's call.
+// Build 132 — the Full Ledger sheet's columns now come from the same
+// buildLedgerExportRows() the CSV export uses (see above), so the two
+// formats are guaranteed to carry the same columns in the same order —
+// including the new Quarterly Growth (%) column neither format had
+// before. Still does not clone the one-off sample workbook's exact
+// column set: two of its columns (Annual Eq Return / Annual UK CPI) came
+// from that specific scenario file's own year-by-year inputs, which only
+// exist for a ledger built via the Scenario Test Runner — a
+// hand-committed real ledger has no equivalent, since Pane 1's
+// assumptions are live settings, not a per-row record of what actually
+// happened in the market that quarter (the new Quarterly Growth column
+// covers that gap properly, derived rather than assumed). The sample's
+// dead last column ("Actual CPI to enter (%)", a placeholder on every
+// row) is still not reproduced.
 //
 // ExcelJS (not the community "xlsx"/SheetJS package) because it supports
 // real cell styling — fills, fonts, wrapped headers, number formats, frozen
@@ -289,67 +377,6 @@ const HEADER_FONT_COLOR = "FFFFFFFF";
 const CURRENCY_FMT = "#,##0.00";
 const PCT_FMT = '0.00"%"'; // values are already *100 (e.g. 12.34), not 0.1234
 
-function dateOf(e: LedgerEntry): string {
-  return (e.isSpecialEvent ? e.eventDate : e.periodEndDate) ?? "";
-}
-
-function chronological(ledger: LedgerEntry[]): LedgerEntry[] {
-  return ledger
-    .map((e, idx) => ({ e, idx }))
-    .sort((a, b) => {
-      const da = dateOf(a.e);
-      const db = dateOf(b.e);
-      if (!da && !db) return a.idx - b.idx;
-      if (!da) return 1;
-      if (!db) return -1;
-      if (da < db) return -1;
-      if (da > db) return 1;
-      return a.idx - b.idx;
-    })
-    .map((x) => x.e);
-}
-
-function kindOf(d: LedgerEntry): "normal" | "special_withdrawal" | "windfall" {
-  if (d.entryKind) return d.entryKind;
-  if (d.isInflowEvent) return "windfall";
-  if (d.isSpecialEvent) return "special_withdrawal";
-  return "normal";
-}
-
-function hasSplit(d: LedgerEntry): boolean {
-  return (
-    kindOf(d) === "normal" &&
-    (typeof d.withdrawnFromEquities === "number" ||
-      typeof d.withdrawnFromCash === "number" ||
-      typeof d.rebalanceAmount === "number" ||
-      d.rebalanceDirection !== undefined)
-  );
-}
-
-function rebalLabel(dir: LedgerEntry["rebalanceDirection"]): string {
-  if (dir === "eq_to_cash") return "Equities → Cash";
-  if (dir === "cash_to_eq") return "Cash → Equities";
-  if (dir === "none") return "None";
-  return "";
-}
-
-function eventAmountOf(d: LedgerEntry): number | undefined {
-  const kind = kindOf(d);
-  if (kind === "windfall") return d.eventAmount;
-  if (kind === "special_withdrawal") {
-    const amt = typeof d.eventAmount === "number" ? d.eventAmount : (d.eventFromEq || 0) + (d.eventFromCash || 0);
-    return amt || undefined;
-  }
-  return undefined;
-}
-
-function targetWrPctOf(d: LedgerEntry): number | undefined {
-  const tot = Number(d.totalCapital) || 0;
-  const ty = Number(d.targetYearly) || 0;
-  if (tot <= 0) return undefined;
-  return (ty / tot) * 100;
-}
-
 /** Applies the sample workbook's header styling: navy fill, white bold text, wrapped, frozen row. */
 function styleHeaderRow(row: ExcelJSType.Row) {
   row.eachCell((cell) => {
@@ -371,7 +398,7 @@ export async function exportSovereignLedgerXLSX(
 
   const { default: ExcelJS } = await import("exceljs");
 
-  const rows = chronological(ledger);
+  const rows = buildLedgerExportRows(ledger);
   const rowCount = rows.length;
   const oldest = rows[0];
   const newest = rows[rowCount - 1];
@@ -389,7 +416,7 @@ export async function exportSovereignLedgerXLSX(
 
   ws1.addRow(["Sovereign Glidepath — Ledger Export"]).font = { bold: true, size: 14 };
   ws1.addRow([
-    `Exported ${new Date().toISOString().slice(0, 10)} — ${rowCount} rows, ${dateOf(oldest)} to ${dateOf(newest)}.`,
+    `Exported ${new Date().toISOString().slice(0, 10)} — ${rowCount} rows, ${oldest.date} to ${newest.date}.`,
   ]).font = {
     size: 10,
   };
@@ -424,9 +451,9 @@ export async function exportSovereignLedgerXLSX(
   resultHeader.font = { bold: true, size: 11 };
   const resultRows: [string, string | number, string?][] = [
     ["Row count", rowCount],
-    ["Date range", `${dateOf(oldest)} to ${dateOf(newest)}`],
+    ["Date range", `${oldest.date} to ${newest.date}`],
     ["Any exhaustion", anyExhausted ? "Yes" : "No"],
-    ["Final total capital", newest.totalCapital ?? "", CURRENCY_FMT],
+    ["Final total capital", newest.total ?? "", CURRENCY_FMT],
     ["Final cumulative inflation index", Number(inflationTracking.currentIndex.toFixed(4))],
   ];
   for (const [label, value, fmt] of resultRows) {
@@ -438,13 +465,14 @@ export async function exportSovereignLedgerXLSX(
 
   // ---------- Sheet 2: Full Ledger ----------
   const ws2 = wb.addWorksheet(`Full Ledger (${rowCount} rows)`);
-  const columns: { header: string; width: number; key: string; fmt?: string }[] = [
+  const columns: { header: string; width: number; key: keyof LedgerExportRow; fmt?: string }[] = [
     { header: "Reporting\nPeriod", width: 12, key: "label" },
     { header: "Period End\nDate", width: 12, key: "date" },
     { header: "Age", width: 6, key: "age" },
     { header: "Horizon\nAge", width: 8, key: "cappingAge" },
     { header: "Phase", width: 10, key: "phase" },
     { header: "Equities (£)", width: 14, key: "equities", fmt: CURRENCY_FMT },
+    { header: "Quarterly\nGrowth (%)", width: 12, key: "quarterlyGrowthPct", fmt: PCT_FMT },
     { header: "Cash (£)", width: 14, key: "cash", fmt: CURRENCY_FMT },
     { header: "Portfolio\nTotal (£)", width: 14, key: "total", fmt: CURRENCY_FMT },
     { header: "ATH (£)", width: 14, key: "ath", fmt: CURRENCY_FMT },
@@ -465,31 +493,13 @@ export async function exportSovereignLedgerXLSX(
   styleHeaderRow(ws2.getRow(1));
   ws2.views = [{ state: "frozen", ySplit: 1 }];
 
-  for (const d of rows) {
-    const kind = kindOf(d);
-    ws2.addRow({
-      label: d.label ?? "",
-      date: dateOf(d),
-      age: typeof d.age === "number" ? d.age : "",
-      cappingAge: typeof d.cappingAge === "number" && d.cappingAge > 0 ? d.cappingAge : "",
-      phase: d.phase ?? "",
-      equities: d.equities ?? "",
-      cash: d.mmFund ?? "",
-      total: d.totalCapital ?? "",
-      ath: d.ath ?? "",
-      drawdownPct: typeof d.drawdownPct === "number" ? d.drawdownPct : "",
-      funBucket: typeof d.funBucket === "number" ? d.funBucket : "",
-      entryKind: kind,
-      withdrawnFromEquities: hasSplit(d) ? (d.withdrawnFromEquities ?? "") : "",
-      withdrawnFromCash: hasSplit(d) ? (d.withdrawnFromCash ?? "") : "",
-      withdrawnAmount: kind === "normal" ? (d.withdrawnAmount ?? "") : "",
-      rebalanceDirection: hasSplit(d) ? rebalLabel(d.rebalanceDirection) : "",
-      rebalanceAmount: hasSplit(d) ? (d.rebalanceAmount ?? "") : "",
-      eventAmount: eventAmountOf(d) ?? "",
-      targetWrPct: targetWrPctOf(d) ?? "",
-      guardrailStatus: d.guardrailStatus ?? "",
-      rule: d.rule ?? "",
-    });
+  for (const r of rows) {
+    const rowData: Record<string, string | number> = {};
+    for (const c of columns) {
+      const v = r[c.key];
+      rowData[c.key] = v === undefined ? "" : v;
+    }
+    ws2.addRow(rowData);
   }
 
   // Apply per-column number formats and font size to every data row.
