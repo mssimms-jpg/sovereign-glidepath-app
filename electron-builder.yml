@@ -1,0 +1,21 @@
+appId: com.sovereignglidepath.app
+productName: Sovereign Glidepath
+directories:
+  output: electron-release
+  buildResources: build
+files:
+  - electron/**/*
+  - dist-desktop/**/*
+  - package.json
+extraMetadata:
+  main: electron/main.cjs
+asar: true
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: SovereignGlidepath-Portable-${version}.${ext}
+  signAndEditExecutable: false
+portable:
+  artifactName: SovereignGlidepath-Portable-${version}.${ext}

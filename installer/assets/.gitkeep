@@ -1,0 +1,8 @@
+Place these files here before running the installer build:
+
+- app.ico       (256x256 multi-resolution Windows icon)
+- welcome.bmp   (164x314, optional — branded welcome panel)
+- header.bmp    (150x57,  optional — branded page header)
+
+The build script falls back to generic NSIS visuals if these files are
+absent, but the resulting installer will not be branded.

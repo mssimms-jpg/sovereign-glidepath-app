@@ -1981,7 +1981,7 @@ export function SovereignGlidepath() {
               textAlign: "center",
             }}
           >
-            Version {APP_VERSION} · build {APP_BUILD}
+            Version {APP_VERSION} · build {APP_BUILD} · pipeline test ✅
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>

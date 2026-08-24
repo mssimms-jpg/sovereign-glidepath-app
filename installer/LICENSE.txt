@@ -1,0 +1,26 @@
+                SOVEREIGN GLIDEPATH
+  
+            END USER LICENSE AGREEMENT
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED. THE AUTHORS ACCEPT NO LIABILITY FOR ANY LOSS, DAMAGE OR COST
+ARISING FROM ITS USE.
+
+Sovereign Glidepath is a personal planning and modelling tool, not
+financial advice. It is provided for educational and recreational use
+only. The figures, directives, guardrail triggers, phase rules, runway
+targets and projections it produces are the output of a simplified
+mathematical model. They make no allowance for your specific tax
+position, jurisdiction, fees, inflation assumptions, health, longevity,
+dependants, debts, pensions, annuities, government benefits, currency
+exposure or sequence-of-returns risk.
+
+Past market behaviour does not predict future returns. Nothing in this
+software constitutes a personal recommendation, solicitation or offer to
+buy or sell any security or product. You are solely responsible for your
+own financial decisions. Before acting on anything you see here, consult
+a qualified, regulated financial adviser who knows your full
+circumstances.
+
+By installing this software you accept these terms. If you do not
+accept them, do not install the software.
