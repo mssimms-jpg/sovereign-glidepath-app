@@ -186,8 +186,11 @@
             <a href="#ch-50">50. Exporting the ledger as a styled Excel workbook</a>
           </li>
           <li class="toc-chap">
-            <a href="#ch-51"
-              >51. Appendix &mdash; the historical market and inflation data behind the QA scenario pool</a
+            <a href="#ch-51">51. The "potential underspend" signal (Pane 2)</a>
+          </li>
+          <li class="toc-chap">
+            <a href="#ch-52"
+              >52. Appendix &mdash; the historical market and inflation data behind the QA scenario pool</a
             >
           </li>
         </ul>
@@ -206,7 +209,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.130 · Edition XXI</p>
+        <p class="cover-ver">Version 1.0.131 · Edition XXII</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -2326,8 +2329,62 @@
         rather than a per-row record of what actually happened that quarter.
       </p>
 
-      <h3 class="chapter" id="ch-51">
-        51. Appendix &mdash; the historical market and inflation data behind the QA scenario pool
+      <h3 class="chapter" id="ch-51">51. The "potential underspend" signal (Pane 2)</h3>
+      <p>
+        Every other diagnostic in this app is aimed at one failure mode: running out. The Shield Runway, the
+        Preservation cuts, the Prosperity Bonus &mdash; all of it is built around not depleting the pot too fast.
+        Nothing previously said anything about the opposite risk: ending up with far more left over than intended,
+        purely because a strong run was never revisited.
+      </p>
+      <p>
+        A rolling study across 29 overlapping real historical 26-year windows (built from the same real MSCI World
+        and UK inflation data behind the QA scenario pool &mdash; see chapter 52) found a genuinely clean pattern.
+        Scenarios that ended with a large surplus (four times the starting pot or more) almost always shared two
+        things by year 5: their realised withdrawal rate had fallen well below where they started, and the pot had
+        never fallen more than roughly 10% below its starting value at any point. Both conditions held together far
+        more reliably than either alone &mdash; a falling withdrawal rate on its own wasn't a clean signal, and
+        neither was "never dipped" on its own, but the combination separated the two outcomes cleanly across the
+        real data tested.
+      </p>
+      <p>
+        Pane 2 now checks your real live ledger against exactly that pattern, using your plan's own day-one figures
+        as the fixed reference point &mdash; not the constantly-moving All-Time High the guardrails already track,
+        since that answers a different question ("is this a good quarter") to the one this is asking ("has the whole
+        plan been running comfortably ahead since it began").
+      </p>
+      <ul>
+        <li>
+          <b>Years 3&ndash;5:</b> a soft, deliberately hedged early notice, if the pattern is already showing. The
+          signal isn't validated this early, and the wording says so.
+        </li>
+        <li>
+          <b>Year 5 onward:</b> the real evaluation. If both conditions hold, the tile appears with a genuine
+          reading, not a guess.
+        </li>
+        <li>
+          <b>Every year after, if it keeps holding:</b> the tile re-appears with a running count &mdash; "3rd year
+          running", and so on &mdash; rather than restating the same percentages annually.
+        </li>
+        <li>
+          <b>Goes quiet the moment either condition breaks</b> &mdash; a genuine dip happens, or the withdrawal rate
+          climbs back toward where it started. The running count resets with it.
+        </li>
+      </ul>
+      <p>
+        Dismissing the tile ("Reviewed &mdash; check again next year") genuinely waits a year before it can
+        reappear, not just a page reload. The two thresholds behind the signal &mdash; withdrawal rate falling to
+        90% of your original rate, and never dipping more than 10% below your starting pot &mdash; are editable
+        directly in the tile, not buried constants. They came from a rolling window over one real history, not a
+        large independent sample, so they're offered as a considered starting point, not a precisely calibrated
+        cutoff.
+      </p>
+      <p style="margin-bottom:0;">
+        Like every other diagnostic in this app, the signal only ever informs &mdash; it never adjusts your Target
+        Yearly Withdrawal or anything else on your behalf.
+      </p>
+
+      <h3 class="chapter" id="ch-52">
+        52. Appendix &mdash; the historical market and inflation data behind the QA scenario pool
       </h3>
       <p>
         The 40-file QA scenario pool referenced in chapters 38 and 49 (and the Build 128 changelog entry that first

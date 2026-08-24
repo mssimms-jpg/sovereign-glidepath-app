@@ -11,12 +11,12 @@
 // smaller extraction: nothing here owns state that wasn't already owned by
 // the parent, so there is no behavioural change, only a relocation of JSX.
 
-import type { CalcOutputs, Directive, InflationTrackingResult } from "@/lib/sovereign/engine";
+import type { CalcOutputs, Directive, InflationTrackingResult, UnderspendSignalResult } from "@/lib/sovereign/engine";
 import { cleanNum, formatGBP } from "@/lib/sovereign/engine";
 import type { DefensiveRecResult } from "@/lib/sovereign/defensiveRec";
 import type { ThresholdMode } from "@/lib/sovereign/drawdown";
 import { StateTestPresets, type PresetValues } from "./StateTestPresets";
-import { MoneyInput, type CurrencySymbol } from "./FormInputs";
+import { MoneyInput, IntInput, type CurrencySymbol } from "./FormInputs";
 
 export interface StressPreviewData {
   hypEq: number;
@@ -80,6 +80,15 @@ export interface Pane2DiagnosticsProps {
   pensionAmountStr: string;
   pensionStartAge: number;
   cashRealPct: number;
+
+  // Build 131 — "potential underspend" signal
+  underspendSignal: UnderspendSignalResult;
+  underspendShouldShow: boolean;
+  underspendWrThresholdPct: number;
+  underspendDipFloorPct: number;
+  setUnderspendWrThresholdPct: (v: number) => void;
+  setUnderspendDipFloorPct: (v: number) => void;
+  onReviewUnderspend: () => void;
 }
 
 export function Pane2Diagnostics({
@@ -128,6 +137,13 @@ export function Pane2Diagnostics({
   pensionAmountStr,
   pensionStartAge,
   cashRealPct,
+  underspendSignal,
+  underspendShouldShow,
+  underspendWrThresholdPct,
+  underspendDipFloorPct,
+  setUnderspendWrThresholdPct,
+  setUnderspendDipFloorPct,
+  onReviewUnderspend,
 }: Pane2DiagnosticsProps) {
   return (
     <div className="shd-card">
@@ -318,6 +334,72 @@ export function Pane2Diagnostics({
             </div>
           </div>
         </div>
+
+        {underspendShouldShow && (
+          <div className="shd-directive-box" style={{ gridColumn: "span 3", marginTop: "0.75rem" }}>
+            <span className="directive-title">
+              {underspendSignal.isPreNotice ? "Early signal — potential underspend" : "Potential underspend"}
+            </span>
+            {underspendSignal.isPreNotice ? (
+              <p style={{ margin: 0 }}>
+                Early days — {underspendSignal.yearsSinceStart.toFixed(1)} years in, your realised withdrawal rate
+                has fallen to <strong>{underspendSignal.wrRatioPct.toFixed(0)}%</strong> of where you started, and
+                the pot hasn't fallen more than {underspendDipFloorPct}% below its starting value. This isn't
+                validated this early — if the pattern holds, there'll be a clearer read at year 5.
+              </p>
+            ) : (
+              <p style={{ margin: 0 }}>
+                {underspendSignal.consecutiveYearsTriggered > 1
+                  ? `${underspendSignal.consecutiveYearsTriggered}${underspendSignal.consecutiveYearsTriggered === 2 ? "nd" : underspendSignal.consecutiveYearsTriggered === 3 ? "rd" : "th"} year running: `
+                  : ""}
+                Your withdrawal rate has stayed well below where you started (
+                <strong>{underspendSignal.wrRatioPct.toFixed(0)}%</strong> of your original rate), and your pot has
+                never fallen more than {underspendDipFloorPct}% below its starting value. In similar past
+                situations, this has often meant significantly more left over than planned by the end. Worth a look
+                at whether your Target Yearly Withdrawal is still right for you.
+              </p>
+            )}
+            <div style={{ marginTop: "0.85rem", display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" className="secondary" onClick={onReviewUnderspend}>
+                Reviewed — check again next year
+              </button>
+              <details style={{ fontSize: "0.8rem" }}>
+                <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>Adjust thresholds</summary>
+                <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                    <span style={{ fontSize: "0.7rem", textTransform: "none" }}>
+                      Trigger at withdrawal rate below (% of your original rate)
+                    </span>
+                    <IntInput
+                      value={underspendWrThresholdPct}
+                      onChange={setUnderspendWrThresholdPct}
+                      min={1}
+                      max={100}
+                      fallback={90}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                    <span style={{ fontSize: "0.7rem", textTransform: "none" }}>
+                      Disqualify if the pot ever fell below (% under starting value)
+                    </span>
+                    <IntInput
+                      value={underspendDipFloorPct}
+                      onChange={setUnderspendDipFloorPct}
+                      min={0}
+                      max={100}
+                      fallback={10}
+                    />
+                  </label>
+                </div>
+                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.5rem", marginBottom: 0 }}>
+                  These defaults came from a rolling study of 29 overlapping real historical UK/global windows — a
+                  useful pattern, not a precisely calibrated cutoff. Adjust if you'd rather this fire earlier, later,
+                  or not at all.
+                </p>
+              </details>
+            </div>
+          </div>
+        )}
 
         <div
           style={{

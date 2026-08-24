@@ -202,7 +202,7 @@ export const BUNDLED_SCENARIOS: BundledScenario[] = [
   },
   {
     id: "scenario-1996-2021-real-historical-lifetime-ledger",
-    label: "Mark's own lifetime ledger",
+    label: "Typical Ledger",
     category: "base",
     file: "scenario-1996-2021-real-historical-lifetime-ledger.json",
     startYear: 1996,
@@ -423,7 +423,7 @@ export const BUNDLED_SCENARIOS: BundledScenario[] = [
   },
   {
     id: "scenario-1996-2021-real-historical-lifetime-ledger-aggressive-7-44pc-draw",
-    label: "Mark's own lifetime ledger",
+    label: "Typical Ledger",
     category: "aggressive",
     file: "scenario-1996-2021-real-historical-lifetime-ledger-aggressive-7-44pc-draw.json",
     startYear: 1996,

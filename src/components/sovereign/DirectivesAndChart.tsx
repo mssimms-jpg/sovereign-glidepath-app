@@ -70,22 +70,35 @@ function TrendChart({ ledger, currency }: TrendChartProps) {
   }
 
   const axisY = h - pB;
+  // Build 132 — beyond a certain number of quarters, a rotated label on
+  // every single tick overlaps its neighbours and becomes unreadable (see
+  // the 26-year/104-quarter real ledger scenario). The tick mark itself
+  // still renders for every quarter regardless — this only thins the TEXT,
+  // so the axis stays a genuine quarterly scale, just not quarterly-labelled
+  // once it's this dense. The hover tooltip below is unaffected either way:
+  // it resolves from mouse X position to the nearest data point directly,
+  // never from which labels happen to be visible.
+  const CROWDED_QUARTER_THRESHOLD = 32; // ~8 years — below this, label every quarter as before
+  const showLabelEveryOther = t.length > CROWDED_QUARTER_THRESHOLD;
   const xLabels = t.map((d, i) => {
     const x = getX(i);
     const labelText = String(d.label || "").slice(0, 22);
+    const showLabel = !showLabelEveryOther || i % 2 === 0;
     return (
       <g key={`x${i}`}>
         <line x1={x} y1={axisY} x2={x} y2={axisY + 5} stroke="var(--text-muted)" strokeWidth={1} opacity={0.6} />
-        <text
-          x={x}
-          y={axisY + 10}
-          fill="var(--text-muted)"
-          fontSize={11}
-          textAnchor="end"
-          transform={`rotate(-90 ${x} ${axisY + 10})`}
-        >
-          {labelText}
-        </text>
+        {showLabel && (
+          <text
+            x={x}
+            y={axisY + 10}
+            fill="var(--text-muted)"
+            fontSize={11}
+            textAnchor="end"
+            transform={`rotate(-90 ${x} ${axisY + 10})`}
+          >
+            {labelText}
+          </text>
+        )}
       </g>
     );
   });

@@ -9,9 +9,11 @@ import {
   setCurrencySymbol,
   xorDecode,
   computeInflationTracking,
+  computeUnderspendSignal,
   nominalFromReal,
   type LedgerEntry,
   type InflationTrackingResult,
+  type UnderspendSignalResult,
 } from "@/lib/sovereign/engine";
 import {
   loadLicense,
@@ -245,6 +247,17 @@ type PersistedSettings = {
   pensionAmount?: number;
   pensionStartAge?: number;
   pensionIncreasePct?: number;
+  // Build 131 — "potential underspend" signal (Pane 2). Thresholds kept
+  // editable rather than buried constants — they came from 29 overlapping
+  // historical windows, not a large independent sample, so treating the
+  // exact cutoffs as precisely calibrated would overclaim what the data
+  // supports. underspendReviewedAtYears stores yearsSinceStart at the point
+  // of the last "Reviewed" dismissal — the tile stays hidden until that
+  // figure genuinely increases (i.e. another year passes), not just on a
+  // page reload.
+  underspendWrThresholdPct?: number;
+  underspendDipFloorPct?: number;
+  underspendReviewedAtYears?: number;
 };
 
 // Build 117 — ledger and settings live in the encrypted vault (secureStore).
@@ -458,6 +471,12 @@ export function SovereignGlidepath() {
   const [pensionStartAge, setPensionStartAge] = useState<number>(67);
   const [pensionIncreasePct, setPensionIncreasePct] = useState<number>(0);
 
+  // Build 131 — "potential underspend" signal (Pane 2). See
+  // computeUnderspendSignal in engine.ts for the actual logic/rationale.
+  const [underspendWrThresholdPct, setUnderspendWrThresholdPct] = useState<number>(90);
+  const [underspendDipFloorPct, setUnderspendDipFloorPct] = useState<number>(10);
+  const [underspendReviewedAtYears, setUnderspendReviewedAtYears] = useState<number | undefined>(undefined);
+
   const [editIndex, setEditIndex] = useState(-1);
   // Actual amount withdrawn this quarter — free-text (pre-filled from the
   // guardrail-adjusted Request). Empty string = "use the Request as-is".
@@ -664,6 +683,12 @@ export function SovereignGlidepath() {
       else if (typeof mc.pensionIncreasePct === "number") setPensionIncreasePct(mc.pensionIncreasePct);
     }
 
+    if (typeof s.underspendWrThresholdPct === "number" && s.underspendWrThresholdPct > 0)
+      setUnderspendWrThresholdPct(s.underspendWrThresholdPct);
+    if (typeof s.underspendDipFloorPct === "number" && s.underspendDipFloorPct >= 0)
+      setUnderspendDipFloorPct(s.underspendDipFloorPct);
+    if (typeof s.underspendReviewedAtYears === "number") setUnderspendReviewedAtYears(s.underspendReviewedAtYears);
+
     if (latest) {
       setAge(latest.age || 55);
       setEquityVal(latest.equities ? String(latest.equities) : "");
@@ -704,6 +729,9 @@ export function SovereignGlidepath() {
       pensionAmount,
       pensionStartAge,
       pensionIncreasePct,
+      underspendWrThresholdPct,
+      underspendDipFloorPct,
+      underspendReviewedAtYears,
     });
   }, [
     cappingAge,
@@ -716,6 +744,9 @@ export function SovereignGlidepath() {
     pensionAmount,
     pensionStartAge,
     pensionIncreasePct,
+    underspendWrThresholdPct,
+    underspendDipFloorPct,
+    underspendReviewedAtYears,
     settingsReady,
   ]);
 
@@ -754,6 +785,17 @@ export function SovereignGlidepath() {
     () => computeInflationTracking(ledger, inflationPct),
     [ledger, inflationPct],
   );
+
+  // Build 131 — "potential underspend" signal. Recomputed whenever the
+  // ledger or either threshold moves; cheap even for a large ledger (a
+  // handful of scans over a few hundred rows at most).
+  const underspendSignal: UnderspendSignalResult = useMemo(
+    () => computeUnderspendSignal(ledger, underspendWrThresholdPct, underspendDipFloorPct),
+    [ledger, underspendWrThresholdPct, underspendDipFloorPct],
+  );
+  const underspendShouldShow: boolean =
+    (underspendSignal.isPreNotice || underspendSignal.triggered) &&
+    (underspendReviewedAtYears === undefined || underspendReviewedAtYears < underspendSignal.yearsSinceStart);
   // Calendar year of the oldest tracked row, for the Pane 3 "Year-1 (20XX)" caption.
   const inflationBaseYear: number | undefined = useMemo(() => {
     if (inflationTracking.rows.length === 0) return undefined;
@@ -1981,7 +2023,7 @@ export function SovereignGlidepath() {
               textAlign: "center",
             }}
           >
-            Version {APP_VERSION} · build {APP_BUILD} · pipeline test ✅
+            Version {APP_VERSION} · build {APP_BUILD}
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
@@ -2220,6 +2262,13 @@ export function SovereignGlidepath() {
               pensionAmountStr={pensionAmountStr}
               pensionStartAge={pensionStartAge}
               cashRealPct={cashRealPct}
+              underspendSignal={underspendSignal}
+              underspendShouldShow={underspendShouldShow}
+              underspendWrThresholdPct={underspendWrThresholdPct}
+              underspendDipFloorPct={underspendDipFloorPct}
+              setUnderspendWrThresholdPct={setUnderspendWrThresholdPct}
+              setUnderspendDipFloorPct={setUnderspendDipFloorPct}
+              onReviewUnderspend={() => setUnderspendReviewedAtYears(underspendSignal.yearsSinceStart)}
             />
           </div>
 

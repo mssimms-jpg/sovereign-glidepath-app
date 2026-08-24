@@ -296,6 +296,138 @@ export function nominalFromReal(realAmount: number, cumulativeIndex: number): nu
   return realAmount * Math.max(0, cumulativeIndex || 1.0);
 }
 
+// Build 131 — "potential underspend" signal, Pane 2.
+//
+// Two signals validated against real historical data (29 rolling real
+// UK/global cohorts, not synthetic): a scenario ending with a large surplus
+// (>=4x the starting pot) almost always had its realised withdrawal rate
+// fall well below where it started by year 5, AND never drew the pot down
+// more than ~10% below its starting value at any point. Both conditions
+// held together far more reliably than either alone. This function checks
+// both against the REAL live ledger, using the plan's own day-1 figures as
+// the fixed reference point — not the constantly-moving ATH the guardrails
+// already use, since that's a different question ("is this a good quarter"
+// vs. "has the whole plan been running comfortably ahead since inception").
+//
+// Deliberately excludes special-withdrawal and windfall rows from the
+// chronological chain (same filter computeInflationTracking uses) — those
+// are one-off events, not part of the steady realised-WR trend this is
+// trying to read.
+export interface UnderspendSignalResult {
+  /** False if there isn't enough real history yet (fewer than 2 usable rows). */
+  eligible: boolean;
+  yearsSinceStart: number;
+  /** Years 3-5: a soft, deliberately hedged heads-up — the signal isn't validated this early. */
+  isPreNotice: boolean;
+  /** Year 5+: the actual validated evaluation window. */
+  isEvaluated: boolean;
+  /** Both conditions currently hold (only meaningful once isEvaluated). */
+  triggered: boolean;
+  /** How many consecutive years (walking back from now) the condition has held, re-evaluated at each point using only the ledger as it stood then. */
+  consecutiveYearsTriggered: number;
+  currentRealisedWrPct: number;
+  originalRealisedWrPct: number;
+  /** currentRealisedWrPct as a % of originalRealisedWrPct — the trigger fires at <= wrThresholdPct. */
+  wrRatioPct: number;
+  everDippedBelowFloor: boolean;
+}
+
+const UNDERSPEND_INELIGIBLE: UnderspendSignalResult = {
+  eligible: false,
+  yearsSinceStart: 0,
+  isPreNotice: false,
+  isEvaluated: false,
+  triggered: false,
+  consecutiveYearsTriggered: 0,
+  currentRealisedWrPct: 0,
+  originalRealisedWrPct: 0,
+  wrRatioPct: 0,
+  everDippedBelowFloor: false,
+};
+
+export function computeUnderspendSignal(
+  ledger: LedgerEntry[],
+  wrThresholdPct: number,
+  dipFloorPct: number,
+): UnderspendSignalResult {
+  const chain = ledger
+    .filter(
+      (e) =>
+        !e.isSpecialEvent &&
+        e.entryKind !== "special_withdrawal" &&
+        e.entryKind !== "windfall" &&
+        !e.isInflowEvent &&
+        typeof e.periodEndDate === "string" &&
+        e.periodEndDate.length > 0,
+    )
+    .sort((a, b) => a.periodEndDate!.localeCompare(b.periodEndDate!));
+
+  if (chain.length < 2) return { ...UNDERSPEND_INELIGIBLE };
+
+  const oldest = chain[0];
+  const newest = chain[chain.length - 1];
+  const oldestMs = Date.parse(oldest.periodEndDate + "T00:00:00Z");
+  const newestMs = Date.parse(newest.periodEndDate + "T00:00:00Z");
+  const yearsSinceStart = Math.max(0, (newestMs - oldestMs) / MS_PER_YEAR);
+
+  if (yearsSinceStart < 3) return { ...UNDERSPEND_INELIGIBLE, eligible: true, yearsSinceStart };
+
+  const originalPot = oldest.totalCapital;
+  const originalTarget = oldest.targetYearly;
+  const originalRealisedWrPct = originalPot > 0 ? (originalTarget / originalPot) * 100 : 0;
+  const dipFloorValue = originalPot * (1 - dipFloorPct / 100);
+
+  function evalAt(idx: number): boolean {
+    const row = chain[idx];
+    if (row.totalCapital <= 0 || originalRealisedWrPct <= 0) return false;
+    const wrPct = (row.targetYearly / row.totalCapital) * 100;
+    const ratio = (wrPct / originalRealisedWrPct) * 100;
+    const dippedSoFar = chain.slice(0, idx + 1).some((e) => e.totalCapital < dipFloorValue);
+    return ratio <= wrThresholdPct && !dippedSoFar;
+  }
+
+  const currentIdx = chain.length - 1;
+  const currentRow = chain[currentIdx];
+  const currentRealisedWrPct = currentRow.totalCapital > 0 ? (currentRow.targetYearly / currentRow.totalCapital) * 100 : 0;
+  const wrRatioPct = originalRealisedWrPct > 0 ? (currentRealisedWrPct / originalRealisedWrPct) * 100 : 0;
+  const everDippedBelowFloor = chain.some((e) => e.totalCapital < dipFloorValue);
+
+  const isPreNotice = yearsSinceStart >= 3 && yearsSinceStart < 5;
+  const isEvaluated = yearsSinceStart >= 5;
+  const triggered = isEvaluated && evalAt(currentIdx);
+
+  let consecutiveYearsTriggered = 0;
+  if (triggered) {
+    const wholeYears = Math.floor(yearsSinceStart);
+    for (let yearsBack = 0; yearsBack < wholeYears; yearsBack++) {
+      const targetMs = newestMs - yearsBack * MS_PER_YEAR;
+      if ((targetMs - oldestMs) / MS_PER_YEAR < 5) break; // can't evaluate before year 5
+      let idx = -1;
+      for (let i = 0; i < chain.length; i++) {
+        const ms = Date.parse(chain[i].periodEndDate + "T00:00:00Z");
+        if (ms <= targetMs) idx = i;
+        else break;
+      }
+      if (idx === -1) break;
+      if (evalAt(idx)) consecutiveYearsTriggered++;
+      else break;
+    }
+  }
+
+  return {
+    eligible: true,
+    yearsSinceStart,
+    isPreNotice,
+    isEvaluated,
+    triggered,
+    consecutiveYearsTriggered,
+    currentRealisedWrPct,
+    originalRealisedWrPct,
+    wrRatioPct,
+    everDippedBelowFloor,
+  };
+}
+
 export interface CalcOutputs {
   phase: Phase;
   stressedEquities: number;

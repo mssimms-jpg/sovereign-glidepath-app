@@ -11,6 +11,30 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0 build 131 — A new "potential underspend" signal, and three small fixes
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Pane 2 now flags the opposite failure mode from the guardrails</strong> — dying with far more
+              left over than intended. A rolling study of 29 overlapping real historical 26-year windows found a
+              clean pattern: scenarios ending with a large surplus almost always had their realised withdrawal rate
+              fall well below where they started by year 5, and the pot never fell more than ~10% below its starting
+              value. Pane 2 checks the real ledger against exactly that — a soft pre-notice at year 3, the real
+              evaluation from year 5, re-firing each year with a running count if it keeps holding. Both thresholds
+              are live-editable in the tile, not buried constants.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Three smaller fixes:</strong> Pane 4's chart axis no longer overlaps into an unreadable smear
+              on a long-running ledger (every quarter still gets a tick; past 8 years, only every other gets a text
+              label — the hover tooltip is unaffected). The two bundled QA scenarios built from a real personal
+              ledger are relabelled "Typical Ledger" rather than naming a specific person. And the whole-pounds
+              tooltip/axis fix from an earlier informal update is now folded into this proper numbered release.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 130 — Pane 7 gets a styled XLSX export
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
