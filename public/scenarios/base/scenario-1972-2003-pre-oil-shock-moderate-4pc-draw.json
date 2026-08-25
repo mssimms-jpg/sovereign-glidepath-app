@@ -20,162 +20,162 @@
     {
       "year": 1972,
       "equityReturnPct": 31.97,
-      "cpiPct": 7.1
+      "cpiPct": 6.717
     },
     {
       "year": 1973,
       "equityReturnPct": -14.24,
-      "cpiPct": 9.2
+      "cpiPct": 8.917
     },
     {
       "year": 1974,
       "equityReturnPct": -25.85,
-      "cpiPct": 16
+      "cpiPct": 14.65
     },
     {
       "year": 1975,
       "equityReturnPct": 52.99,
-      "cpiPct": 24.2
+      "cpiPct": 21.992
     },
     {
       "year": 1976,
       "equityReturnPct": 36.62,
-      "cpiPct": 16.5
+      "cpiPct": 15.425
     },
     {
       "year": 1977,
       "equityReturnPct": -8.89,
-      "cpiPct": 15.8
+      "cpiPct": 14.733
     },
     {
       "year": 1978,
       "equityReturnPct": 8.8,
-      "cpiPct": 8.3
+      "cpiPct": 7.517
     },
     {
       "year": 1979,
       "equityReturnPct": 0.13,
-      "cpiPct": 13.4
+      "cpiPct": 10.942
     },
     {
       "year": 1980,
       "equityReturnPct": 17.89,
-      "cpiPct": 18
+      "cpiPct": 14.808
     },
     {
       "year": 1981,
       "equityReturnPct": 17.36,
-      "cpiPct": 11.9
+      "cpiPct": 11.317
     },
     {
       "year": 1982,
       "equityReturnPct": 29.21,
-      "cpiPct": 8.6
+      "cpiPct": 8.167
     },
     {
       "year": 1983,
       "equityReturnPct": 37.42,
-      "cpiPct": 4.6
+      "cpiPct": 4.858
     },
     {
       "year": 1984,
       "equityReturnPct": 26.59,
-      "cpiPct": 5
+      "cpiPct": 4.392
     },
     {
       "year": 1985,
       "equityReturnPct": 15.4,
-      "cpiPct": 6.1
+      "cpiPct": 5.15
     },
     {
       "year": 1986,
       "equityReturnPct": 42.42,
-      "cpiPct": 3.4
+      "cpiPct": 3.7
     },
     {
       "year": 1987,
       "equityReturnPct": -8.58,
-      "cpiPct": 4.2
+      "cpiPct": 3.275
     },
     {
       "year": 1988,
       "equityReturnPct": 23.49,
-      "cpiPct": 4.9
+      "cpiPct": 3.9
     },
     {
       "year": 1989,
       "equityReturnPct": 33.36,
-      "cpiPct": 7.8
+      "cpiPct": 5.217
     },
     {
       "year": 1990,
       "equityReturnPct": -31.07,
-      "cpiPct": 9.5
+      "cpiPct": 6.983
     },
     {
       "year": 1991,
       "equityReturnPct": 24.41,
-      "cpiPct": 5.9
+      "cpiPct": 7.533
     },
     {
       "year": 1992,
       "equityReturnPct": 11.65,
-      "cpiPct": 3.7
+      "cpiPct": 4.292
     },
     {
       "year": 1993,
       "equityReturnPct": 27.41,
-      "cpiPct": 1.6
+      "cpiPct": 2.533
     },
     {
       "year": 1994,
       "equityReturnPct": 0.53,
-      "cpiPct": 2.4
+      "cpiPct": 1.983
     },
     {
       "year": 1995,
       "equityReturnPct": 22.15,
-      "cpiPct": 3.5
+      "cpiPct": 2.65
     },
     {
       "year": 1996,
       "equityReturnPct": 5.06,
-      "cpiPct": 2.4
+      "cpiPct": 2.433
     },
     {
       "year": 1997,
       "equityReturnPct": 16.06,
-      "cpiPct": 3.1
+      "cpiPct": 1.825
     },
     {
       "year": 1998,
       "equityReturnPct": 23.51,
-      "cpiPct": 3.4
+      "cpiPct": 1.567
     },
     {
       "year": 1999,
       "equityReturnPct": 27.82,
-      "cpiPct": 1.5
+      "cpiPct": 1.325
     },
     {
       "year": 2000,
       "equityReturnPct": -5.9,
-      "cpiPct": 3
+      "cpiPct": 0.8
     },
     {
       "year": 2001,
       "equityReturnPct": -14.38,
-      "cpiPct": 1.8
+      "cpiPct": 1.233
     },
     {
       "year": 2002,
       "equityReturnPct": -28.03,
-      "cpiPct": 1.7
+      "cpiPct": 1.258
     },
     {
       "year": 2003,
       "equityReturnPct": 19.75,
-      "cpiPct": 2.9
+      "cpiPct": 1.358
     }
   ],
   "expected": [
@@ -185,12 +185,12 @@
     },
     {
       "rowIndex": 63,
-      "totalCapital": 139302.8,
+      "totalCapital": 144456.99,
       "tolerance": 1
     },
     {
       "rowIndex": 127,
-      "totalCapital": 334719.94,
+      "totalCapital": 372062.06,
       "exhausted": false,
       "tolerance": 1
     }

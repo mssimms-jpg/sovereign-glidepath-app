@@ -11,6 +11,49 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.133 — QA scenario pool inflation-data correction
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Fixed:</strong> The 40-file QA scenario pool mixed two different UK inflation measures — 38
+              files were built on RPI, while the canonical 1996–2021 lifetime ledger scenario (and its aggressive
+              pair) used CPI. All 40 files now use CPI, sourced from ONS's historical modelled series (1971–2021)
+              plus published ONS annual figures (2022–2025).
+            </p>
+            <p>
+              This changed real computed outcomes, not just labelling: five aggressive or stagflation-era scenarios
+              that previously reached Exhaustion under the incorrect RPI figures now complete successfully under
+              correct CPI. Every scenario file's expected checkpoints were regenerated against the real engine.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              The standing 1996–2021 regression anchor moved from £2,007,282.02 to £2,006,221.98, reflecting a minor
+              CPI data revision found while re-sourcing the canonical scenario's own figures directly from ONS — not
+              an engine change.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.132 — Ledger export improvements
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> Quarterly Growth (%) column in ledger exports, derived from realised returns.
+            </p>
+            <p>
+              <strong>Changed:</strong> CSV and XLSX exports now share a single row-builder
+              (buildLedgerExportRows), eliminating drift risk between the two formats.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Fixed:</strong> Withdrawal adjustment was being applied to the wrong row in the growth
+              calculation; corrected and reverified against real 1996/1997 return data.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0 build 131 — A new "potential underspend" signal, and three small fixes
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

@@ -20,127 +20,127 @@
     {
       "year": 1999,
       "equityReturnPct": 27.82,
-      "cpiPct": 1.5
+      "cpiPct": 1.325
     },
     {
       "year": 2000,
       "equityReturnPct": -5.9,
-      "cpiPct": 3
+      "cpiPct": 0.8
     },
     {
       "year": 2001,
       "equityReturnPct": -14.38,
-      "cpiPct": 1.8
+      "cpiPct": 1.233
     },
     {
       "year": 2002,
       "equityReturnPct": -28.03,
-      "cpiPct": 1.7
+      "cpiPct": 1.258
     },
     {
       "year": 2003,
       "equityReturnPct": 19.75,
-      "cpiPct": 2.9
+      "cpiPct": 1.358
     },
     {
       "year": 2004,
       "equityReturnPct": 6.41,
-      "cpiPct": 3
+      "cpiPct": 1.35
     },
     {
       "year": 2005,
       "equityReturnPct": 22.87,
-      "cpiPct": 2.8
+      "cpiPct": 2.042
     },
     {
       "year": 2006,
       "equityReturnPct": 5.38,
-      "cpiPct": 3.2
+      "cpiPct": 2.317
     },
     {
       "year": 2007,
       "equityReturnPct": 6.53,
-      "cpiPct": 4.3
+      "cpiPct": 2.342
     },
     {
       "year": 2008,
       "equityReturnPct": -18.55,
-      "cpiPct": 4
+      "cpiPct": 3.608
     },
     {
       "year": 2009,
       "equityReturnPct": 17.09,
-      "cpiPct": -0.5
+      "cpiPct": 2.183
     },
     {
       "year": 2010,
       "equityReturnPct": 16.78,
-      "cpiPct": 4.6
+      "cpiPct": 3.308
     },
     {
       "year": 2011,
       "equityReturnPct": -5.34,
-      "cpiPct": 5.2
+      "cpiPct": 4.475
     },
     {
       "year": 2012,
       "equityReturnPct": 10.98,
-      "cpiPct": 3.2
+      "cpiPct": 2.842
     },
     {
       "year": 2013,
       "equityReturnPct": 23.81,
-      "cpiPct": 3
+      "cpiPct": 2.567
     },
     {
       "year": 2014,
       "equityReturnPct": 11.36,
-      "cpiPct": 2.4
+      "cpiPct": 1.458
     },
     {
       "year": 2015,
       "equityReturnPct": 4.17,
-      "cpiPct": 1
+      "cpiPct": 0.042
     },
     {
       "year": 2016,
       "equityReturnPct": 29.53,
-      "cpiPct": 1.8
+      "cpiPct": 0.675
     },
     {
       "year": 2017,
       "equityReturnPct": 11.48,
-      "cpiPct": 3.6
+      "cpiPct": 2.683
     },
     {
       "year": 2018,
       "equityReturnPct": -3.6,
-      "cpiPct": 3.3
+      "cpiPct": 2.483
     },
     {
       "year": 2019,
       "equityReturnPct": 23.76,
-      "cpiPct": 2.6
+      "cpiPct": 1.792
     },
     {
       "year": 2020,
       "equityReturnPct": 12.12,
-      "cpiPct": 1.5
+      "cpiPct": 0.85
     },
     {
       "year": 2021,
       "equityReturnPct": 23.36,
-      "cpiPct": 4.1
+      "cpiPct": 2.575
     },
     {
       "year": 2022,
       "equityReturnPct": -8.25,
-      "cpiPct": 11.6
+      "cpiPct": 9.1
     },
     {
       "year": 2023,
       "equityReturnPct": 17.08,
-      "cpiPct": 9.7
+      "cpiPct": 7.3
     }
   ],
   "expected": [
@@ -150,12 +150,12 @@
     },
     {
       "rowIndex": 49,
-      "totalCapital": 270369.93,
+      "totalCapital": 281741.27,
       "tolerance": 1
     },
     {
       "rowIndex": 99,
-      "totalCapital": 418939.51,
+      "totalCapital": 533633.58,
       "exhausted": false,
       "tolerance": 1
     }

@@ -18,150 +18,150 @@
   "years": [
     {
       "year": 1996,
-      "equityReturnPct": 13.0,
-      "cpiPct": 2.425
+      "equityReturnPct": 13,
+      "cpiPct": 2.433
     },
     {
       "year": 1997,
-      "equityReturnPct": 15.0,
+      "equityReturnPct": 15,
       "cpiPct": 1.825
     },
     {
       "year": 1998,
-      "equityReturnPct": 18.0,
-      "cpiPct": 1.557
+      "equityReturnPct": 18,
+      "cpiPct": 1.567
     },
     {
       "year": 1999,
-      "equityReturnPct": 34.0,
-      "cpiPct": 1.329
+      "equityReturnPct": 34,
+      "cpiPct": 1.325
     },
     {
       "year": 2000,
-      "equityReturnPct": -7.0,
-      "cpiPct": 0.796
+      "equityReturnPct": -7,
+      "cpiPct": 0.8
     },
     {
       "year": 2001,
-      "equityReturnPct": -13.0,
-      "cpiPct": 1.234
+      "equityReturnPct": -13,
+      "cpiPct": 1.233
     },
     {
       "year": 2002,
-      "equityReturnPct": -27.0,
-      "cpiPct": 1.259
+      "equityReturnPct": -27,
+      "cpiPct": 1.258
     },
     {
       "year": 2003,
-      "equityReturnPct": 20.0,
-      "cpiPct": 1.362
+      "equityReturnPct": 20,
+      "cpiPct": 1.358
     },
     {
       "year": 2004,
-      "equityReturnPct": 7.0,
-      "cpiPct": 1.344
+      "equityReturnPct": 7,
+      "cpiPct": 1.35
     },
     {
       "year": 2005,
-      "equityReturnPct": 24.0,
-      "cpiPct": 2.057
+      "equityReturnPct": 24,
+      "cpiPct": 2.042
     },
     {
       "year": 2006,
-      "equityReturnPct": 7.0,
-      "cpiPct": 2.329
+      "equityReturnPct": 7,
+      "cpiPct": 2.317
     },
     {
       "year": 2007,
-      "equityReturnPct": 9.0,
-      "cpiPct": 2.323
+      "equityReturnPct": 9,
+      "cpiPct": 2.342
     },
     {
       "year": 2008,
-      "equityReturnPct": -18.0,
-      "cpiPct": 3.602
+      "equityReturnPct": -18,
+      "cpiPct": 3.608
     },
     {
       "year": 2009,
-      "equityReturnPct": 16.0,
-      "cpiPct": 2.165
+      "equityReturnPct": 16,
+      "cpiPct": 2.183
     },
     {
       "year": 2010,
-      "equityReturnPct": 16.0,
-      "cpiPct": 3.298
+      "equityReturnPct": 16,
+      "cpiPct": 3.308
     },
     {
       "year": 2011,
-      "equityReturnPct": -4.0,
-      "cpiPct": 4.464
+      "equityReturnPct": -4,
+      "cpiPct": 4.475
     },
     {
       "year": 2012,
-      "equityReturnPct": 11.0,
-      "cpiPct": 2.828
+      "equityReturnPct": 11,
+      "cpiPct": 2.842
     },
     {
       "year": 2013,
-      "equityReturnPct": 25.0,
-      "cpiPct": 2.565
+      "equityReturnPct": 25,
+      "cpiPct": 2.567
     },
     {
       "year": 2014,
-      "equityReturnPct": 12.0,
-      "cpiPct": 1.461
+      "equityReturnPct": 12,
+      "cpiPct": 1.458
     },
     {
       "year": 2015,
-      "equityReturnPct": 5.0,
-      "cpiPct": 0.04
+      "equityReturnPct": 5,
+      "cpiPct": 0.042
     },
     {
       "year": 2016,
-      "equityReturnPct": 29.0,
-      "cpiPct": 0.66
+      "equityReturnPct": 29,
+      "cpiPct": 0.675
     },
     {
       "year": 2017,
-      "equityReturnPct": 12.0,
+      "equityReturnPct": 12,
       "cpiPct": 2.683
     },
     {
       "year": 2018,
-      "equityReturnPct": -3.0,
-      "cpiPct": 2.478
+      "equityReturnPct": -3,
+      "cpiPct": 2.483
     },
     {
       "year": 2019,
-      "equityReturnPct": 23.0,
-      "cpiPct": 1.791
+      "equityReturnPct": 23,
+      "cpiPct": 1.792
     },
     {
       "year": 2020,
-      "equityReturnPct": 13.0,
-      "cpiPct": 0.851
+      "equityReturnPct": 13,
+      "cpiPct": 0.85
     },
     {
       "year": 2021,
-      "equityReturnPct": 23.0,
-      "cpiPct": 2.588
+      "equityReturnPct": 23,
+      "cpiPct": 2.575
     }
   ],
   "expected": [
     {
       "rowIndex": 0,
-      "totalCapital": 758000.0
+      "totalCapital": 758000
     },
     {
       "rowIndex": 33,
-      "totalCapital": 723794.69,
-      "tolerance": 1.0
+      "totalCapital": 723778.58,
+      "tolerance": 1
     },
     {
       "rowIndex": 103,
-      "totalCapital": 2007282.03,
+      "totalCapital": 2006221.98,
       "exhausted": false,
-      "tolerance": 1.0
+      "tolerance": 1
     }
   ]
 }

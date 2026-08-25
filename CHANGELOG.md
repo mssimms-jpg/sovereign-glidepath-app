@@ -4,6 +4,29 @@ A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
 
+## 1.0.133
+
+### Fixed
+
+- The 40-file QA scenario pool mixed two different UK inflation measures: 38 files were built on RPI, while the canonical 1996–2021 lifetime ledger scenario (and its aggressive pair) used CPI. All 40 files now use CPI, sourced from ONS's historical modelled CPI series (1971–2021) plus published ONS annual figures (2022–2025)
+- This changed real computed outcomes, not just labelling: five aggressive/stagflation-era scenarios that previously reached Exhaustion under the incorrect RPI figures now complete successfully under correct CPI
+- Every scenario file's `expected` checkpoints were regenerated against the real engine following the correction
+- The standing 1996–2021 regression anchor moved from £2,007,282.02 to £2,006,221.98, reflecting a minor CPI data revision found while re-sourcing the canonical scenario's own inflation figures directly from ONS — not an engine change
+
+## 1.0.132
+
+### Added
+
+- Quarterly Growth (%) column in ledger exports, derived from realised returns
+
+### Changed
+
+- CSV and XLSX exports now share a single row-builder (buildLedgerExportRows), eliminating drift risk between the two formats
+
+### Fixed
+
+- Withdrawal adjustment was being applied to the wrong row in the growth calculation; corrected and reverified against real 1996/1997 return data
+
 ## Version 1.0 build 131 — A new "potential underspend" signal, and three small fit-and-finish fixes
 
 **Pane 2 now flags the opposite failure mode from the guardrails.** Everything the app already does — Preservation cuts, the Shield Runway, Prosperity bonuses — is aimed at not running out. Nothing previously said anything about the other real risk: dying with far more left over than intended, purely because the withdrawal rate never got revisited after an unusually strong run. A rolling study of 29 overlapping real historical UK/global 26-year windows (same real MSCI World + UK inflation data the QA scenario pool uses) found a genuinely clean pattern: every scenario that ended with a large surplus (4x+ the starting pot) had its realised withdrawal rate fall well below where it started by year 5, *and* the pot never fell more than ~10% below its starting value at any point — both conditions together, not either alone. Pane 2 now checks the real live ledger against exactly that pattern: a soft, deliberately hedged pre-notice at year 3 (the signal isn't validated that early), the real evaluation from year 5, and — if it keeps holding — a re-fire every year after with a running "Nth year" count, going silent again the moment either condition breaks. Both thresholds (currently 90% of original rate, 10% dip floor) are live-editable in the tile itself, not buried constants, since they came from a rolling window of one real history, not a large independent sample. Dismissing shows "Reviewed — check again next year" and genuinely waits a year, not just a page reload.
