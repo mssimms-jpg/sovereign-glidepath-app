@@ -18,6 +18,38 @@ import type { ThresholdMode } from "@/lib/sovereign/drawdown";
 import { StateTestPresets, type PresetValues } from "./StateTestPresets";
 import { MoneyInput, IntInput, type CurrencySymbol } from "./FormInputs";
 
+// Build 134 — editable link to the source used for the "Actual CPI since
+// last entry" field. Plain localStorage (not the encrypted vault) since a
+// URL preference isn't sensitive data — same pattern as the disclaimer flag
+// in SovereignGlidepath.tsx. Left click opens it; shift-click lets the user
+// repoint it if ONS ever restructures their site.
+const ONS_LINK_KEY = "shd_ons_inflation_link_v1";
+const DEFAULT_ONS_LINK = "https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt/mm23";
+
+function getOnsInflationLink(): string {
+  try {
+    return localStorage.getItem(ONS_LINK_KEY) || DEFAULT_ONS_LINK;
+  } catch {
+    return DEFAULT_ONS_LINK;
+  }
+}
+
+function handleOnsLinkClick(e: React.MouseEvent) {
+  const current = getOnsInflationLink();
+  if (e.shiftKey) {
+    const next = window.prompt("ONS inflation page link (shift-click this button any time to change it):", current);
+    if (next && next.trim()) {
+      try {
+        localStorage.setItem(ONS_LINK_KEY, next.trim());
+      } catch {
+        /* localStorage unavailable — link just won't persist this session */
+      }
+    }
+    return;
+  }
+  window.open(current, "_blank", "noopener,noreferrer");
+}
+
 export interface StressPreviewData {
   hypEq: number;
   hypCalc: CalcOutputs;
@@ -69,6 +101,8 @@ export interface Pane2DiagnosticsProps {
   setActualCpiInput: (v: string) => void;
   showInflationHistory: boolean;
   setShowInflationHistory: (updater: (v: boolean) => boolean) => void;
+  showInflationFormulaHelp: boolean;
+  setShowInflationFormulaHelp: (updater: (v: boolean) => boolean) => void;
   inflationBaseYear: number | undefined;
 
   // Scenario Stress Test
@@ -130,6 +164,8 @@ export function Pane2Diagnostics({
   setActualCpiInput,
   showInflationHistory,
   setShowInflationHistory,
+  showInflationFormulaHelp,
+  setShowInflationFormulaHelp,
   inflationBaseYear,
   stressPreview,
   directiveBucket,
@@ -512,7 +548,26 @@ export function Pane2Diagnostics({
         </div>
 
         <div style={{ marginTop: "1rem" }}>
-          <label style={{ fontSize: "0.78rem" }}>Actual CPI since last entry (optional)</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <label style={{ fontSize: "0.78rem" }}>Actual CPI since last entry (optional)</label>
+            <button
+              type="button"
+              onClick={() => setShowInflationFormulaHelp(() => true)}
+              aria-label="How to calculate this figure"
+              title="How to calculate this figure"
+              style={{
+                width: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                fontSize: "0.7rem",
+                lineHeight: "16px",
+                padding: 0,
+                fontWeight: 700,
+              }}
+            >
+              ?
+            </button>
+          </div>
           <input
             id="actualCpiInput"
             type="text"
@@ -524,19 +579,67 @@ export function Pane2Diagnostics({
             aria-label="Actual CPI observed since the previous ledger entry"
           />
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-            Look up the real inflation figure for this period if you want an accurate record; leaving it blank falls
-            back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
+            The actual price change over this specific gap since your last entry — not ONS's headline 12-month
+            (year-on-year) rate. Use the CPI INDEX values (not the CPI annual rate) for the two dates and compute
+            the % change between them, or this will overstate inflation if entries aren't a full year apart.
+            Leaving it blank falls back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
           </div>
         </div>
 
+        {showInflationFormulaHelp && (
+          <div className="shd-overlay" role="dialog" aria-modal="true">
+            <div className="shd-modal" style={{ width: 460 }}>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "0 0 0.85rem" }}>
+                Calculating "Actual CPI since last entry"
+              </h2>
+              <div style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "var(--text-muted)" }}>
+                <p style={{ marginTop: 0 }}>
+                  Use the <strong style={{ color: "var(--text-main)" }}>CPI INDEX</strong> (series D7BT on ONS —{" "}
+                  <em>not</em> the CPI annual rate), for the date of this entry and the date of your last entry.
+                </p>
+                <div
+                  style={{
+                    background: "rgba(0,0,0,0.15)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "0.4rem",
+                    padding: "0.75rem 0.9rem",
+                    fontFamily: "monospace",
+                    color: "var(--text-main)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  (New Index ÷ Last Index − 1) × 100
+                </div>
+                <p>
+                  Example: index was 140.0 at your last entry, now it's 142.1 →{" "}
+                  <span style={{ color: "var(--text-main)" }}>(142.1 ÷ 140.0 − 1) × 100 = 1.50%</span>.
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  Don't average several quarters together — use the two figures either side of this specific gap
+                  only, or older inflation already accounted for in earlier entries gets double-counted.
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowInflationFormulaHelp(() => false)} style={{ marginTop: "1.25rem" }}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
         {inflationTracking.rows.length >= 2 && (
-          <button
-            type="button"
-            onClick={() => setShowInflationHistory((v) => !v)}
-            style={{ marginTop: "1rem", fontSize: "0.78rem" }}
-          >
-            {showInflationHistory ? "Hide" : "View"} realised-inflation history
-          </button>
+          <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button type="button" onClick={() => setShowInflationHistory((v) => !v)} style={{ fontSize: "0.78rem" }}>
+              {showInflationHistory ? "Hide" : "View"} realised-inflation history
+            </button>
+            <button
+              type="button"
+              onClick={handleOnsLinkClick}
+              style={{ fontSize: "0.78rem" }}
+              title="Opens the ONS inflation page. Shift-click to change the link."
+            >
+              ONS ↗
+            </button>
+          </div>
         )}
 
         {showInflationHistory && inflationTracking.rows.length >= 2 && (

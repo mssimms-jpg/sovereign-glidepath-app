@@ -11,6 +11,26 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.134 — Realised-inflation tracking improvements
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> Ledger CSV and XLSX exports now include Inflation Rate Applied (%) and
+              Inflation Source (Actual/Assumed) columns — previously only visible in-app on Pane 2, not in either
+              export. Also added an "ONS ↗" button (shift-click to repoint the link if ONS restructures their
+              site) and a "?" help popup on the Actual CPI field giving the formula and a worked example.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Fixed:</strong> The "Actual CPI since last entry" field's help text now makes clear it wants
+              the change since your last entry specifically — not ONS's headline 12-month rate. Entering the
+              12-month rate directly compounds every quarter at that full annual rate and substantially overstates
+              realised inflation.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0.133 — QA scenario pool inflation-data correction
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

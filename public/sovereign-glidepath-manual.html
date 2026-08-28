@@ -66,6 +66,9 @@
       .callout h4 { margin:0 0 6px; font-size:14px; color:var(--accent); letter-spacing:0.02em; }
       .callout p { margin:0; font-size:15px; }
 
+      .formula-box { background:var(--accent-soft); border:1px solid var(--border); border-radius:6px;
+        padding:12px 16px; margin:0 0 14px; font-family:'Courier New', monospace; font-size:15px; color:var(--accent); }
+
       table.directives { width:100%; border-collapse:collapse; margin:18px 0 24px; font-size:14px;
         border:1px solid var(--border); }
       table.directives th { background:var(--accent); color:#fff; text-align:left; padding:10px 12px;
@@ -209,7 +212,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.131 · Edition XXII</p>
+        <p class="cover-ver">Version 1.0.134 · Edition XXIV</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -2073,20 +2076,92 @@
         This chapter and the next cover the fix: a genuine record of realised inflation, and a directive that finally
         shows actual pounds.
       </p>
+      <aside class="callout" style="border-color: var(--danger, #dc2626);">
+        <h4>This is not a background record &mdash; it changes the actual pounds in your directive</h4>
+        <p>
+          It's easy to assume a field called "tracking" is informational only. It isn't. The cumulative index built
+          from this field feeds directly into <a href="#ch-45">chapter 45's nominal-pound conversion</a> &mdash; every
+          bold, actionable figure in the directive is multiplied through this index before it reaches the screen.
+          Getting the number right matters for real, not just for the record.
+        </p>
+      </aside>
       <p>
-        Each Normal ledger row can now carry an optional <b>Actual CPI since last entry</b> figure, entered in Pane 2's
+        Each Normal ledger row can carry an optional <b>Actual CPI since last entry</b> figure, entered in Pane 2's
         <b>Inflation Tracking</b> panel at commit time. Leave it blank and the desk falls back to the assumed CPI slider
         (Pane 1) for that gap &mdash; correctly pro-rated for the real elapsed time between rows, not assumed to be a
         full year. A six-month gap only ever applies half a year's assumed inflation, never a full year's.
       </p>
+      <h4>What actually goes in the field</h4>
       <p>
-        Chained together across the ledger's history, oldest row first, these per-row rates build a
-        <b>cumulative realised-inflation index</b> &mdash; 1.000× at the oldest tracked row, compounding upward from
-        there. Pane 2 shows three things: the current cumulative index, the implied average annual rate across the whole
-        tracked span, and the calendar year the index is anchored to. A
-        <b>&ldquo;View realised-inflation history&rdquo;</b> table beneath that lists every tracked row individually
-        &mdash; its date, the rate applied, whether that rate was Actual or Assumed, and the running index at that point
-        &mdash; so the whole chain is auditable at a glance, not just the current total.
+        This wants the <b>real change since your last entry</b> &mdash; typically a three-month move &mdash; not ONS's
+        headline <b>12-month (year-on-year) rate</b>. Those are easy to conflate because ONS's own website foregrounds
+        the 12-month rate; using it directly here applies a full year's inflation every quarter and substantially
+        overstates the realised index. Use the <b>CPI INDEX</b> (ONS series&nbsp;D7BT, not the "CPI annual rate"
+        series) instead:
+      </p>
+      <div class="formula-box">(New Index &divide; Last Index &minus; 1) &times; 100</div>
+      <p>
+        A "?" button beside the field opens this same formula with a worked example in-app. An "ONS&nbsp;&#8599;" button
+        next to "View realised-inflation history" opens the CPI INDEX series directly (defaults to
+        ons.gov.uk's D7BT series; shift-click the button to repoint it if ONS ever restructures their site &mdash; the
+        link is stored locally, not hard-coded, so this needs no new build to fix).
+      </p>
+      <h4>Worked example</h4>
+      <p>
+        Six real quarters, using ONS's own Quarter-frequency table for series D7BT (a quarterly average, not just the
+        quarter-end month's reading &mdash; pick one convention and stay with it for the same reason the QA scenario
+        pool was consolidated onto one inflation measure in Build&nbsp;133: mixing conventions mid-ledger reintroduces
+        the inconsistency, even though each individual figure is correct):
+      </p>
+      <table class="directives" style="margin: 0.75rem 0;">
+        <thead>
+          <tr><th>Period end</th><th>Index</th><th>Rate applied</th><th>Cumulative index</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>2024 Q4 (baseline)</td><td>135.2</td><td>&mdash;</td><td>1.0000&times;</td></tr>
+          <tr><td>2025 Q1</td><td>136.0</td><td>0.59%</td><td>1.0059&times;</td></tr>
+          <tr><td>2025 Q2</td><td>138.5</td><td>1.84%</td><td>1.0244&times;</td></tr>
+          <tr><td>2025 Q3</td><td>139.2</td><td>0.51%</td><td>1.0296&times;</td></tr>
+          <tr><td>2025 Q4</td><td>139.8</td><td>0.43%</td><td>1.0340&times;</td></tr>
+          <tr><td>2026 Q1</td><td>140.2</td><td>0.29%</td><td>1.0370&times;</td></tr>
+          <tr><td>2026 Q2</td><td>142.3</td><td>1.50%</td><td>1.0525&times;</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Each rate is <code>(New Index &divide; Last Index &minus; 1) &times; 100</code> against the row immediately
+        before it &mdash; never averaged across several quarters, and never the same index value reused twice. The
+        <b>cumulative index</b> is these six rates chained by simple multiplication, oldest first: 1.0000&times; at the
+        baseline, compounding to 1.0525&times; by 2026&nbsp;Q2 &mdash; prices 5.25% higher across those six quarters (18
+        months) than at the baseline. The <b>implied average annual rate</b> Pane 2 shows alongside it is that same
+        1.0525&times; expressed as a constant annual pace over the elapsed span:
+        <code>(cumulative index<sup>1/years</sup> &minus; 1) &times; 100</code>, here 3.47% p.a. &mdash; a sense-check
+        figure, not a separate input; it exists so a number that's crept implausibly high (as it will if a 12-month
+        rate gets entered by mistake) is obvious at a glance rather than buried in a compounding chain.
+      </p>
+      <aside class="callout">
+        <h4>Committing before the quarter's CPI figure is published</h4>
+        <p>
+          ONS publishes each quarter's CPI figure a few weeks after the quarter ends &mdash; typically after most
+          people's own quarter-start portfolio actions (selling into cash, committing the withdrawal) already need to
+          happen. Leaving the field blank at commit time and returning to edit that row once the real figure lands is
+          the intended workflow, not a workaround: the tracking panel recomputes the entire chain fresh from the whole
+          ledger every time anything changes, so editing an already-committed row's Actual CPI value correctly
+          recalculates the cumulative index &mdash; and every later quarter's nominal directive figures with it &mdash;
+          the moment you save the edit. Nothing from the assumed-rate placeholder gets baked in permanently.
+        </p>
+      </aside>
+      <p>
+        The <b>Withdrawal Status</b> and <b>Guardrail State</b> columns aside, ledger exports (both CSV and XLSX) now
+        carry two further columns per row: <b>Inflation Rate Applied (%)</b> and <b>Inflation Source</b>
+        (Actual/Assumed) &mdash; the same per-row data Pane 2's history table shows, so a downloaded ledger is fully
+        auditable without needing the app open alongside it.
+      </p>
+      <p>
+        Pane 2 shows three headline figures built from this chain: the current cumulative index, the implied average
+        annual rate, and the calendar year the index is anchored to. The <b>&ldquo;View realised-inflation
+        history&rdquo;</b> table beneath lists every tracked row individually &mdash; its date, the rate applied,
+        whether that rate was Actual or Assumed, and the running index at that point &mdash; so the whole chain is
+        auditable at a glance, not just the current total.
       </p>
       <aside class="callout">
         <h4>Special-event and windfall rows never enter the chain</h4>

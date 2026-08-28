@@ -85,6 +85,7 @@ export interface SovereignLedgerExportMeta {
   desiredRunwayMonths: number;
   targetYearly: number;
   currency: string;
+  inflationPct: number;
 }
 
 // Build 132 — shared row-building logic for both the CSV and XLSX ledger
@@ -135,6 +136,8 @@ export interface LedgerExportRow {
   targetWrPct: number | undefined;
   guardrailStatus: string;
   rule: string;
+  inflationRateAppliedPct: number | undefined;
+  inflationSource: string;
 }
 
 function dateOf(e: LedgerEntry): string {
@@ -201,14 +204,32 @@ function targetWrPctOf(d: LedgerEntry): number | undefined {
   return (ty / tot) * 100;
 }
 
-export function buildLedgerExportRows(ledger: LedgerEntry[]): LedgerExportRow[] {
+export function buildLedgerExportRows(ledger: LedgerEntry[], fallbackAssumedInflationPct: number): LedgerExportRow[] {
   const chron = chronological(ledger);
   const rows: LedgerExportRow[] = [];
+
+  // Build 134 — surface the same actual-vs-assumed inflation tracking
+  // Pane 2 already computes (see engine.ts's computeInflationTracking) in
+  // the ledger exports too. It was being calculated for the XLSX Summary
+  // sheet's headline stats already but never carried down into either
+  // export's per-row data — Mark's own ledger review noticed the gap.
+  // Keyed by ledgerIndex, since computeInflationTracking's own row list
+  // only covers dated Normal entries (events are correctly excluded, same
+  // as Pane 2's history table), so event rows below simply get no match
+  // and export blank, consistent with how every other derived-only-for-
+  // Normal-rows field in this file already behaves.
+  const inflationByLedgerIndex = new Map<number, { rateAppliedPct: number; isActual: boolean }>();
+  const inflationTracking = computeInflationTracking(ledger, fallbackAssumedInflationPct);
+  for (const r of inflationTracking.rows) {
+    inflationByLedgerIndex.set(r.ledgerIndex, { rateAppliedPct: r.rateAppliedPct, isActual: r.isActual });
+  }
 
   for (let i = 0; i < chron.length; i++) {
     const d = chron[i];
     const kind = kindOf(d);
     const split = hasSplit(d);
+    const ledgerIndex = ledger.indexOf(d);
+    const inflation = inflationByLedgerIndex.get(ledgerIndex);
 
     // Quarterly growth %: each row's stored Equities balance is what that
     // quarter's directive was calculated FROM — i.e. after that quarter's
@@ -264,6 +285,8 @@ export function buildLedgerExportRows(ledger: LedgerEntry[]): LedgerExportRow[] 
       targetWrPct: targetWrPctOf(d),
       guardrailStatus: d.guardrailStatus ?? "",
       rule: d.rule ?? "",
+      inflationRateAppliedPct: inflation?.rateAppliedPct,
+      inflationSource: inflation ? (inflation.isActual ? "Actual" : "Assumed") : "",
     });
   }
 
@@ -276,7 +299,7 @@ export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignL
     return;
   }
 
-  const rows = buildLedgerExportRows(ledger);
+  const rows = buildLedgerExportRows(ledger, meta.inflationPct);
   const blank = "";
   const num = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(2) : blank);
   const pct = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(4) : blank);
@@ -306,6 +329,8 @@ export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignL
       { header: "Target Withdrawal Rate (%)", value: (r) => pct(r.targetWrPct) },
       { header: "Withdrawal Status", value: (r) => r.guardrailStatus },
       { header: "Guardrail State", value: (r) => r.rule },
+      { header: "Inflation Rate Applied (%)", value: (r) => pct(r.inflationRateAppliedPct) },
+      { header: "Inflation Source", value: (r) => r.inflationSource },
     ],
     {
       "Row count": rows.length,
@@ -398,7 +423,7 @@ export async function exportSovereignLedgerXLSX(
 
   const { default: ExcelJS } = await import("exceljs");
 
-  const rows = buildLedgerExportRows(ledger);
+  const rows = buildLedgerExportRows(ledger, meta.inflationPct);
   const rowCount = rows.length;
   const oldest = rows[0];
   const newest = rows[rowCount - 1];
@@ -488,6 +513,8 @@ export async function exportSovereignLedgerXLSX(
     { header: "Target\nWithdrawal\nRate (%)", width: 12, key: "targetWrPct", fmt: PCT_FMT },
     { header: "Withdrawal\nStatus", width: 18, key: "guardrailStatus" },
     { header: "Guardrail\nState", width: 18, key: "rule" },
+    { header: "Inflation\nRate Applied (%)", width: 12, key: "inflationRateAppliedPct", fmt: PCT_FMT },
+    { header: "Inflation\nSource", width: 12, key: "inflationSource" },
   ];
   ws2.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }));
   styleHeaderRow(ws2.getRow(1));

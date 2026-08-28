@@ -4,6 +4,18 @@ A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
 
+## 1.0.134
+
+### Added
+
+- Ledger CSV and XLSX exports now include Inflation Rate Applied (%) and Inflation Source (Actual/Assumed) columns, pulled from the same tracking logic Pane 2 already used for its headline stats — previously only visible in-app, not in either export
+- An "ONS ↗" button next to Pane 2's realised-inflation history, opening the ONS CPI Index series directly; shift-click lets you repoint it if ONS restructures their site, since it's stored locally rather than hard-coded
+- A "?" help popup on the "Actual CPI since last entry" field, giving the formula and a worked example for calculating the correct figure from the CPI Index
+
+### Fixed
+
+- The "Actual CPI since last entry" field's help text previously didn't make clear that it wants the change since the last entry specifically, not ONS's headline 12-month rate; entering the 12-month rate directly (as annual figures) compounds every quarter at that full rate and substantially overstates realised inflation. Text and the new formula popup now make this explicit
+
 ## 1.0.133
 
 ### Fixed

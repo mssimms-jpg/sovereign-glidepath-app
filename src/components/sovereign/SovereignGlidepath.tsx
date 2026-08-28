@@ -515,6 +515,7 @@ export function SovereignGlidepath() {
   const [actualCpiInput, setActualCpiInput] = useState<string>("");
   // Build 125 — expand/collapse for the realised-inflation history table in Pane 2.
   const [showInflationHistory, setShowInflationHistory] = useState<boolean>(false);
+  const [showInflationFormulaHelp, setShowInflationFormulaHelp] = useState<boolean>(false);
 
   // --- Ledger ---
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
@@ -1707,6 +1708,7 @@ export function SovereignGlidepath() {
       desiredRunwayMonths,
       targetYearly: cleanNum(targetYearly),
       currency,
+      inflationPct,
     });
   };
 
@@ -2255,6 +2257,8 @@ export function SovereignGlidepath() {
               setActualCpiInput={setActualCpiInput}
               showInflationHistory={showInflationHistory}
               setShowInflationHistory={setShowInflationHistory}
+              showInflationFormulaHelp={showInflationFormulaHelp}
+              setShowInflationFormulaHelp={setShowInflationFormulaHelp}
               inflationBaseYear={inflationBaseYear}
               stressPreview={stressPreview}
               directiveBucket={directiveBucket}
