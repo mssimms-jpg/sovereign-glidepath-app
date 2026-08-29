@@ -525,6 +525,21 @@ export function HelpContent() {
           </p>
         </Section>
 
+        <Section title="CPI Index Reference Table">
+          <p>
+            On Pane 2's Inflation Tracking panel, you can type the raw <strong>ONS CPI INDEX</strong> number (series
+            D7BT) for the current period-end date directly — no (New÷Old−1)×100 maths required. It's saved to a small
+            reference table keyed by date, shown alongside the last recorded index and a live computed % as you type.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            The table, not the ledger row, is the source of truth: correcting or rebasing a value later — by re-typing
+            it, or via the <strong>Manage table</strong> panel's view/delete/bulk-paste tools — applies automatically to
+            every ledger entry that references that date, with nothing to edit on the rows themselves. Ships pre-loaded
+            with real ONS data from Q4 2024 onward. The older plain-% "Actual CPI since last entry" field is unchanged
+            and remains a fully supported fallback for anyone who'd rather just type a percentage.
+          </p>
+        </Section>
+
         <Section title="App-lock &amp; encryption">
           <p>
             On first launch you set an <strong>app-lock passphrase</strong> (at least 8 characters). Your ledger, your

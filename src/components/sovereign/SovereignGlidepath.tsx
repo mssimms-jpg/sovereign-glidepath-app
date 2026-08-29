@@ -16,6 +16,15 @@ import {
   type UnderspendSignalResult,
 } from "@/lib/sovereign/engine";
 import {
+  SEED_CPI_REFERENCE,
+  lookupCpiIndex,
+  upsertCpiRow,
+  upsertManyRows,
+  deleteCpiRow,
+  parseBulkPaste,
+  type CpiReferenceTable,
+} from "@/lib/sovereign/cpiReference";
+import {
   loadLicense,
   saveLicense,
   clearLicense,
@@ -52,6 +61,10 @@ import { computeDefensiveRecommendation, type DefensiveRecResult } from "@/lib/s
 import type { ThresholdMode } from "@/lib/sovereign/drawdown";
 
 const LEDGER_KEY = "shd_ledger_v4";
+// Build 135 — CPI Index Reference Table. Same literal-key pattern as
+// LEDGER_KEY/SETTINGS_KEY above; also registered in secureStore.ts's
+// VAULT_KEYS so Back-Up/Restore picks it up.
+const CPI_REFERENCE_KEY = "shd_cpi_reference_v1";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
 // Build 113 — version/build stamp is injected by Vite from package.json's
@@ -290,6 +303,24 @@ function saveLedger(entries: LedgerEntry[]) {
   secureWrite(LEDGER_KEY, JSON.stringify(entries));
 }
 
+// Build 135 — CPI Index Reference Table. Seeds with the real ONS data on
+// first run (nothing stored yet); once the user has their own vault copy,
+// that copy is authoritative and the seed is never re-applied over it.
+function loadCpiReference(): CpiReferenceTable {
+  try {
+    const raw = secureRead(CPI_REFERENCE_KEY);
+    if (!raw) return SEED_CPI_REFERENCE;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : SEED_CPI_REFERENCE;
+  } catch {
+    return SEED_CPI_REFERENCE;
+  }
+}
+
+function saveCpiReference(table: CpiReferenceTable) {
+  secureWrite(CPI_REFERENCE_KEY, JSON.stringify(table));
+}
+
 function autoQuarterLabel(): string {
   const n = new Date();
   return `Q${Math.floor(n.getMonth() / 3) + 1} ${n.getFullYear()}`;
@@ -519,6 +550,12 @@ export function SovereignGlidepath() {
 
   // --- Ledger ---
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  // Build 135 — CPI Index Reference Table (raw ONS index values). Loaded
+  // from the vault at bootstrap, same as ledger/settings.
+  const [cpiReference, setCpiReference] = useState<CpiReferenceTable>(SEED_CPI_REFERENCE);
+  const [cpiIndexInput, setCpiIndexInput] = useState<string>("");
+  const [showCpiTableManager, setShowCpiTableManager] = useState(false);
+  const [cpiBulkPasteText, setCpiBulkPasteText] = useState("");
   // Build 074 — live derivation of Period End Date health from the CURRENT
   // ledger. Replaces the old one-shot migrationReport, which grew stale after
   // restores or manual edits. Recomputed on every ledger change so the banner
@@ -596,6 +633,7 @@ export function SovereignGlidepath() {
 
     const s = loadSettings();
     const savedLedger = loadLedger();
+    setCpiReference(loadCpiReference());
     // Build 073 — one-shot migration: attempt to derive a real periodEndDate
     // for Normal rows saved before this build. Rows whose free-text label
     // does not cleanly match a recognised pattern are left blank and
@@ -783,8 +821,8 @@ export function SovereignGlidepath() {
   // a cumulative index the directive can use to show a genuine nominal draw
   // figure. Recomputed whenever the ledger or the assumed-CPI slider moves.
   const inflationTracking: InflationTrackingResult = useMemo(
-    () => computeInflationTracking(ledger, inflationPct),
-    [ledger, inflationPct],
+    () => computeInflationTracking(ledger, inflationPct, cpiReference),
+    [ledger, inflationPct, cpiReference],
   );
 
   // Build 131 — "potential underspend" signal. Recomputed whenever the
@@ -833,6 +871,70 @@ export function SovereignGlidepath() {
       return hasDrift ? nominalFromReal(realAmount, idx) : realAmount;
     },
     [inflationTracking, editIndex],
+  );
+
+  // Build 135 — the period-end date of the "prior" Normal row relative to
+  // whatever's on screen in Pane 1 right now (the row immediately before
+  // this one chronologically, excluding the row currently being edited).
+  // Same filter computeInflationTracking() uses. Used purely for the "Last
+  // recorded index" sanity-check display — never for calculation, which
+  // always goes through computeInflationTracking()'s own chain.
+  const priorPeriodEndDate: string | undefined = useMemo(() => {
+    const candidates = ledger
+      .map((e, i) => ({ e, i }))
+      .filter(
+        ({ e, i }) =>
+          i !== editIndex &&
+          !e.isSpecialEvent &&
+          e.entryKind !== "special_withdrawal" &&
+          e.entryKind !== "windfall" &&
+          !e.isInflowEvent &&
+          typeof e.periodEndDate === "string" &&
+          e.periodEndDate.length > 0,
+      )
+      .map(({ e }) => e.periodEndDate as string);
+    if (candidates.length === 0) return undefined;
+    const curDate = periodEndDate && periodEndDate.trim() ? periodEndDate : undefined;
+    if (!curDate) return [...candidates].sort().reverse()[0];
+    const earlier = candidates
+      .filter((d) => d < curDate)
+      .sort()
+      .reverse();
+    return earlier[0];
+  }, [ledger, editIndex, periodEndDate]);
+
+  const priorRecordedCpiIndex: number | undefined = useMemo(
+    () => lookupCpiIndex(cpiReference, priorPeriodEndDate),
+    [cpiReference, priorPeriodEndDate],
+  );
+
+  // Build 135 — live computed % from the two raw indices, purely for the
+  // read-only preview in Pane 2. Undefined (shown as "—") until both the
+  // prior index is known AND the user has typed a current one.
+  const cpiIndexLiveComputedPct: number | undefined = useMemo(() => {
+    const cur = cleanNum(cpiIndexInput);
+    if (cur <= 0 || typeof priorRecordedCpiIndex !== "number" || priorRecordedCpiIndex <= 0) return undefined;
+    return (cur / priorRecordedCpiIndex - 1) * 100;
+  }, [cpiIndexInput, priorRecordedCpiIndex]);
+
+  const applyCpiBulkPaste = useCallback(() => {
+    const { rows, errors } = parseBulkPaste(cpiBulkPasteText);
+    if (rows.length > 0) {
+      const nextRef = upsertManyRows(cpiReference, rows);
+      setCpiReference(nextRef);
+      saveCpiReference(nextRef);
+      setCpiBulkPasteText("");
+    }
+    return errors;
+  }, [cpiBulkPasteText, cpiReference]);
+
+  const deleteCpiReferenceRow = useCallback(
+    (date: string) => {
+      const nextRef = deleteCpiRow(cpiReference, date);
+      setCpiReference(nextRef);
+      saveCpiReference(nextRef);
+    },
+    [cpiReference],
   );
 
   // Build 112 — QA State Test Presets are self-contained scenarios. While one
@@ -1292,6 +1394,19 @@ export function SovereignGlidepath() {
     const next = editIndex > -1 ? ledger.map((e, i) => (i === editIndex ? entry : e)) : [entry, ...ledger];
     setLedger(next);
     saveLedger(next);
+    // Build 135 — if a raw CPI index was typed for this period-end date,
+    // upsert it into the reference table. This is what lets a later
+    // correction (re-typing the index for the same date, or using the
+    // manage panel) propagate to every row without touching the row itself
+    // — the table, not the row, is the source of truth for "table" rows.
+    if (cpiIndexInput.trim() !== "" && entry.periodEndDate) {
+      const idx = cleanNum(cpiIndexInput);
+      if (idx > 0) {
+        const nextRef = upsertCpiRow(cpiReference, { date: entry.periodEndDate, index: idx });
+        setCpiReference(nextRef);
+        saveCpiReference(nextRef);
+      }
+    }
     setEditIndex(-1);
     // Build 128 — pension-only restore here (not legacyTarget/currency,
     // which correctly become the new global baseline below, same as
@@ -1516,6 +1631,11 @@ export function SovereignGlidepath() {
     setRebalAmtStr(typeof d.rebalanceAmount === "number" && d.rebalanceAmount > 0 ? d.rebalanceAmount.toFixed(2) : "");
     // Build 125 — restore the row's own actual-CPI entry, if it recorded one.
     setActualCpiInput(typeof d.actualCpiSincePriorRow === "number" ? String(d.actualCpiSincePriorRow) : "");
+    // Build 135 — restore the raw CPI index recorded for THIS row's own
+    // period-end date, if the reference table has one, so re-opening the
+    // row for edit shows (and allows correcting) that specific point.
+    const rowIdx = typeof d.periodEndDate === "string" ? lookupCpiIndex(cpiReference, d.periodEndDate) : undefined;
+    setCpiIndexInput(typeof rowIdx === "number" ? String(rowIdx) : "");
     setEditIndex(i);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1555,6 +1675,9 @@ export function SovereignGlidepath() {
     // assumption; always blank on New Entry so last quarter's figure can't
     // accidentally get re-applied to this quarter.
     setActualCpiInput("");
+    // Build 135 — same treatment for the raw CPI index field: fresh each
+    // quarter, never carried over from whatever was last typed/loaded.
+    setCpiIndexInput("");
     // Build 086 — Cancel (new-entry mode) must also revert the app-wide
     // fields that are NOT stored on the ledger row (cashRealPct,
     // inflationPct, legacyTarget, currency). Restore from the baseline
@@ -1709,6 +1832,7 @@ export function SovereignGlidepath() {
       targetYearly: cleanNum(targetYearly),
       currency,
       inflationPct,
+      referenceTable: cpiReference,
     });
   };
 
@@ -1736,6 +1860,7 @@ export function SovereignGlidepath() {
         pensionStartAge,
         pensionIncreasePct,
         defensiveMode,
+        referenceTable: cpiReference,
       });
     } catch (ex) {
       alert(`XLSX export failed: ${ex instanceof Error ? ex.message : String(ex)}`);
@@ -2260,6 +2385,18 @@ export function SovereignGlidepath() {
               showInflationFormulaHelp={showInflationFormulaHelp}
               setShowInflationFormulaHelp={setShowInflationFormulaHelp}
               inflationBaseYear={inflationBaseYear}
+              cpiIndexInput={cpiIndexInput}
+              setCpiIndexInput={setCpiIndexInput}
+              priorRecordedCpiIndex={priorRecordedCpiIndex}
+              priorPeriodEndDate={priorPeriodEndDate}
+              cpiIndexLiveComputedPct={cpiIndexLiveComputedPct}
+              cpiReference={cpiReference}
+              showCpiTableManager={showCpiTableManager}
+              setShowCpiTableManager={setShowCpiTableManager}
+              cpiBulkPasteText={cpiBulkPasteText}
+              setCpiBulkPasteText={setCpiBulkPasteText}
+              applyCpiBulkPaste={applyCpiBulkPaste}
+              deleteCpiReferenceRow={deleteCpiReferenceRow}
               stressPreview={stressPreview}
               directiveBucket={directiveBucket}
               defensiveMode={defensiveMode}

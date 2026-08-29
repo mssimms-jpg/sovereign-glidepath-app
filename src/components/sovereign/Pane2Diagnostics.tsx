@@ -15,6 +15,8 @@ import type { CalcOutputs, Directive, InflationTrackingResult, UnderspendSignalR
 import { cleanNum, formatGBP } from "@/lib/sovereign/engine";
 import type { DefensiveRecResult } from "@/lib/sovereign/defensiveRec";
 import type { ThresholdMode } from "@/lib/sovereign/drawdown";
+import type { CpiReferenceTable } from "@/lib/sovereign/cpiReference";
+import { useState } from "react";
 import { StateTestPresets, type PresetValues } from "./StateTestPresets";
 import { MoneyInput, IntInput, type CurrencySymbol } from "./FormInputs";
 
@@ -105,6 +107,20 @@ export interface Pane2DiagnosticsProps {
   setShowInflationFormulaHelp: (updater: (v: boolean) => boolean) => void;
   inflationBaseYear: number | undefined;
 
+  // Build 135 — CPI Index Reference Table
+  cpiIndexInput: string;
+  setCpiIndexInput: (v: string) => void;
+  priorRecordedCpiIndex: number | undefined;
+  priorPeriodEndDate: string | undefined;
+  cpiIndexLiveComputedPct: number | undefined;
+  cpiReference: CpiReferenceTable;
+  showCpiTableManager: boolean;
+  setShowCpiTableManager: (updater: (v: boolean) => boolean) => void;
+  cpiBulkPasteText: string;
+  setCpiBulkPasteText: (v: string) => void;
+  applyCpiBulkPaste: () => string[];
+  deleteCpiReferenceRow: (date: string) => void;
+
   // Scenario Stress Test
   stressPreview: StressPreviewData | null;
   directiveBucket: "equities" | "cash" | undefined;
@@ -167,6 +183,18 @@ export function Pane2Diagnostics({
   showInflationFormulaHelp,
   setShowInflationFormulaHelp,
   inflationBaseYear,
+  cpiIndexInput,
+  setCpiIndexInput,
+  priorRecordedCpiIndex,
+  priorPeriodEndDate,
+  cpiIndexLiveComputedPct,
+  cpiReference,
+  showCpiTableManager,
+  setShowCpiTableManager,
+  cpiBulkPasteText,
+  setCpiBulkPasteText,
+  applyCpiBulkPaste,
+  deleteCpiReferenceRow,
   stressPreview,
   directiveBucket,
   defensiveMode,
@@ -181,6 +209,9 @@ export function Pane2Diagnostics({
   setUnderspendDipFloorPct,
   onReviewUnderspend,
 }: Pane2DiagnosticsProps) {
+  // Build 135 — bulk-paste validation errors, shown in the manage panel.
+  // Local/ephemeral (not a planning input), so it doesn't need to be lifted.
+  const [cpiBulkPasteErrors, setCpiBulkPasteErrors] = useState<string[]>([]);
   return (
     <div className="shd-card">
       <h2
@@ -378,10 +409,10 @@ export function Pane2Diagnostics({
             </span>
             {underspendSignal.isPreNotice ? (
               <p style={{ margin: 0 }}>
-                Early days — {underspendSignal.yearsSinceStart.toFixed(1)} years in, your realised withdrawal rate
-                has fallen to <strong>{underspendSignal.wrRatioPct.toFixed(0)}%</strong> of where you started, and
-                the pot hasn't fallen more than {underspendDipFloorPct}% below its starting value. This isn't
-                validated this early — if the pattern holds, there'll be a clearer read at year 5.
+                Early days — {underspendSignal.yearsSinceStart.toFixed(1)} years in, your realised withdrawal rate has
+                fallen to <strong>{underspendSignal.wrRatioPct.toFixed(0)}%</strong> of where you started, and the pot
+                hasn't fallen more than {underspendDipFloorPct}% below its starting value. This isn't validated this
+                early — if the pattern holds, there'll be a clearer read at year 5.
               </p>
             ) : (
               <p style={{ margin: 0 }}>
@@ -390,12 +421,14 @@ export function Pane2Diagnostics({
                   : ""}
                 Your withdrawal rate has stayed well below where you started (
                 <strong>{underspendSignal.wrRatioPct.toFixed(0)}%</strong> of your original rate), and your pot has
-                never fallen more than {underspendDipFloorPct}% below its starting value. In similar past
-                situations, this has often meant significantly more left over than planned by the end. Worth a look
-                at whether your Target Yearly Withdrawal is still right for you.
+                never fallen more than {underspendDipFloorPct}% below its starting value. In similar past situations,
+                this has often meant significantly more left over than planned by the end. Worth a look at whether your
+                Target Yearly Withdrawal is still right for you.
               </p>
             )}
-            <div style={{ marginTop: "0.85rem", display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{ marginTop: "0.85rem", display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}
+            >
               <button type="button" className="secondary" onClick={onReviewUnderspend}>
                 Reviewed — check again next year
               </button>
@@ -429,8 +462,8 @@ export function Pane2Diagnostics({
                 </div>
                 <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.5rem", marginBottom: 0 }}>
                   These defaults came from a rolling study of 29 overlapping real historical UK/global windows — a
-                  useful pattern, not a precisely calibrated cutoff. Adjust if you'd rather this fire earlier, later,
-                  or not at all.
+                  useful pattern, not a precisely calibrated cutoff. Adjust if you'd rather this fire earlier, later, or
+                  not at all.
                 </p>
               </details>
             </div>
@@ -548,8 +581,61 @@ export function Pane2Diagnostics({
         </div>
 
         <div style={{ marginTop: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+            <label style={{ fontSize: "0.78rem" }}>CPI Index at this entry (ONS D7BT, optional)</label>
+            <button
+              type="button"
+              onClick={() => setShowCpiTableManager((v) => !v)}
+              style={{ fontSize: "0.72rem" }}
+              title="View, correct, or bulk-paste the CPI Index Reference Table"
+            >
+              Manage table
+            </button>
+          </div>
+          <input
+            id="cpiIndexInput"
+            type="text"
+            inputMode="decimal"
+            placeholder="e.g. 142.3"
+            value={cpiIndexInput}
+            onChange={(e) => setCpiIndexInput(e.target.value)}
+            style={{ width: "100%" }}
+            aria-label="Raw ONS CPI INDEX value for this entry's period end date"
+          />
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              flexWrap: "wrap",
+              fontSize: "0.72rem",
+              color: "var(--text-muted)",
+              marginTop: "0.35rem",
+            }}
+          >
+            <span>
+              Last recorded index:{" "}
+              <strong style={{ color: "var(--text-main)" }}>
+                {typeof priorRecordedCpiIndex === "number" ? priorRecordedCpiIndex.toFixed(1) : "—"}
+              </strong>
+              {priorPeriodEndDate ? ` (${priorPeriodEndDate})` : ""}
+            </span>
+            <span>
+              Computed:{" "}
+              <strong style={{ color: "var(--accent-blue)" }}>
+                {typeof cpiIndexLiveComputedPct === "number" ? `${cpiIndexLiveComputedPct.toFixed(2)}%` : "—"}
+              </strong>
+            </span>
+          </div>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+            Type the raw ONS CPI INDEX number directly — no maths required. Saved to a shared reference table keyed by
+            date, so a later correction (or a rebasing) here applies automatically to every entry that uses it, without
+            editing rows one by one.
+          </div>
+        </div>
+
+        <div style={{ marginTop: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-            <label style={{ fontSize: "0.78rem" }}>Actual CPI since last entry (optional)</label>
+            <label style={{ fontSize: "0.78rem" }}>Or type a plain % directly (optional)</label>
             <button
               type="button"
               onClick={() => setShowInflationFormulaHelp(() => true)}
@@ -572,17 +658,16 @@ export function Pane2Diagnostics({
             id="actualCpiInput"
             type="text"
             inputMode="decimal"
-            placeholder={`Leave blank to use assumed ${inflationPct.toFixed(1)}%`}
+            placeholder={`Leave both blank to use assumed ${inflationPct.toFixed(1)}%`}
             value={actualCpiInput}
             onChange={(e) => setActualCpiInput(e.target.value)}
             style={{ width: "100%" }}
             aria-label="Actual CPI observed since the previous ledger entry"
           />
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-            The actual price change over this specific gap since your last entry — not ONS's headline 12-month
-            (year-on-year) rate. Use the CPI INDEX values (not the CPI annual rate) for the two dates and compute
-            the % change between them, or this will overstate inflation if entries aren't a full year apart.
-            Leaving it blank falls back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
+            Used only if no CPI Index is entered above (or the reference table doesn't cover both dates). The actual
+            price change over this specific gap since your last entry — not ONS's headline 12-month (year-on-year) rate.
+            Leaving both blank falls back to the assumed CPI slider in Pane 1, pro-rated for the actual gap.
           </div>
         </div>
 
@@ -615,13 +700,112 @@ export function Pane2Diagnostics({
                   <span style={{ color: "var(--text-main)" }}>(142.1 ÷ 140.0 − 1) × 100 = 1.50%</span>.
                 </p>
                 <p style={{ marginBottom: 0 }}>
-                  Don't average several quarters together — use the two figures either side of this specific gap
-                  only, or older inflation already accounted for in earlier entries gets double-counted.
+                  Don't average several quarters together — use the two figures either side of this specific gap only,
+                  or older inflation already accounted for in earlier entries gets double-counted.
                 </p>
               </div>
-              <button type="button" onClick={() => setShowInflationFormulaHelp(() => false)} style={{ marginTop: "1.25rem" }}>
+              <button
+                type="button"
+                onClick={() => setShowInflationFormulaHelp(() => false)}
+                style={{ marginTop: "1.25rem" }}
+              >
                 Close
               </button>
+            </div>
+          </div>
+        )}
+
+        {showCpiTableManager && (
+          <div className="shd-overlay" role="dialog" aria-modal="true">
+            <div className="shd-modal" style={{ width: 560 }}>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "0 0 0.85rem" }}>CPI Index Reference Table</h2>
+              <div
+                style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "var(--text-muted)", marginBottom: "0.85rem" }}
+              >
+                Raw ONS CPI INDEX values (series D7BT), one per period-end date. Correcting a value here — or
+                bulk-pasting an updated/rebased table — applies to every ledger entry that references that date, with
+                nothing to change on the entries themselves.
+              </div>
+
+              {cpiReference.length > 0 ? (
+                <div style={{ maxHeight: 220, overflowY: "auto", marginBottom: "1rem" }}>
+                  <table style={{ width: "100%", fontSize: "0.78rem", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border-color)" }}>
+                        <th style={{ padding: "0.35rem 0.5rem" }}>Date</th>
+                        <th style={{ padding: "0.35rem 0.5rem" }}>Index</th>
+                        <th style={{ padding: "0.35rem 0.5rem" }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cpiReference.map((r) => (
+                        <tr key={r.date} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                          <td style={{ padding: "0.35rem 0.5rem" }}>{r.date}</td>
+                          <td style={{ padding: "0.35rem 0.5rem" }}>{r.index.toFixed(1)}</td>
+                          <td style={{ padding: "0.35rem 0.5rem", textAlign: "right" }}>
+                            <button
+                              type="button"
+                              onClick={() => deleteCpiReferenceRow(r.date)}
+                              style={{ fontSize: "0.7rem" }}
+                              title={`Remove the ${r.date} row`}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                  No index values recorded yet.
+                </div>
+              )}
+
+              <label style={{ fontSize: "0.78rem" }}>
+                Bulk paste — one row per line, format: <code>QX YYYY&nbsp;&nbsp;YYYY-MM-DD&nbsp;&nbsp;XXX.X</code>
+              </label>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.35rem" }}>
+                The "QX YYYY" label is just for your own reference and is ignored — only the date and the index number
+                are read, and the date must match a ledger entry's own Period End Date exactly to link up.
+              </div>
+              <textarea
+                value={cpiBulkPasteText}
+                onChange={(e) => setCpiBulkPasteText(e.target.value)}
+                placeholder={"Q1 2025\t2025-03-31\t136.0\nQ2 2025\t2025-06-30\t138.5"}
+                rows={4}
+                style={{ width: "100%", fontFamily: "monospace", fontSize: "0.78rem" }}
+              />
+              {cpiBulkPasteErrors.length > 0 && (
+                <div style={{ fontSize: "0.72rem", color: "var(--accent-red)", marginTop: "0.35rem" }}>
+                  {cpiBulkPasteErrors.map((err, i) => (
+                    <div key={i}>{err}</div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.25rem" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const errors = applyCpiBulkPaste();
+                    setCpiBulkPasteErrors(errors);
+                  }}
+                  disabled={cpiBulkPasteText.trim() === ""}
+                >
+                  Add / update rows
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCpiBulkPasteErrors([]);
+                    setShowCpiTableManager(() => false);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -664,7 +848,7 @@ export function Pane2Diagnostics({
                         color: r.isActual ? "var(--accent-blue)" : "var(--text-muted)",
                       }}
                     >
-                      {r.isActual ? "Actual" : "Assumed"}
+                      {r.source === "table" ? "Table" : r.source === "entry" ? "Entry" : "Assumed"}
                     </td>
                     <td style={{ padding: "0.35rem 0.5rem" }}>{r.cumulativeIndex.toFixed(3)}×</td>
                   </tr>

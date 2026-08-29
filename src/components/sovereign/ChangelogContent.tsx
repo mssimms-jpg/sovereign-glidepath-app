@@ -11,20 +11,40 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.135 — CPI Index Reference Table
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> A CPI Index Reference Table on Pane 2 — type the raw ONS CPI INDEX number directly
+              instead of hand-computing (New÷Old−1)×100. Correcting or rebasing a value in the table now propagates
+              automatically to every ledger entry that references it, with nothing to edit on the rows themselves.
+              Includes a "Manage table" panel to view, delete, or bulk-paste entries, seeded with real ONS CPI INDEX
+              data (series D7BT) from Q4 2024 through Q2 2026. The existing "Actual CPI since last entry" plain-% field
+              is unchanged and remains a fully supported fallback.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Fixed:</strong> Ledger CSV and XLSX exports now correctly reflect the CPI Index Reference Table —
+              previously they computed inflation tracking without it, so a row using the table live in Pane 2 would
+              silently export as "Assumed" instead. The Inflation Source column now shows Table, Entry, or Assumed.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0.134 — Realised-inflation tracking improvements
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <p style={{ marginTop: 0 }}>
-              <strong>Added:</strong> Ledger CSV and XLSX exports now include Inflation Rate Applied (%) and
-              Inflation Source (Actual/Assumed) columns — previously only visible in-app on Pane 2, not in either
-              export. Also added an "ONS ↗" button (shift-click to repoint the link if ONS restructures their
-              site) and a "?" help popup on the Actual CPI field giving the formula and a worked example.
+              <strong>Added:</strong> Ledger CSV and XLSX exports now include Inflation Rate Applied (%) and Inflation
+              Source (Actual/Assumed) columns — previously only visible in-app on Pane 2, not in either export. Also
+              added an "ONS ↗" button (shift-click to repoint the link if ONS restructures their site) and a "?" help
+              popup on the Actual CPI field giving the formula and a worked example.
             </p>
             <p style={{ marginBottom: 0 }}>
-              <strong>Fixed:</strong> The "Actual CPI since last entry" field's help text now makes clear it wants
-              the change since your last entry specifically — not ONS's headline 12-month rate. Entering the
-              12-month rate directly compounds every quarter at that full annual rate and substantially overstates
-              realised inflation.
+              <strong>Fixed:</strong> The "Actual CPI since last entry" field's help text now makes clear it wants the
+              change since your last entry specifically — not ONS's headline 12-month rate. Entering the 12-month rate
+              directly compounds every quarter at that full annual rate and substantially overstates realised inflation.
             </p>
           </div>
         </div>
@@ -35,20 +55,20 @@ export function ChangelogContent() {
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <p style={{ marginTop: 0 }}>
-              <strong>Fixed:</strong> The 40-file QA scenario pool mixed two different UK inflation measures — 38
-              files were built on RPI, while the canonical 1996–2021 lifetime ledger scenario (and its aggressive
-              pair) used CPI. All 40 files now use CPI, sourced from ONS's historical modelled series (1971–2021)
-              plus published ONS annual figures (2022–2025).
+              <strong>Fixed:</strong> The 40-file QA scenario pool mixed two different UK inflation measures — 38 files
+              were built on RPI, while the canonical 1996–2021 lifetime ledger scenario (and its aggressive pair) used
+              CPI. All 40 files now use CPI, sourced from ONS's historical modelled series (1971–2021) plus published
+              ONS annual figures (2022–2025).
             </p>
             <p>
-              This changed real computed outcomes, not just labelling: five aggressive or stagflation-era scenarios
-              that previously reached Exhaustion under the incorrect RPI figures now complete successfully under
-              correct CPI. Every scenario file's expected checkpoints were regenerated against the real engine.
+              This changed real computed outcomes, not just labelling: five aggressive or stagflation-era scenarios that
+              previously reached Exhaustion under the incorrect RPI figures now complete successfully under correct CPI.
+              Every scenario file's expected checkpoints were regenerated against the real engine.
             </p>
             <p style={{ marginBottom: 0 }}>
-              The standing 1996–2021 regression anchor moved from £2,007,282.02 to £2,006,221.98, reflecting a minor
-              CPI data revision found while re-sourcing the canonical scenario's own figures directly from ONS — not
-              an engine change.
+              The standing 1996–2021 regression anchor moved from £2,007,282.02 to £2,006,221.98, reflecting a minor CPI
+              data revision found while re-sourcing the canonical scenario's own figures directly from ONS — not an
+              engine change.
             </p>
           </div>
         </div>
@@ -62,8 +82,8 @@ export function ChangelogContent() {
               <strong>Added:</strong> Quarterly Growth (%) column in ledger exports, derived from realised returns.
             </p>
             <p>
-              <strong>Changed:</strong> CSV and XLSX exports now share a single row-builder
-              (buildLedgerExportRows), eliminating drift risk between the two formats.
+              <strong>Changed:</strong> CSV and XLSX exports now share a single row-builder (buildLedgerExportRows),
+              eliminating drift risk between the two formats.
             </p>
             <p style={{ marginBottom: 0 }}>
               <strong>Fixed:</strong> Withdrawal adjustment was being applied to the wrong row in the growth
@@ -78,20 +98,20 @@ export function ChangelogContent() {
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
             <p style={{ marginTop: 0 }}>
-              <strong>Pane 2 now flags the opposite failure mode from the guardrails</strong> — dying with far more
-              left over than intended. A rolling study of 29 overlapping real historical 26-year windows found a
-              clean pattern: scenarios ending with a large surplus almost always had their realised withdrawal rate
-              fall well below where they started by year 5, and the pot never fell more than ~10% below its starting
-              value. Pane 2 checks the real ledger against exactly that — a soft pre-notice at year 3, the real
-              evaluation from year 5, re-firing each year with a running count if it keeps holding. Both thresholds
-              are live-editable in the tile, not buried constants.
+              <strong>Pane 2 now flags the opposite failure mode from the guardrails</strong> — dying with far more left
+              over than intended. A rolling study of 29 overlapping real historical 26-year windows found a clean
+              pattern: scenarios ending with a large surplus almost always had their realised withdrawal rate fall well
+              below where they started by year 5, and the pot never fell more than ~10% below its starting value. Pane 2
+              checks the real ledger against exactly that — a soft pre-notice at year 3, the real evaluation from year
+              5, re-firing each year with a running count if it keeps holding. Both thresholds are live-editable in the
+              tile, not buried constants.
             </p>
             <p style={{ marginBottom: 0 }}>
-              <strong>Three smaller fixes:</strong> Pane 4's chart axis no longer overlaps into an unreadable smear
-              on a long-running ledger (every quarter still gets a tick; past 8 years, only every other gets a text
-              label — the hover tooltip is unaffected). The two bundled QA scenarios built from a real personal
-              ledger are relabelled "Typical Ledger" rather than naming a specific person. And the whole-pounds
-              tooltip/axis fix from an earlier informal update is now folded into this proper numbered release.
+              <strong>Three smaller fixes:</strong> Pane 4's chart axis no longer overlaps into an unreadable smear on a
+              long-running ledger (every quarter still gets a tick; past 8 years, only every other gets a text label —
+              the hover tooltip is unaffected). The two bundled QA scenarios built from a real personal ledger are
+              relabelled "Typical Ledger" rather than naming a specific person. And the whole-pounds tooltip/axis fix
+              from an earlier informal update is now folded into this proper numbered release.
             </p>
           </div>
         </div>

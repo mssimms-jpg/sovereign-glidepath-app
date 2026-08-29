@@ -4,6 +4,21 @@ A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
 
+## 1.0.135
+
+### Added
+
+- CPI Index Reference Table: a new lookup keyed by period-end date, letting you type the raw ONS CPI INDEX number directly instead of hand-computing (New÷Old−1)×100. Correcting or rebasing a value in the table now propagates automatically to every ledger entry that references it — no per-row edits needed
+- A "Manage table" panel on Pane 2 for the reference table: view/delete individual entries, and bulk-paste several rows at once (tolerant of extra columns, e.g. pasting a "Q1 2025 / 2025-03-31 / 136.0" style table directly)
+- Seeded with real ONS CPI INDEX data (series D7BT), Q4 2024 through Q2 2026
+- The reference table lookup takes priority over the existing "Actual CPI since last entry" plain-% field when both period-end dates are covered; the plain-% field remains fully supported as a fallback for anyone who'd rather just type a percentage
+- Ledger CSV and XLSX exports now distinguish three inflation sources instead of two: Table / Entry / Assumed (previously Actual/Assumed only)
+- New encrypted vault key `shd_cpi_reference_v1`, included in Back-Up/Restore alongside the ledger and settings
+
+### Fixed
+
+- Ledger CSV and XLSX exports were computing their own inflation tracking without the CPI Index Reference Table, so a row using the table live in Pane 2 would silently export as "Assumed" instead of reflecting the table's rate. Both exporters now receive the reference table and agree with the in-app figures
+
 ## 1.0.134
 
 ### Added
@@ -41,7 +56,7 @@ Location: project root (`CHANGELOG.md`). Update this file every build.
 
 ## Version 1.0 build 131 — A new "potential underspend" signal, and three small fit-and-finish fixes
 
-**Pane 2 now flags the opposite failure mode from the guardrails.** Everything the app already does — Preservation cuts, the Shield Runway, Prosperity bonuses — is aimed at not running out. Nothing previously said anything about the other real risk: dying with far more left over than intended, purely because the withdrawal rate never got revisited after an unusually strong run. A rolling study of 29 overlapping real historical UK/global 26-year windows (same real MSCI World + UK inflation data the QA scenario pool uses) found a genuinely clean pattern: every scenario that ended with a large surplus (4x+ the starting pot) had its realised withdrawal rate fall well below where it started by year 5, *and* the pot never fell more than ~10% below its starting value at any point — both conditions together, not either alone. Pane 2 now checks the real live ledger against exactly that pattern: a soft, deliberately hedged pre-notice at year 3 (the signal isn't validated that early), the real evaluation from year 5, and — if it keeps holding — a re-fire every year after with a running "Nth year" count, going silent again the moment either condition breaks. Both thresholds (currently 90% of original rate, 10% dip floor) are live-editable in the tile itself, not buried constants, since they came from a rolling window of one real history, not a large independent sample. Dismissing shows "Reviewed — check again next year" and genuinely waits a year, not just a page reload.
+**Pane 2 now flags the opposite failure mode from the guardrails.** Everything the app already does — Preservation cuts, the Shield Runway, Prosperity bonuses — is aimed at not running out. Nothing previously said anything about the other real risk: dying with far more left over than intended, purely because the withdrawal rate never got revisited after an unusually strong run. A rolling study of 29 overlapping real historical UK/global 26-year windows (same real MSCI World + UK inflation data the QA scenario pool uses) found a genuinely clean pattern: every scenario that ended with a large surplus (4x+ the starting pot) had its realised withdrawal rate fall well below where it started by year 5, _and_ the pot never fell more than ~10% below its starting value at any point — both conditions together, not either alone. Pane 2 now checks the real live ledger against exactly that pattern: a soft, deliberately hedged pre-notice at year 3 (the signal isn't validated that early), the real evaluation from year 5, and — if it keeps holding — a re-fire every year after with a running "Nth year" count, going silent again the moment either condition breaks. Both thresholds (currently 90% of original rate, 10% dip floor) are live-editable in the tile itself, not buried constants, since they came from a rolling window of one real history, not a large independent sample. Dismissing shows "Reviewed — check again next year" and genuinely waits a year, not just a page reload.
 
 **Historical Timeline Ledger's chart (Pane 4) — axis labels no longer overlap into an unreadable smear on a long-running ledger.** Every quarter still gets its tick mark; past 8 years of history, only every other quarter gets a text label. The hover tooltip is unaffected either way — it resolves from mouse position directly to the nearest data point, never from which labels happen to be visible.
 

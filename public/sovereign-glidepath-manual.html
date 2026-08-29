@@ -166,7 +166,11 @@
           <li class="toc-chap"><a href="#ch-42">42. Companion Apps &amp; the Comparison Builder</a></li>
           <li class="toc-chap"><a href="#ch-43">43. Companion Apps &amp; the Accumulation Simulator</a></li>
           <li class="toc-part"><a href="#part-11">Part XI — Realised Inflation Tracking</a></li>
-          <li class="toc-chap"><a href="#ch-44">44. The realised-inflation index, and the actual-CPI field</a></li>
+          <li class="toc-chap">
+            <a href="#ch-44"
+              >44. The realised-inflation index, the CPI Index Reference Table, and the actual-CPI field</a
+            >
+          </li>
           <li class="toc-chap">
             <a href="#ch-45"
               >45. One number per instruction — the directive, the Frozen Baseline, and why neither needs manual
@@ -212,7 +216,7 @@
         <p class="tag">USER MANUAL · COMPANION eBOOK</p>
         <h1 class="cover-title">SOVEREIGN GLIDEPATH</h1>
         <p class="cover-sub">A practical guide to a Guyton-Klinger guardrail retirement dashboard</p>
-        <p class="cover-ver">Version 1.0.134 · Edition XXIV</p>
+        <p class="cover-ver">Version 1.0.135 · Edition XXV</p>
       </header>
       <h2 class="part" id="foreword">
         <img
@@ -2067,7 +2071,9 @@
         />Part XI — Realised Inflation Tracking
       </h2>
 
-      <h3 class="chapter" id="ch-44">44. The realised-inflation index, and the actual-CPI field</h3>
+      <h3 class="chapter" id="ch-44">
+        44. The realised-inflation index, the CPI Index Reference Table, and the actual-CPI field
+      </h3>
       <p>
         The live directive has always spoken in <b>real terms</b> (today's money): the withdrawal target stays flat from
         quarter to quarter, and the model deflates portfolio returns rather than inflating the withdrawal. That is
@@ -2079,52 +2085,120 @@
       <aside class="callout" style="border-color: var(--danger, #dc2626);">
         <h4>This is not a background record &mdash; it changes the actual pounds in your directive</h4>
         <p>
-          It's easy to assume a field called "tracking" is informational only. It isn't. The cumulative index built
-          from this field feeds directly into <a href="#ch-45">chapter 45's nominal-pound conversion</a> &mdash; every
-          bold, actionable figure in the directive is multiplied through this index before it reaches the screen.
-          Getting the number right matters for real, not just for the record.
+          It's easy to assume a field called "tracking" is informational only. It isn't. The cumulative index built from
+          this field feeds directly into <a href="#ch-45">chapter 45's nominal-pound conversion</a> &mdash; every bold,
+          actionable figure in the directive is multiplied through this index before it reaches the screen. Getting the
+          number right matters for real, not just for the record.
         </p>
       </aside>
+      <h4>The CPI Index Reference Table (Build 135)</h4>
+      <p>
+        Since Build&nbsp;135, the recommended way to record realised inflation is the <b>CPI Index Reference Table</b>,
+        opened via &ldquo;Manage table&rdquo; next to the CPI Index field on Pane&nbsp;2. Rather than computing a
+        percentage by hand, you type the raw <b>ONS CPI INDEX</b> number (series&nbsp;D7BT) for the current period-end
+        date directly &mdash; no maths required. The desk shows the last recorded index and the live computed percentage
+        alongside it as a sanity check while you type.
+      </p>
+      <p>
+        The table is keyed by date, not by ledger row, and that distinction is the whole point: if a figure later turns
+        out to be wrong &mdash; ONS revises a published index, or you mis-typed a digit &mdash; correcting or rebasing
+        that one entry (by re-typing it, or via the manage panel's bulk-paste box) automatically applies to every ledger
+        row whose chain touches that date, with nothing to edit on the rows themselves. The bulk-paste box also accepts
+        pasting several rows at once, in the format <code>QX YYYY&nbsp;&nbsp;YYYY-MM-DD&nbsp;&nbsp;XXX.X</code>
+        (the "QX YYYY" label is just for your own reference and is ignored &mdash; only the date and the index number
+        are read, and the date must match a ledger entry's own Period End Date exactly to link up).
+      </p>
+      <p>
+        The app ships seeded with real ONS CPI INDEX data (series&nbsp;D7BT) from Q4&nbsp;2024 through the most recently
+        published quarter at time of writing; the manage panel is where you extend it as new quarters are published. The
+        existing plain-percentage field described below is unchanged and remains fully supported as a fallback &mdash;
+        the table is checked first for a given row-pair, and only falls back to a typed percentage (or, failing that,
+        the assumed rate) when the table doesn't cover both dates. Nothing about this forces a lookup: type a plain
+        percentage instead whenever you'd rather.
+      </p>
       <p>
         Each Normal ledger row can carry an optional <b>Actual CPI since last entry</b> figure, entered in Pane 2's
         <b>Inflation Tracking</b> panel at commit time. Leave it blank and the desk falls back to the assumed CPI slider
         (Pane 1) for that gap &mdash; correctly pro-rated for the real elapsed time between rows, not assumed to be a
         full year. A six-month gap only ever applies half a year's assumed inflation, never a full year's.
       </p>
-      <h4>What actually goes in the field</h4>
+      <h4>What actually goes in the plain-percentage field</h4>
       <p>
-        This wants the <b>real change since your last entry</b> &mdash; typically a three-month move &mdash; not ONS's
-        headline <b>12-month (year-on-year) rate</b>. Those are easy to conflate because ONS's own website foregrounds
-        the 12-month rate; using it directly here applies a full year's inflation every quarter and substantially
-        overstates the realised index. Use the <b>CPI INDEX</b> (ONS series&nbsp;D7BT, not the "CPI annual rate"
-        series) instead:
+        This section covers the fallback path &mdash; typing a percentage directly, rather than using the CPI Index
+        Reference Table above. It wants the <b>real change since your last entry</b> &mdash; typically a three-month
+        move &mdash; not ONS's headline <b>12-month (year-on-year) rate</b>. Those are easy to conflate because ONS's
+        own website foregrounds the 12-month rate; using it directly here applies a full year's inflation every quarter
+        and substantially overstates the realised index. Use the <b>CPI INDEX</b> (ONS series&nbsp;D7BT, not the "CPI
+        annual rate" series) instead:
       </p>
       <div class="formula-box">(New Index &divide; Last Index &minus; 1) &times; 100</div>
       <p>
         A "?" button beside the field opens this same formula with a worked example in-app. An "ONS&nbsp;&#8599;" button
-        next to "View realised-inflation history" opens the CPI INDEX series directly (defaults to
-        ons.gov.uk's D7BT series; shift-click the button to repoint it if ONS ever restructures their site &mdash; the
-        link is stored locally, not hard-coded, so this needs no new build to fix).
+        next to "View realised-inflation history" opens the CPI INDEX series directly (defaults to ons.gov.uk's D7BT
+        series; shift-click the button to repoint it if ONS ever restructures their site &mdash; the link is stored
+        locally, not hard-coded, so this needs no new build to fix).
       </p>
       <h4>Worked example</h4>
       <p>
         Six real quarters, using ONS's own Quarter-frequency table for series D7BT (a quarterly average, not just the
         quarter-end month's reading &mdash; pick one convention and stay with it for the same reason the QA scenario
         pool was consolidated onto one inflation measure in Build&nbsp;133: mixing conventions mid-ledger reintroduces
-        the inconsistency, even though each individual figure is correct):
+        the inconsistency, even though each individual figure is correct). These are the same seven index values the
+        app's CPI Index Reference Table ships pre-loaded with, so this table also doubles as a look at exactly what's
+        already in the table on first launch:
       </p>
       <table class="directives" style="margin: 0.75rem 0;">
         <thead>
-          <tr><th>Period end</th><th>Index</th><th>Rate applied</th><th>Cumulative index</th></tr>
+          <tr>
+            <th>Period end</th>
+            <th>Index</th>
+            <th>Rate applied</th>
+            <th>Cumulative index</th>
+          </tr>
         </thead>
         <tbody>
-          <tr><td>2024 Q4 (baseline)</td><td>135.2</td><td>&mdash;</td><td>1.0000&times;</td></tr>
-          <tr><td>2025 Q1</td><td>136.0</td><td>0.59%</td><td>1.0059&times;</td></tr>
-          <tr><td>2025 Q2</td><td>138.5</td><td>1.84%</td><td>1.0244&times;</td></tr>
-          <tr><td>2025 Q3</td><td>139.2</td><td>0.51%</td><td>1.0296&times;</td></tr>
-          <tr><td>2025 Q4</td><td>139.8</td><td>0.43%</td><td>1.0340&times;</td></tr>
-          <tr><td>2026 Q1</td><td>140.2</td><td>0.29%</td><td>1.0370&times;</td></tr>
-          <tr><td>2026 Q2</td><td>142.3</td><td>1.50%</td><td>1.0525&times;</td></tr>
+          <tr>
+            <td>2024 Q4 (baseline)</td>
+            <td>135.2</td>
+            <td>&mdash;</td>
+            <td>1.0000&times;</td>
+          </tr>
+          <tr>
+            <td>2025 Q1</td>
+            <td>136.0</td>
+            <td>0.59%</td>
+            <td>1.0059&times;</td>
+          </tr>
+          <tr>
+            <td>2025 Q2</td>
+            <td>138.5</td>
+            <td>1.84%</td>
+            <td>1.0244&times;</td>
+          </tr>
+          <tr>
+            <td>2025 Q3</td>
+            <td>139.2</td>
+            <td>0.51%</td>
+            <td>1.0296&times;</td>
+          </tr>
+          <tr>
+            <td>2025 Q4</td>
+            <td>139.8</td>
+            <td>0.43%</td>
+            <td>1.0340&times;</td>
+          </tr>
+          <tr>
+            <td>2026 Q1</td>
+            <td>140.2</td>
+            <td>0.29%</td>
+            <td>1.0370&times;</td>
+          </tr>
+          <tr>
+            <td>2026 Q2</td>
+            <td>142.3</td>
+            <td>1.50%</td>
+            <td>1.0525&times;</td>
+          </tr>
         </tbody>
       </table>
       <p>
@@ -2135,33 +2209,37 @@
         months) than at the baseline. The <b>implied average annual rate</b> Pane 2 shows alongside it is that same
         1.0525&times; expressed as a constant annual pace over the elapsed span:
         <code>(cumulative index<sup>1/years</sup> &minus; 1) &times; 100</code>, here 3.47% p.a. &mdash; a sense-check
-        figure, not a separate input; it exists so a number that's crept implausibly high (as it will if a 12-month
-        rate gets entered by mistake) is obvious at a glance rather than buried in a compounding chain.
+        figure, not a separate input; it exists so a number that's crept implausibly high (as it will if a 12-month rate
+        gets entered by mistake) is obvious at a glance rather than buried in a compounding chain.
       </p>
       <aside class="callout">
         <h4>Committing before the quarter's CPI figure is published</h4>
         <p>
           ONS publishes each quarter's CPI figure a few weeks after the quarter ends &mdash; typically after most
           people's own quarter-start portfolio actions (selling into cash, committing the withdrawal) already need to
-          happen. Leaving the field blank at commit time and returning to edit that row once the real figure lands is
-          the intended workflow, not a workaround: the tracking panel recomputes the entire chain fresh from the whole
-          ledger every time anything changes, so editing an already-committed row's Actual CPI value correctly
-          recalculates the cumulative index &mdash; and every later quarter's nominal directive figures with it &mdash;
-          the moment you save the edit. Nothing from the assumed-rate placeholder gets baked in permanently.
+          happen. With the CPI Index Reference Table, the intended workflow is even simpler than before: commit the row
+          with no index typed, then once the real figure is published, add it to the table for that date via Pane 2 (or
+          the manage panel) &mdash; there is no row to find and re-open, since the table is keyed by date and every row
+          whose chain touches that date picks up the correction automatically. Using the older plain-percentage field
+          instead still works exactly as it always has: leave the field blank at commit time and return to edit that
+          specific row once the real figure lands. Either way, the tracking panel recomputes the entire chain fresh from
+          the whole ledger every time anything changes, so nothing from the assumed-rate placeholder gets baked in
+          permanently.
         </p>
       </aside>
       <p>
         The <b>Withdrawal Status</b> and <b>Guardrail State</b> columns aside, ledger exports (both CSV and XLSX) now
         carry two further columns per row: <b>Inflation Rate Applied (%)</b> and <b>Inflation Source</b>
-        (Actual/Assumed) &mdash; the same per-row data Pane 2's history table shows, so a downloaded ledger is fully
-        auditable without needing the app open alongside it.
+        (Table/Entry/Assumed) &mdash; the same per-row data Pane 2's history table shows, so a downloaded ledger is
+        fully auditable without needing the app open alongside it.
       </p>
       <p>
         Pane 2 shows three headline figures built from this chain: the current cumulative index, the implied average
-        annual rate, and the calendar year the index is anchored to. The <b>&ldquo;View realised-inflation
-        history&rdquo;</b> table beneath lists every tracked row individually &mdash; its date, the rate applied,
-        whether that rate was Actual or Assumed, and the running index at that point &mdash; so the whole chain is
-        auditable at a glance, not just the current total.
+        annual rate, and the calendar year the index is anchored to. The
+        <b>&ldquo;View realised-inflation history&rdquo;</b> table beneath lists every tracked row individually &mdash;
+        its date, the rate applied, whether that rate came from the <b>Table</b>, a typed <b>Entry</b>, or was
+        <b>Assumed</b>, and the running index at that point &mdash; so the whole chain is auditable at a glance, not
+        just the current total.
       </p>
       <aside class="callout">
         <h4>Special-event and windfall rows never enter the chain</h4>
@@ -2412,20 +2490,19 @@
         purely because a strong run was never revisited.
       </p>
       <p>
-        A rolling study across 29 overlapping real historical 26-year windows (built from the same real MSCI World
-        and UK inflation data behind the QA scenario pool &mdash; see chapter 52) found a genuinely clean pattern.
-        Scenarios that ended with a large surplus (four times the starting pot or more) almost always shared two
-        things by year 5: their realised withdrawal rate had fallen well below where they started, and the pot had
-        never fallen more than roughly 10% below its starting value at any point. Both conditions held together far
-        more reliably than either alone &mdash; a falling withdrawal rate on its own wasn't a clean signal, and
-        neither was "never dipped" on its own, but the combination separated the two outcomes cleanly across the
-        real data tested.
+        A rolling study across 29 overlapping real historical 26-year windows (built from the same real MSCI World and
+        UK inflation data behind the QA scenario pool &mdash; see chapter 52) found a genuinely clean pattern. Scenarios
+        that ended with a large surplus (four times the starting pot or more) almost always shared two things by year 5:
+        their realised withdrawal rate had fallen well below where they started, and the pot had never fallen more than
+        roughly 10% below its starting value at any point. Both conditions held together far more reliably than either
+        alone &mdash; a falling withdrawal rate on its own wasn't a clean signal, and neither was "never dipped" on its
+        own, but the combination separated the two outcomes cleanly across the real data tested.
       </p>
       <p>
-        Pane 2 now checks your real live ledger against exactly that pattern, using your plan's own day-one figures
-        as the fixed reference point &mdash; not the constantly-moving All-Time High the guardrails already track,
-        since that answers a different question ("is this a good quarter") to the one this is asking ("has the whole
-        plan been running comfortably ahead since it began").
+        Pane 2 now checks your real live ledger against exactly that pattern, using your plan's own day-one figures as
+        the fixed reference point &mdash; not the constantly-moving All-Time High the guardrails already track, since
+        that answers a different question ("is this a good quarter") to the one this is asking ("has the whole plan been
+        running comfortably ahead since it began").
       </p>
       <ul>
         <li>
@@ -2433,8 +2510,8 @@
           signal isn't validated this early, and the wording says so.
         </li>
         <li>
-          <b>Year 5 onward:</b> the real evaluation. If both conditions hold, the tile appears with a genuine
-          reading, not a guess.
+          <b>Year 5 onward:</b> the real evaluation. If both conditions hold, the tile appears with a genuine reading,
+          not a guess.
         </li>
         <li>
           <b>Every year after, if it keeps holding:</b> the tile re-appears with a running count &mdash; "3rd year
@@ -2446,12 +2523,11 @@
         </li>
       </ul>
       <p>
-        Dismissing the tile ("Reviewed &mdash; check again next year") genuinely waits a year before it can
-        reappear, not just a page reload. The two thresholds behind the signal &mdash; withdrawal rate falling to
-        90% of your original rate, and never dipping more than 10% below your starting pot &mdash; are editable
-        directly in the tile, not buried constants. They came from a rolling window over one real history, not a
-        large independent sample, so they're offered as a considered starting point, not a precisely calibrated
-        cutoff.
+        Dismissing the tile ("Reviewed &mdash; check again next year") genuinely waits a year before it can reappear,
+        not just a page reload. The two thresholds behind the signal &mdash; withdrawal rate falling to 90% of your
+        original rate, and never dipping more than 10% below your starting pot &mdash; are editable directly in the
+        tile, not buried constants. They came from a rolling window over one real history, not a large independent
+        sample, so they're offered as a considered starting point, not a precisely calibrated cutoff.
       </p>
       <p style="margin-bottom:0;">
         Like every other diagnostic in this app, the signal only ever informs &mdash; it never adjusts your Target
@@ -2465,34 +2541,33 @@
         The 40-file QA scenario pool referenced in chapters 38 and 49 (and the Build 128 changelog entry that first
         built it) is constructed from two real historical data series: MSCI World GBP annual real returns
         (1970&ndash;2024, the same series both the Risk Simulator's and Accumulation Simulator's Historical mode
-        bootstrap from &mdash; see chapter 47), and UK consumer-price inflation (CPI) year by year. The full table
-        below is provided for transparency, so any scenario result in the pool can be traced back to the specific
-        year's actual figures rather than taken on trust.
+        bootstrap from &mdash; see chapter 47), and UK consumer-price inflation (CPI) year by year. The full table below
+        is provided for transparency, so any scenario result in the pool can be traced back to the specific year's
+        actual figures rather than taken on trust.
       </p>
       <p>
-        <b>Data-provenance note, resolved in Build 133:</b> an earlier version of this pool (Builds 128&ndash;132)
-        mixed two different UK inflation measures &mdash; 38 of the 40 files were built on the Retail Prices Index
-        (RPI), while your own canonical 1996&ndash;2021 lifetime ledger scenario used the Consumer Prices Index
-        (CPI). RPI historically runs 0.5&ndash;1.5 percentage points hotter than CPI and includes mortgage interest
-        and council tax, which is also why it briefly went negative in 2009 while CPI stayed positive &mdash; the
-        clearest tell that two different series were in play. CPI is the Bank of England's current inflation target
-        and the standard a professional financial-planning tool would use, so all 38 pool files have been
-        regenerated on CPI, sourced from the Office for National Statistics' own historical modelled CPI series
-        (1971&ndash;2021, annual average of the twelve monthly 12-month rates) plus published ONS annual figures for
-        2022&ndash;2025. All 40 files now agree on inflation for every year they share, within rounding noise of a
-        few hundredths of a percentage point against the canonical scenario &mdash; consistent with a minor ONS data
-        revision between when the canonical file was built and this reconciliation, not a methodology difference.
+        <b>Data-provenance note, resolved in Build 133:</b> an earlier version of this pool (Builds 128&ndash;132) mixed
+        two different UK inflation measures &mdash; 38 of the 40 files were built on the Retail Prices Index (RPI),
+        while your own canonical 1996&ndash;2021 lifetime ledger scenario used the Consumer Prices Index (CPI). RPI
+        historically runs 0.5&ndash;1.5 percentage points hotter than CPI and includes mortgage interest and council
+        tax, which is also why it briefly went negative in 2009 while CPI stayed positive &mdash; the clearest tell that
+        two different series were in play. CPI is the Bank of England's current inflation target and the standard a
+        professional financial-planning tool would use, so all 38 pool files have been regenerated on CPI, sourced from
+        the Office for National Statistics' own historical modelled CPI series (1971&ndash;2021, annual average of the
+        twelve monthly 12-month rates) plus published ONS annual figures for 2022&ndash;2025. All 40 files now agree on
+        inflation for every year they share, within rounding noise of a few hundredths of a percentage point against the
+        canonical scenario &mdash; consistent with a minor ONS data revision between when the canonical file was built
+        and this reconciliation, not a methodology difference.
       </p>
       <p>
         This wasn't just a labelling fix: because the QA pool's engine outputs depend on the actual inflation figures
-        fed in, correcting RPI to CPI changed several scenarios' real computed results, most notably five aggressive-
-        or stagflation-era scenarios that previously showed the pot reaching Exhaustion under RPI but now complete
+        fed in, correcting RPI to CPI changed several scenarios' real computed results, most notably five aggressive- or
+        stagflation-era scenarios that previously showed the pot reaching Exhaustion under RPI but now complete
         successfully under CPI, since the lower inflation figure keeps real withdrawals smaller. Every file's
         <code>expected</code> checkpoints were regenerated against the real engine after the correction, and the
-        standing 1996&ndash;2021 regression anchor was recomputed once your own canonical scenario was refreshed
-        onto this same freshly-sourced CPI data (see below) &mdash; it moved from &pound;2,007,282.02 to
-        &pound;2,006,221.98, a shift of about &pound;1,060 from the underlying data revision, not from any change
-        to the engine itself.
+        standing 1996&ndash;2021 regression anchor was recomputed once your own canonical scenario was refreshed onto
+        this same freshly-sourced CPI data (see below) &mdash; it moved from &pound;2,007,282.02 to &pound;2,006,221.98,
+        a shift of about &pound;1,060 from the underlying data revision, not from any change to the engine itself.
       </p>
       <table class="directives">
         <thead>

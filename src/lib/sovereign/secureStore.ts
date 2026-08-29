@@ -38,9 +38,18 @@ const VERIFIER_PLAINTEXT = "SGP_VERIFY_OK";
 export const LEDGER_STORAGE_KEY = "shd_ledger_v4";
 export const SETTINGS_STORAGE_KEY = "shd_settings_v1";
 export const LICENSE_STORAGE_KEY = "sgp_license_v2";
+// Build 135 — CPI Index Reference Table (raw ONS CPI INDEX values keyed by
+// period-end date). Lives in the encrypted vault like the ledger/settings
+// so Back-Up/Restore carries it along automatically.
+export const CPI_REFERENCE_STORAGE_KEY = "shd_cpi_reference_v1";
 
 /** Every key held inside the encrypted vault. */
-export const VAULT_KEYS = [LEDGER_STORAGE_KEY, SETTINGS_STORAGE_KEY, LICENSE_STORAGE_KEY] as const;
+export const VAULT_KEYS = [
+  LEDGER_STORAGE_KEY,
+  SETTINGS_STORAGE_KEY,
+  LICENSE_STORAGE_KEY,
+  CPI_REFERENCE_STORAGE_KEY,
+] as const;
 
 export const MIN_PASSPHRASE_LENGTH = 8;
 

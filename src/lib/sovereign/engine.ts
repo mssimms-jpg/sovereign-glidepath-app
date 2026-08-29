@@ -1,6 +1,8 @@
 // Sovereign Glidepath — pure calculation engine.
 // All math from v1.8 HTML, refactored as deterministic functions.
 
+import type { CpiReferenceRow } from "./cpiReference";
+
 export type Phase = "Go-Go" | "Go-Slow" | "No-Go";
 export type Trajectory = "ascending" | "descending" | "stable";
 
@@ -191,10 +193,17 @@ export interface InflationTrackingRow {
   periodEndDate: string;
   /** Cumulative index AS OF this row, oldest row = 1.0. */
   cumulativeIndex: number;
-  /** True if actualCpiSincePriorRow was present on this row (vs assumed fallback). */
+  /** True if the rate came from the CPI reference table or actualCpiSincePriorRow (vs assumed fallback). */
   isActual: boolean;
-  /** The per-period rate actually applied (actual if present, else assumed), as %. */
+  /** The per-period rate actually applied (table/actual if present, else assumed), as %. */
   rateAppliedPct: number;
+  /**
+   * Build 135 — which source supplied rateAppliedPct: "table" (CPI Index
+   * Reference Table lookup for both this row's and the prior row's
+   * periodEndDate), "entry" (actualCpiSincePriorRow, a manually typed
+   * plain %), or "assumed" (no actual data, fell back to the assumed rate).
+   */
+  source: "table" | "entry" | "assumed";
 }
 
 export interface InflationTrackingResult {
@@ -213,8 +222,21 @@ const MS_PER_YEAR = 365.25 * 86_400_000;
  * is the most recent commit). `fallbackAssumedPct` is used for legacy rows
  * that recorded neither an actual figure nor their own assumedInflationPct
  * snapshot (typically the current Pane 1 slider value).
+ *
+ * Build 135 — `referenceTable`, if supplied, is checked FIRST for each
+ * row-pair: if both this row's and the prior row's periodEndDate have a raw
+ * CPI INDEX recorded, the rate is derived directly from the two indices
+ * (New÷Old−1)×100, and any actualCpiSincePriorRow on the row is ignored for
+ * that pair. This means correcting or rebasing a single reference-table
+ * entry propagates to every row that touches it, with no per-row edits.
+ * Falls back to the existing actualCpiSincePriorRow / assumed-rate
+ * behaviour, unchanged, when the table doesn't cover both dates.
  */
-export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedPct: number): InflationTrackingResult {
+export function computeInflationTracking(
+  ledger: LedgerEntry[],
+  fallbackAssumedPct: number,
+  referenceTable?: CpiReferenceRow[],
+): InflationTrackingResult {
   // Oldest-first, Normal rows only, with a usable date.
   const chain = ledger
     .filter(
@@ -233,6 +255,9 @@ export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedP
     return { rows: [], currentIndex: 1.0, impliedAverageAnnualPct: 0 };
   }
 
+  const refMap: Map<string, number> | undefined =
+    referenceTable && referenceTable.length > 0 ? new Map(referenceTable.map((r) => [r.date, r.index])) : undefined;
+
   const rows: InflationTrackingRow[] = [];
   let cumulativeIndex = 1.0;
   let prevDateMs = Date.parse(chain[0].entry.periodEndDate + "T00:00:00Z");
@@ -245,6 +270,7 @@ export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedP
     cumulativeIndex: 1.0,
     isActual: false,
     rateAppliedPct: 0,
+    source: "assumed",
   });
 
   for (let i = 1; i < chain.length; i++) {
@@ -252,16 +278,31 @@ export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedP
     const dateMs = Date.parse(entry.periodEndDate + "T00:00:00Z");
     const yearsElapsed = Math.max(0, (dateMs - prevDateMs) / MS_PER_YEAR);
 
+    const prevPeriodEndDate = chain[i - 1].entry.periodEndDate!;
+    const tablePrevIdx = refMap?.get(prevPeriodEndDate);
+    const tableCurIdx = refMap?.get(entry.periodEndDate!);
+    const hasTableLookup = typeof tablePrevIdx === "number" && tablePrevIdx > 0 && typeof tableCurIdx === "number";
+
     const hasActual = typeof entry.actualCpiSincePriorRow === "number" && !isNaN(entry.actualCpiSincePriorRow);
     let periodFactor: number;
     let rateAppliedPct: number;
+    let source: "table" | "entry" | "assumed";
 
-    if (hasActual) {
+    if (hasTableLookup) {
+      // CPI Index Reference Table — checked first. Raw index ratio between
+      // the two period-end dates, applied directly (not annualised — same
+      // as the "entry" path below, since it's whatever real span separates
+      // the two rows).
+      periodFactor = tableCurIdx! / tablePrevIdx!;
+      rateAppliedPct = (periodFactor - 1) * 100;
+      source = "table";
+    } else if (hasActual) {
       // Actual is recorded as the total change SINCE THE PRIOR ROW (not
       // necessarily annualised — it's whatever the user looked up for that
       // real span), so it's applied directly as a single compounding step.
       rateAppliedPct = entry.actualCpiSincePriorRow!;
       periodFactor = 1 + rateAppliedPct / 100;
+      source = "entry";
     } else {
       // Assumed fallback IS an annual rate, so it must be raised to the
       // actual elapsed span before compounding — a 6-month gap should only
@@ -269,6 +310,7 @@ export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedP
       const assumedPct = typeof entry.assumedInflationPct === "number" ? entry.assumedInflationPct : fallbackAssumedPct;
       rateAppliedPct = assumedPct;
       periodFactor = Math.pow(1 + assumedPct / 100, yearsElapsed);
+      source = "assumed";
     }
 
     cumulativeIndex *= periodFactor;
@@ -276,8 +318,9 @@ export function computeInflationTracking(ledger: LedgerEntry[], fallbackAssumedP
       ledgerIndex,
       periodEndDate: entry.periodEndDate!,
       cumulativeIndex,
-      isActual: hasActual,
+      isActual: source !== "assumed",
       rateAppliedPct,
+      source,
     });
     prevDateMs = dateMs;
   }
@@ -388,7 +431,8 @@ export function computeUnderspendSignal(
 
   const currentIdx = chain.length - 1;
   const currentRow = chain[currentIdx];
-  const currentRealisedWrPct = currentRow.totalCapital > 0 ? (currentRow.targetYearly / currentRow.totalCapital) * 100 : 0;
+  const currentRealisedWrPct =
+    currentRow.totalCapital > 0 ? (currentRow.targetYearly / currentRow.totalCapital) * 100 : 0;
   const wrRatioPct = originalRealisedWrPct > 0 ? (currentRealisedWrPct / originalRealisedWrPct) * 100 : 0;
   const everDippedBelowFloor = chain.some((e) => e.totalCapital < dipFloorValue);
 

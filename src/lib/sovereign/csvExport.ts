@@ -78,6 +78,7 @@ export function exportLedgerCSV<Row>(
 // component state beyond the values passed in — a safe extraction, unlike
 // a stateful JSX panel, since there's no state-ownership decision to make.
 import { computeInflationTracking, type LedgerEntry } from "./engine";
+import type { CpiReferenceRow } from "./cpiReference";
 
 export interface SovereignLedgerExportMeta {
   cappingAge: number;
@@ -86,6 +87,8 @@ export interface SovereignLedgerExportMeta {
   targetYearly: number;
   currency: string;
   inflationPct: number;
+  /** Build 135 — CPI Index Reference Table, threaded through so exports agree with the live Pane 2 figures. */
+  referenceTable?: CpiReferenceRow[];
 }
 
 // Build 132 — shared row-building logic for both the CSV and XLSX ledger
@@ -204,7 +207,11 @@ function targetWrPctOf(d: LedgerEntry): number | undefined {
   return (ty / tot) * 100;
 }
 
-export function buildLedgerExportRows(ledger: LedgerEntry[], fallbackAssumedInflationPct: number): LedgerExportRow[] {
+export function buildLedgerExportRows(
+  ledger: LedgerEntry[],
+  fallbackAssumedInflationPct: number,
+  referenceTable?: CpiReferenceRow[],
+): LedgerExportRow[] {
   const chron = chronological(ledger);
   const rows: LedgerExportRow[] = [];
 
@@ -218,10 +225,14 @@ export function buildLedgerExportRows(ledger: LedgerEntry[], fallbackAssumedInfl
   // as Pane 2's history table), so event rows below simply get no match
   // and export blank, consistent with how every other derived-only-for-
   // Normal-rows field in this file already behaves.
-  const inflationByLedgerIndex = new Map<number, { rateAppliedPct: number; isActual: boolean }>();
-  const inflationTracking = computeInflationTracking(ledger, fallbackAssumedInflationPct);
+  // Build 135 — referenceTable is threaded through so a row that used the
+  // CPI Index Reference Table in the live app shows "Table" here too,
+  // rather than silently falling back to Entry/Assumed because this call
+  // site didn't know about it.
+  const inflationByLedgerIndex = new Map<number, { rateAppliedPct: number; source: "table" | "entry" | "assumed" }>();
+  const inflationTracking = computeInflationTracking(ledger, fallbackAssumedInflationPct, referenceTable);
   for (const r of inflationTracking.rows) {
-    inflationByLedgerIndex.set(r.ledgerIndex, { rateAppliedPct: r.rateAppliedPct, isActual: r.isActual });
+    inflationByLedgerIndex.set(r.ledgerIndex, { rateAppliedPct: r.rateAppliedPct, source: r.source });
   }
 
   for (let i = 0; i < chron.length; i++) {
@@ -286,7 +297,13 @@ export function buildLedgerExportRows(ledger: LedgerEntry[], fallbackAssumedInfl
       guardrailStatus: d.guardrailStatus ?? "",
       rule: d.rule ?? "",
       inflationRateAppliedPct: inflation?.rateAppliedPct,
-      inflationSource: inflation ? (inflation.isActual ? "Actual" : "Assumed") : "",
+      inflationSource: inflation
+        ? inflation.source === "table"
+          ? "Table"
+          : inflation.source === "entry"
+            ? "Entry"
+            : "Assumed"
+        : "",
     });
   }
 
@@ -299,7 +316,7 @@ export function exportSovereignLedgerCSV(ledger: LedgerEntry[], meta: SovereignL
     return;
   }
 
-  const rows = buildLedgerExportRows(ledger, meta.inflationPct);
+  const rows = buildLedgerExportRows(ledger, meta.inflationPct, meta.referenceTable);
   const blank = "";
   const num = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(2) : blank);
   const pct = (n: number | undefined) => (typeof n === "number" && isFinite(n) ? n.toFixed(4) : blank);
@@ -395,6 +412,8 @@ export interface SovereignLedgerExportMetaXlsx {
   pensionStartAge: number;
   pensionIncreasePct: number;
   defensiveMode: ThresholdMode;
+  /** Build 135 — CPI Index Reference Table, threaded through so exports agree with the live Pane 2 figures. */
+  referenceTable?: CpiReferenceRow[];
 }
 
 const HEADER_FILL = "FF2C3E50"; // matches the sample workbook's header navy
@@ -423,12 +442,12 @@ export async function exportSovereignLedgerXLSX(
 
   const { default: ExcelJS } = await import("exceljs");
 
-  const rows = buildLedgerExportRows(ledger, meta.inflationPct);
+  const rows = buildLedgerExportRows(ledger, meta.inflationPct, meta.referenceTable);
   const rowCount = rows.length;
   const oldest = rows[0];
   const newest = rows[rowCount - 1];
   const anyExhausted = ledger.some((e) => e.rule === "Exhaustion");
-  const inflationTracking = computeInflationTracking(ledger, meta.inflationPct);
+  const inflationTracking = computeInflationTracking(ledger, meta.inflationPct, meta.referenceTable);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Sovereign Glidepath";
