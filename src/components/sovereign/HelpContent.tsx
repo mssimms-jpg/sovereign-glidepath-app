@@ -191,9 +191,9 @@ export function HelpContent() {
             <strong>How to read the simulator.</strong> It now reads top-to-bottom in the order you'd actually use it:{" "}
             <em>inputs</em> (pot, withdrawal, pension) → <em>sliders</em> (expected return, volatility, growth, cash
             real return, pension real increase) → <em>Defensive-Draw Threshold</em> → the <em>fan chart</em> → the{" "}
-            <em>percentile stats</em> → <em>Allocation Bias</em> → <em>Future Extraordinary Inflow</em>. The methodology
-            footnote that used to sit at the bottom is now behind the <strong>About these figures</strong> button next
-            to the stats.
+            <em>percentile stats</em> → <em>Allocation Bias</em> → <em>Extraordinary Cash Flows</em> → the{" "}
+            <em>Detailed Path Ledger</em> export. The methodology footnote that used to sit at the bottom is now behind
+            the <strong>About these figures</strong> button next to the stats.
           </p>
           <ul style={{ paddingLeft: "1.25rem", marginTop: "0.4rem" }}>
             <li>
@@ -221,11 +221,35 @@ export function HelpContent() {
               hand-off window uses (below) to seed the Risk Simulator with a projected pot.
             </li>
             <li>
-              <strong>Future Extraordinary Inflow</strong> now has a <strong>Destination</strong> choice — Equities or
-              Cash. Previously a windfall was always split 50/50; the whole amount now lands in the bucket you pick, at
-              the end of year N, and re-anchors the ATH.
+              <strong>Extraordinary Cash Flows</strong> replaces the old single "Future Extraordinary Inflow" field with
+              a free-form list — add as many rows as you need, each an <strong>Inflow</strong> or an{" "}
+              <strong>Outflow</strong>, with an optional label, an amount (today's money), a year, and a destination
+              (Inflow) or source (Outflow) bucket. Model a boat bought in year 2 (Outflow from Equities) and sold in
+              year 7 (Inflow to Equities) as two independent rows — they don't need to be linked. An Inflow adds to the
+              chosen bucket and re-anchors the ATH; an Outflow draws from the chosen bucket first, spilling to the other
+              bucket if it can't cover the full amount, floored at zero — the ATH is deliberately left alone on an
+              Outflow, exactly like an ordinary withdrawal, since it's a planned spend, not a market loss.
             </li>
           </ul>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Detailed Path Ledger export.</strong> Below the fan chart's stats, pick a percentile (10th/25th
+            /50th/75th/90th, or any custom value 1–99) and download a styled .xlsx with the actual year-by-year (or
+            quarter-by-quarter, in Quarterly tick mode) story of one real simulated path — the one whose own ending
+            value came out at that percentile among all 10,000. This is a genuine simulated sequence, not a statistical
+            composite: the fan chart's bands are computed independently at every year across all 10,000 paths, so no
+            single path is literally "the median" in every year at once — this export instead replays one real path in
+            full, including its market returns, withdrawals, guardrail state, and any Extraordinary Cash Flow that
+            landed. In Historical mode each row also shows which real calendar year's return was drawn for that period;
+            in Parametric mode the column simply reads "Parametric".
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Opening the simulator with no ledger entry.</strong> If you've never recorded a ledger entry and
+            didn't arrive here via "Move this pot to the Risk Simulator" from the Accumulation Simulator, the page now
+            opens with a populated worked example instead of an empty "add a ledger entry" prompt — age 60, £400k
+            equities / £100k cash, £35,000/yr withdrawal, £12,500 state pension from age 68, horizon age 90, Quarterly
+            tick, Historical mode. Edit any of it freely; a real handoff (including one that genuinely starts at £0) is
+            never overridden by these defaults.
+          </p>
 
           <p style={{ marginTop: "0.75rem" }}>
             <strong>True two-bucket simulation.</strong> The simulator now runs <em>two</em> separate buckets through

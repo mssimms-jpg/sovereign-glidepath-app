@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cleanNum, formatGBP, formatGBPWhole } from "@/lib/sovereign/engine";
-import { applyPeriod } from "@/lib/sovereign/drawdown";
+import {
+  applyPeriod,
+  applyExtraordinaryFlow,
+  type ActiveFlow,
+  type ActiveFlowKind,
+  type ActiveFlowBucket,
+} from "@/lib/sovereign/drawdown";
+import { buildPathRows, exportRiskPathXLSX, type ReplayConfig } from "@/lib/sovereign/riskPathExport";
 import { exportLedgerCSV } from "@/lib/sovereign/csvExport";
 import {
   mulberry32,
@@ -28,6 +35,10 @@ import { DashedLineIcon } from "./DashedLineIcon";
 // mode picks years at random, roughly half of every Historical-mode run was
 // drawing from a materially wrong figure. See also accumulationEngine.ts,
 // which imports this same array.
+// The array's first entry is 1970; index i therefore corresponds to
+// calendar year GLOBAL_ANNUAL_BASE_YEAR + i. Used by the Detailed Path
+// Ledger export (Build 138) to show which real year's return was drawn.
+export const GLOBAL_ANNUAL_BASE_YEAR = 1970;
 export const GLOBAL_ANNUAL: number[] = [
   -0.0308, 0.1243, 0.3197, -0.1424, -0.2585, 0.5299, 0.3662, -0.0889, 0.088, 0.0013, 0.1789, 0.1736, 0.2921, 0.3742,
   0.2659, 0.154, 0.4242, -0.0858, 0.2349, 0.3336, -0.3107, 0.2441, 0.1165, 0.2741, 0.0053, 0.2215, 0.0506, 0.1606,
@@ -61,6 +72,21 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 
 type ThresholdMode = "strict" | "standard" | "aggressive";
 type TickMode = "yearly" | "quarterly";
+
+// Build 136 — Extraordinary Cash Flow row (generalises the old single
+// "Future Extraordinary Inflow" field into a list supporting both inflows
+// and outflows, e.g. a boat bought in year 2 and sold in year 7). kind/
+// bucket reuse ActiveFlowKind/ActiveFlowBucket from drawdown.ts (the same
+// vocabulary the simulation and export actually consume) so the UI-state
+// shape and the calculation shape can't drift apart.
+type ExtraFlow = {
+  id: string;
+  kind: ActiveFlowKind;
+  label: string;
+  amountStr: string;
+  yearStr: string;
+  bucket: ActiveFlowBucket;
+};
 
 type PersistedMC = {
   meanStr?: string;
@@ -205,18 +231,52 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   const pensionAgeStr = useRealPension ? String(realPensionAge || 67) : hypPensionAgeStr;
   const pensionIncreasePct = useRealPension ? realPensionIncreasePct : hypPensionIncreasePct;
 
-  // Future extraordinary inflow — a projected windfall injected mid-simulation
-  // (property sale, inheritance). Value is in today's real £; year is
-  // years-from-now (1 = at end of year 1).
-  const [inflowAmtStr, setInflowAmtStr] = useState<string>("");
-  const [inflowFocused, setInflowFocused] = useState(false);
-  const [inflowYearStr, setInflowYearStr] = useState<string>("5");
-  const [inflowDest, setInflowDest] = useState<"equities" | "cash">("equities");
+  // Extraordinary cash flows — projected windfalls AND planned lump-sum
+  // spends injected mid-simulation (property sale/inheritance = inflow;
+  // boat purchase/one-off big spend = outflow). Multiple rows supported —
+  // e.g. a boat bought in year 2 (outflow) and sold in year 7 (inflow).
+  // Amounts are in today's real £; year is years-from-now (1 = at end of
+  // year 1). Session-only state, same as the single inflow it replaces —
+  // never persisted to MC_KEY.
+  const flowIdRef = React.useRef<number>(1);
+  const newFlowId = () => `flow-${flowIdRef.current++}`;
+  const [flows, setFlows] = useState<ExtraFlow[]>([
+    { id: "flow-0", kind: "inflow", label: "", amountStr: "", yearStr: "5", bucket: "equities" },
+  ]);
+  const [flowFocusedId, setFlowFocusedId] = useState<string | null>(null);
   // Build 099 — methodology caption is now behind this toggle.
   const [showAbout, setShowAbout] = useState(false);
+  // Build 137 — percentile of the fan chart the detailed path export should
+  // replay (see riskPathExport.ts header comment for what "the Nth
+  // percentile path" actually means).
+  const [pathPercentile, setPathPercentile] = useState<number>(50);
+  const [pathPercentileStr, setPathPercentileStr] = useState<string>("50");
+  const [pathExporting, setPathExporting] = useState(false);
 
-  const inflowAmt = Math.max(0, cleanNum(inflowAmtStr));
-  const inflowYear = Math.max(0, Math.floor(cleanNum(inflowYearStr)));
+  const addFlow = (kind: "inflow" | "outflow") =>
+    setFlows((prev) => [
+      ...prev,
+      { id: newFlowId(), kind, label: "", amountStr: "", yearStr: "5", bucket: "equities" },
+    ]);
+  const removeFlow = (id: string) => setFlows((prev) => prev.filter((f) => f.id !== id));
+  const updateFlow = (id: string, patch: Partial<ExtraFlow>) =>
+    setFlows((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+
+  // Active flows fed into the simulation — blank/zero amounts and rows the
+  // user hasn't filled in yet are dropped.
+  const activeFlows: ActiveFlow[] = useMemo(
+    () =>
+      flows
+        .map((f) => ({
+          kind: f.kind,
+          bucket: f.bucket,
+          amount: Math.max(0, cleanNum(f.amountStr)),
+          year: Math.max(0, Math.floor(cleanNum(f.yearStr))),
+          label: f.label.trim(),
+        }))
+        .filter((f) => f.amount > 0),
+    [flows],
+  );
 
   // Build 101 — Assumed Real Growth Rate and Cash Real Return are now FULLY
   // independent of Pane 1, exactly like Inflation / Escalation: plain local
@@ -229,7 +289,11 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     typeof p.cashRealPct === "number" ? p.cashRealPct : typeof cashRealPctSeed === "number" ? cashRealPctSeed : 1,
   );
   const [threshold, setThreshold] = useState<ThresholdMode>(p.threshold ?? "standard");
-  const [tickMode, setTickMode] = useState<TickMode>(p.tickMode ?? "yearly");
+  // Build 139 — quarterly by default for a first-ever use of this pane (no
+  // persisted setting yet), matching the cold-start defaults RiskSimulatorPage
+  // now seeds capital/age/pension with. Once a person actually changes tick
+  // mode, that choice is persisted (below) and wins on every future visit.
+  const [tickMode, setTickMode] = useState<TickMode>(p.tickMode ?? "quarterly");
   // Audit Mode — hidden toggle triggered by double-clicking the pane header.
   // Forces a single deterministic path with canonical inputs so the engine
   // math can be reproduced with a pocket calculator.
@@ -388,9 +452,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       tickMode,
       years: effectiveYears,
       deterministicRatePct,
-      inflowAmt,
-      inflowYear,
-      inflowDest,
+      activeFlows,
     }),
     [
       mode,
@@ -410,9 +472,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       tickMode,
       effectiveYears,
       deterministicRatePct,
-      inflowAmt,
-      inflowYear,
-      inflowDest,
+      activeFlows,
     ],
   );
   const simInputs = useDebouncedValue(simInputsRaw, 180);
@@ -443,9 +503,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       tickMode,
       years,
       deterministicRatePct,
-      inflowAmt,
-      inflowYear,
-      inflowDest,
+      activeFlows,
     } = simInputs;
 
     const yrs = Math.max(1, Math.min(60, Math.floor(years)));
@@ -462,6 +520,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     const cashRealReturn = cashRealPct / 100;
     const detRNominal = deterministicRatePct / 100;
     const detRReal = infl > 0 ? (1 + detRNominal) / (1 + infl) - 1 : detRNominal;
+
+    // Extraordinary cash flow — applied at the end of the specified year via
+    // applyExtraordinaryFlow() in drawdown.ts (Build 137), the single shared
+    // implementation the stochastic paths, the deterministic path, AND the
+    // single-path detailed export below all call — so none of them can ever
+    // disagree on how a boat purchase/sale actually lands.
     // Defensive-draw thresholds live in applyPeriod (single source of truth).
     //   Strict     — cash when real equity return < −5%
     //   Standard   — cash when real equity return < ½ · detRReal
@@ -496,6 +560,15 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
     const byYear: number[][] = Array.from({ length: yrs + 1 }, () => []);
     const finals: number[] = [];
+    // Build 137 — one annual nominal-return draw per path is captured here so
+    // any single path can be exactly replayed later (Export Detailed Path
+    // Ledger) without re-running all RUNS paths. Cheap: RUNS × yrs floats.
+    const pathReturns: number[][] = [];
+    // Build 138 — which real historical year (index into GLOBAL_ANNUAL) each
+    // path's each year drew, in Historical mode. -1 in Parametric mode
+    // (there's no historical year to report). Lets the detailed path export
+    // show "which year was used" per row instead of just the return figure.
+    const pathHistIdx: number[][] = [];
     let defensiveSum = 0;
 
     // Target Withdrawal Rate for G-K (fallback when ATH is 0).
@@ -506,13 +579,19 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       let C = C0;
       let ATH = start; // per-path all-time high
       byYear[0].push(E + C);
+      const thisPathReturns: number[] = [];
+      const thisPathHistIdx: number[] = [];
       for (let y = 1; y <= yrs; y++) {
         let nominal: number;
+        let histIdx = -1;
         if (mode === "historical") {
-          nominal = GLOBAL_ANNUAL[Math.floor(rng() * GLOBAL_ANNUAL.length)];
+          histIdx = Math.floor(rng() * GLOBAL_ANNUAL.length);
+          nominal = GLOBAL_ANNUAL[histIdx];
         } else {
           nominal = mean + sd * gaussian(rng);
         }
+        thisPathReturns.push(nominal);
+        thisPathHistIdx.push(histIdx);
         const realEq = infl > 0 ? (1 + nominal) / (1 + infl) - 1 : nominal;
 
         const ageThisYear = currentAge + y - 1;
@@ -570,17 +649,20 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           if (out.defensive) defensiveSum++;
         }
 
-        // Extraordinary inflow — injected at end of the specified year into the
-        // chosen destination bucket. Bumps ATH so guardrails re-anchor.
-        if (inflowAmt > 0 && y === inflowYear) {
-          if (inflowDest === "cash") C += inflowAmt;
-          else E += inflowAmt;
-          if (E + C > ATH) ATH = E + C;
+        // Extraordinary cash flows due at the end of this year.
+        for (const f of activeFlows) {
+          if (f.year !== y) continue;
+          const out = applyExtraordinaryFlow(E, C, ATH, f);
+          E = out.E;
+          C = out.C;
+          ATH = out.ATH;
         }
 
         byYear[y].push(E + C);
       }
       finals.push(E + C);
+      pathReturns.push(thisPathReturns);
+      pathHistIdx.push(thisPathHistIdx);
     }
 
     const bands = byYear.map((arr) => {
@@ -655,13 +737,14 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         dATH = out.ATH;
       }
 
-      // Extraordinary inflow — injected at the specified year into the chosen
-      // destination bucket. Re-anchors the deterministic ATH, mirroring the
-      // stochastic paths.
-      if (inflowAmt > 0 && y === inflowYear) {
-        if (inflowDest === "cash") dC += inflowAmt;
-        else dE += inflowAmt;
-        if (dE + dC > dATH) dATH = dE + dC;
+      // Extraordinary cash flows due at the end of this year — mirrors the
+      // stochastic paths above.
+      for (const f of activeFlows) {
+        if (f.year !== y) continue;
+        const out = applyExtraordinaryFlow(dE, dC, dATH, f);
+        dE = out.E;
+        dC = out.C;
+        dATH = out.ATH;
       }
       det.push(dE + dC);
     }
@@ -683,6 +766,33 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     const avgDefensiveYears = defensiveSum / RUNS;
     const defensivePct = Math.round((avgDefensiveYears / yrs) * 100);
 
+    // Build 137 — path indices ranked by each path's OWN ending value, so a
+    // chosen percentile (e.g. 50th) can be resolved to one real simulated
+    // path (the one whose ending value sits at that percentile) rather than
+    // a synthetic composite. `finals` here is still in original path order
+    // (pathReturns[i] matches finals[i]) — sortedFinals above is a copy.
+    const rankedFinalIndices = finals.map((_, i) => i).sort((a, b) => finals[a] - finals[b]);
+
+    const replayConfig: ReplayConfig = {
+      E0,
+      C0,
+      start,
+      currentAge,
+      pension,
+      pensionAge,
+      pensionRealFactor,
+      cashRealReturn,
+      withdraw,
+      threshold,
+      detRReal,
+      targetCashBuffer,
+      targetWR_gk,
+      tickMode,
+      infl,
+      activeFlows,
+      yrs,
+    };
+
     return {
       yrs,
       bands,
@@ -694,6 +804,24 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       detRuined,
       avgDefensiveYears,
       defensivePct,
+      pathReturns,
+      pathHistIdx,
+      rankedFinalIndices,
+      replayConfig,
+      exportMeta: {
+        mode,
+        meanPct,
+        stdevPct,
+        inflationPct,
+        tickMode,
+        threshold,
+        currentAge,
+        yrs,
+        start,
+        withdraw,
+        pension,
+        pensionAge,
+      },
     };
   }
 
@@ -724,6 +852,51 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       cancelAnimationFrame(raf2);
     };
   }, [simInputs]);
+
+  // Build 137 — resolves the chosen percentile to one real simulated path
+  // (ranked by its own ending value), replays it at full period detail, and
+  // downloads it as a styled .xlsx. See riskPathExport.ts's header comment
+  // for why "the Nth percentile path" means a real path, not a composite.
+  async function handleExportPath() {
+    if (!sim) return;
+    const { pathReturns, pathHistIdx, rankedFinalIndices, replayConfig, finals, exportMeta } = sim;
+    const n = rankedFinalIndices.length;
+    const rank = Math.min(n - 1, Math.max(0, Math.round((pathPercentile / 100) * (n - 1))));
+    const pathIdx = rankedFinalIndices[rank];
+    // Build 138 — "which year was used" column: a real calendar year in
+    // Historical mode (resolved from the stored draw index), or the literal
+    // string "Parametric" when the model isn't drawing from history at all.
+    const yearLabels =
+      exportMeta.mode === "historical"
+        ? pathHistIdx[pathIdx].map((idx) => String(GLOBAL_ANNUAL_BASE_YEAR + idx))
+        : pathReturns[pathIdx].map(() => "Parametric");
+    const rows = buildPathRows(pathReturns[pathIdx], replayConfig, yearLabels);
+    setPathExporting(true);
+    try {
+      await exportRiskPathXLSX(rows, {
+        percentile: pathPercentile,
+        pathRank: rank + 1,
+        runs: RUNS,
+        finalValue: finals[rank] ?? 0,
+        mode: exportMeta.mode,
+        meanPct: exportMeta.meanPct,
+        stdevPct: exportMeta.stdevPct,
+        inflationPct: exportMeta.inflationPct,
+        tickMode: exportMeta.tickMode,
+        threshold: exportMeta.threshold,
+        currency,
+        currentAge: exportMeta.currentAge,
+        years: exportMeta.yrs,
+        startingTotal: exportMeta.start,
+        withdraw: exportMeta.withdraw,
+        pension: exportMeta.pension,
+        pensionAge: exportMeta.pensionAge,
+        flows: replayConfig.activeFlows,
+      });
+    } finally {
+      setPathExporting(false);
+    }
+  }
 
   // -------- AUDIT MODE ---------------------------------------------------
   type AuditStep = {
@@ -2447,6 +2620,83 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         </div>
       )}
 
+      {/* Build 137 — Detailed Path Ledger export. Only meaningful against
+          the real 10,000-path sim, not the fixed-scenario Audit Mode. */}
+      {!auditMode && sim && (
+        <div
+          style={{
+            marginBottom: "1rem",
+            padding: "0.7rem 0.85rem",
+            background: "rgba(59,130,246,0.05)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 8,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              marginBottom: "0.6rem",
+            }}
+          >
+            <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>
+              Detailed Path Ledger
+            </span>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+              Pick a percentile and download the actual simulated path that ended at that percentile — every{" "}
+              {tickMode === "quarterly" ? "quarter's" : "year's"} market return, withdrawal, guardrail state and any
+              extraordinary flow, exactly like the main ledger export.
+            </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.6rem" }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[10, 25, 50, 75, 90].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={pathPercentile === p ? "" : "secondary"}
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.55rem" }}
+                  aria-pressed={pathPercentile === p}
+                  onClick={() => {
+                    setPathPercentile(p);
+                    setPathPercentileStr(String(p));
+                  }}
+                >
+                  {p}th
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Custom:</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={pathPercentileStr}
+                style={{ width: "3.5rem" }}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setPathPercentileStr(raw);
+                  const n = Math.round(cleanNum(raw));
+                  if (n >= 1 && n <= 99) setPathPercentile(n);
+                }}
+                onBlur={() => setPathPercentileStr(String(pathPercentile))}
+              />
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>th percentile</span>
+            </div>
+            <button
+              type="button"
+              disabled={pathExporting}
+              style={{ fontSize: "0.8rem", padding: "0.35rem 0.7rem", marginLeft: "auto" }}
+              onClick={handleExportPath}
+            >
+              {pathExporting ? "Building…" : "Download Detailed Path Ledger (.xlsx)"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Allocation bias slider — rebalance Equities↔Cash while preserving total */}
       {simCapital > 0 &&
         (() => {
@@ -2535,7 +2785,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           );
         })()}
 
-      {/* Future extraordinary inflow (windfall injected mid-simulation). */}
+      {/* Extraordinary cash flows (planned lump-sum inflows AND outflows
+          injected mid-simulation) — Build 136 generalisation of the old
+          single "Future Extraordinary Inflow" field. */}
       <div
         style={{
           marginBottom: "1rem",
@@ -2545,72 +2797,138 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           borderRadius: 8,
         }}
       >
-        {/* Build 099 — title and helper text share one line to save vertical space. */}
         <div
           style={{
             display: "flex",
             alignItems: "baseline",
             flexWrap: "wrap",
             gap: "0.5rem",
-            marginBottom: "0.4rem",
+            marginBottom: "0.6rem",
           }}
         >
           <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>
-            Future Extraordinary Inflow
+            Extraordinary Cash Flows
           </span>
           <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-            Property sale, inheritance, etc. — a flat amount in today's purchasing power, injected at the end of year N
-            and re-anchoring the ATH.
+            Planned lump sums in today's purchasing power, injected at the end of year N — inflow (property sale,
+            inheritance) adds and re-anchors the ATH; outflow (a boat purchase, say) draws down. Add both to model
+            buying in year 2 and selling in year 7.
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.85rem" }}>
-          <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Amount ({currency})</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              placeholder={`${currency}0.00`}
-              value={inflowFocused ? inflowAmtStr : inflowAmtStr ? formatGBP(cleanNum(inflowAmtStr)) : ""}
-              onFocus={(e) => {
-                const n = cleanNum(e.currentTarget.value);
-                setInflowAmtStr(n !== 0 ? n.toFixed(2) : "");
-                setInflowFocused(true);
-              }}
-              onBlur={() => setInflowFocused(false)}
-              onChange={(e) => setInflowAmtStr(e.target.value)}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Inflow Timeline (Years from Now)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="5"
-              value={inflowYearStr}
-              onChange={(e) => setInflowYearStr(e.target.value)}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Destination</label>
-            <div style={{ display: "flex", gap: 4, marginTop: "0.35rem" }}>
-              {(["equities", "cash"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={inflowDest === d ? "" : "secondary"}
-                  style={{
-                    fontSize: "0.7rem",
-                    padding: "0.25rem 0.5rem",
-                    textTransform: "capitalize",
-                  }}
-                  aria-pressed={inflowDest === d}
-                  onClick={() => setInflowDest(d)}
-                >
-                  {d}
-                </button>
-              ))}
+
+        {flows.map((f, idx) => (
+          <div
+            key={f.id}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              gap: "0.6rem",
+              padding: "0.5rem 0",
+              borderTop: idx > 0 ? "1px dashed var(--border-color)" : undefined,
+            }}
+          >
+            <div>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Type</label>
+              <div style={{ display: "flex", gap: 4, marginTop: "0.35rem" }}>
+                {(["inflow", "outflow"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={f.kind === k ? "" : "secondary"}
+                    style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem", textTransform: "capitalize" }}
+                    aria-pressed={f.kind === k}
+                    onClick={() => updateFlow(f.id, { kind: k })}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
             </div>
+            <div style={{ flex: "1 1 120px", minWidth: 100 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Label (optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Boat purchase, Vacation property sale"
+                value={f.label}
+                onChange={(e) => updateFlow(f.id, { label: e.target.value })}
+              />
+            </div>
+            <div style={{ flex: "1 1 100px", minWidth: 90 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Amount ({currency})</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder={`${currency}0.00`}
+                value={flowFocusedId === f.id ? f.amountStr : f.amountStr ? formatGBP(cleanNum(f.amountStr)) : ""}
+                onFocus={(e) => {
+                  const n = cleanNum(e.currentTarget.value);
+                  updateFlow(f.id, { amountStr: n !== 0 ? n.toFixed(2) : "" });
+                  setFlowFocusedId(f.id);
+                }}
+                onBlur={() => setFlowFocusedId((cur) => (cur === f.id ? null : cur))}
+                onChange={(e) => updateFlow(f.id, { amountStr: e.target.value })}
+              />
+            </div>
+            <div style={{ flex: "0 1 110px", minWidth: 90 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Years From Now</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="5"
+                value={f.yearStr}
+                onChange={(e) => updateFlow(f.id, { yearStr: e.target.value })}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                {f.kind === "inflow" ? "Destination" : "Draw From"}
+              </label>
+              <div style={{ display: "flex", gap: 4, marginTop: "0.35rem" }}>
+                {(["equities", "cash"] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={f.bucket === d ? "" : "secondary"}
+                    style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem", textTransform: "capitalize" }}
+                    aria-pressed={f.bucket === d}
+                    onClick={() => updateFlow(f.id, { bucket: d })}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              aria-label="Remove this cash flow"
+              title="Remove"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", color: "var(--accent-red, #ef4444)" }}
+              onClick={() => removeFlow(f.id)}
+            >
+              ✕
+            </button>
           </div>
+        ))}
+
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: flows.length > 0 ? "0.6rem" : 0 }}>
+          <button
+            type="button"
+            className="secondary"
+            style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+            onClick={() => addFlow("inflow")}
+          >
+            + Add Inflow
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+            onClick={() => addFlow("outflow")}
+          >
+            + Add Outflow
+          </button>
         </div>
       </div>
 

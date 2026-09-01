@@ -11,6 +11,73 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.139 — Risk Simulator cold-start defaults
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Added:</strong> The standalone Risk Simulator page now opens with a populated worked example — age
+              60, £400k equities / £100k cash, £35,000/yr withdrawal, £12,500 state pension from age 68, horizon age 90,
+              quarterly tick, historical mode — instead of an empty "add a ledger entry" prompt, for anyone who only
+              ever uses the Accumulation or Risk Simulator sandboxes and never records a real ledger entry. Defaults
+              only fill in whatever's genuinely absent from the handoff — a real launch with actual figures, including
+              one that explicitly starts at £0, is never overridden.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.138 — Detailed Path Ledger: which historical year was used
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Added:</strong> In Historical mode, the Detailed Path Ledger export now shows which real calendar
+              year's MSCI World return was drawn for each row (e.g. "1975", "1990") — a genuine historical figure,
+              though remember it's bootstrap-resampled with replacement, not the real chronological sequence. Reads
+              "Parametric" in Parametric mode.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.137 — Risk Simulator: Detailed Path Ledger export
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> Pick a percentile (10th/25th/50th/75th/90th, or any custom value 1–99) below the
+              fan chart and download a styled .xlsx replaying one real simulated path — the one whose own ending value
+              came out at that percentile among all 10,000 — at full period detail: market return, balances, pension,
+              withdrawal target vs. actual (post-Guyton-Klinger), guardrail state, any Extraordinary Cash Flow that
+              landed, running total, ATH and drawdown-off-ATH. One row per year (Yearly tick) or per quarter (Quarterly
+              tick), styled to match the main ledger export.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Changed:</strong> The Extraordinary Cash Flow apply logic is now a single shared function in
+              drawdown.ts, alongside applyPeriod() — the stochastic paths, the deterministic path, and this new export
+              all call the same implementation, so none of them can disagree on how a flow lands.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.136 — Risk Simulator: multiple Extraordinary Cash Flows
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Added:</strong> The old single "Future Extraordinary Inflow" field is now "Extraordinary Cash
+              Flows" — an unlimited list, each row an Inflow or an Outflow with an optional label, amount, year, and
+              destination/source bucket. Models e.g. a boat bought in year 2 (Outflow) and sold in year 7 (Inflow) as
+              two fully independent rows. An Outflow draws from the chosen bucket first, spilling to the other if it
+              can't cover the full amount, floored at zero; the ATH is deliberately left untouched on an Outflow,
+              exactly like an ordinary withdrawal.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0.135 — CPI Index Reference Table
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>

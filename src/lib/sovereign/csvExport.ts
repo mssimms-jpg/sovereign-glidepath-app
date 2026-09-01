@@ -416,13 +416,16 @@ export interface SovereignLedgerExportMetaXlsx {
   referenceTable?: CpiReferenceRow[];
 }
 
-const HEADER_FILL = "FF2C3E50"; // matches the sample workbook's header navy
-const HEADER_FONT_COLOR = "FFFFFFFF";
-const CURRENCY_FMT = "#,##0.00";
-const PCT_FMT = '0.00"%"'; // values are already *100 (e.g. 12.34), not 0.1234
+// Exported (Build 137) so riskPathExport.ts's single-path detailed export
+// shares the exact same header styling/number formats as the main ledger
+// export, rather than a second hand-maintained copy drifting over time.
+export const HEADER_FILL = "FF2C3E50"; // matches the sample workbook's header navy
+export const HEADER_FONT_COLOR = "FFFFFFFF";
+export const CURRENCY_FMT = "#,##0.00";
+export const PCT_FMT = '0.00"%"'; // values are already *100 (e.g. 12.34), not 0.1234
 
 /** Applies the sample workbook's header styling: navy fill, white bold text, wrapped, frozen row. */
-function styleHeaderRow(row: ExcelJSType.Row) {
+export function styleHeaderRow(row: ExcelJSType.Row) {
   row.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: HEADER_FONT_COLOR }, size: 9 };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };

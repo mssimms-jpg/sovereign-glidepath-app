@@ -20,13 +20,12 @@
 // `isDefensiveByTrailingDrawdown()` in engine.ts.
 import { phaseFor, isDefensiveByTrailingDrawdown, gkGuardrail } from "./engine";
 
-
 export type ThresholdMode = "strict" | "standard" | "aggressive";
 export type GkLabel = "Normal" | "Preservation (-10%)" | "Prosperity (+10%)";
 
 export interface PeriodState {
-  E: number;   // equities balance (real terms)
-  C: number;   // cash balance     (real terms)
+  E: number; // equities balance (real terms)
+  C: number; // cash balance     (real terms)
   ATH: number; // per-path all-time high of E+C
 }
 
@@ -78,9 +77,9 @@ export interface PeriodInputs {
 
 export interface PeriodResult extends PeriodState {
   defensive: boolean;
-  gk: number;        // 0.9 | 1.0 | 1.1
+  gk: number; // 0.9 | 1.0 | 1.1
   gkLabel: GkLabel;
-  spend: number;     // spendGross * gk (what was actually drawn)
+  spend: number; // spendGross * gk (what was actually drawn)
 }
 
 /** Round to 4 decimal places to prevent floating-point flips at threshold. */
@@ -125,20 +124,25 @@ export function isDefensive(
   return r4(rEqReal) < r4(hurdle);
 }
 
-
 /**
  * Advance one period. Yearly-tick calls once with annual returns and the
  * annual withdrawal; Quarterly-tick calls 4× with quarterly returns and
  * spendGross = annual/4; Audit Mode calls the same function again with a
  * fixed known return sequence.
  */
-export function applyPeriod(
-  s: PeriodState,
-  inp: PeriodInputs,
-): PeriodResult {
-  const { rEqReal, rCashReal, spendGross, withdrawAnchor,
-    threshold, detRReal, targetCashBuffer, targetWR_gk = 0,
-    periodsPerYear = 1, age } = inp;
+export function applyPeriod(s: PeriodState, inp: PeriodInputs): PeriodResult {
+  const {
+    rEqReal,
+    rCashReal,
+    spendGross,
+    withdrawAnchor,
+    threshold,
+    detRReal,
+    targetCashBuffer,
+    targetWR_gk = 0,
+    periodsPerYear = 1,
+    age,
+  } = inp;
 
   // Guyton-Klinger — Build 091. Preservation compares the current WR to the
   // per-path ATH WR (unchanged). Prosperity compares it to the plan's BASELINE
@@ -153,11 +157,7 @@ export function applyPeriod(
   const g = gkGuardrail(currentWR, athWR, baselineWR, phase);
   const gk = g.factor;
   const gkLabel: GkLabel =
-    g.label === "Preservation"
-      ? "Preservation (-10%)"
-      : g.label === "Prosperity"
-        ? "Prosperity (+10%)"
-        : "Normal";
+    g.label === "Preservation" ? "Preservation (-10%)" : g.label === "Prosperity" ? "Prosperity (+10%)" : "Normal";
 
   const spend = spendGross * gk;
 
@@ -173,12 +173,7 @@ export function applyPeriod(
   // is applied. Same signal and same phase-aware thresholds as the live
   // dashboard (engine.ts). With no prior history (ATH == starting total) the
   // drawdown is 0% and the period can never be defensive.
-  const defensive = isDefensiveByTrailingDrawdown(
-    tot,
-    s.ATH,
-    phase,
-    threshold,
-  );
+  const defensive = isDefensiveByTrailingDrawdown(tot, s.ATH, phase, threshold);
 
   if (defensive) {
     // Cash first, spill to equities if cash can't cover.
@@ -215,4 +210,57 @@ export function applyPeriod(
 
   const ATH = Math.max(s.ATH, E + C);
   return { E, C, ATH, defensive, gk, gkLabel, spend };
+}
+
+// Build 136 — Extraordinary cash flow (planned lump-sum inflow OR outflow,
+// e.g. a boat bought in year 2 and sold in year 7). Hoisted out of
+// MonteCarloPanel.tsx to module scope so the Risk Simulator's stochastic
+// paths, its deterministic reference path, AND the single-path detailed
+// export (Build 137) all apply the exact same rule — same reasoning as
+// applyPeriod() above: one function, three callers, never re-implemented.
+export type ActiveFlowKind = "inflow" | "outflow";
+export type ActiveFlowBucket = "equities" | "cash";
+export interface ActiveFlow {
+  kind: ActiveFlowKind;
+  bucket: ActiveFlowBucket;
+  amount: number;
+  /** Years-from-now this flow lands, matched against the period's year index. */
+  year: number;
+  /** Optional user-entered note (e.g. "Boat purchase") — carried through to exports, not used in the maths. */
+  label?: string;
+}
+
+/**
+ * Inflow: adds to the chosen bucket and re-anchors the ATH — a windfall
+ * genuinely raises the plan's high-water mark.
+ * Outflow: draws from the chosen bucket first, spilling to the other bucket
+ * if it can't cover the full amount (same cash-first/equities-first spill
+ * pattern as an ordinary withdrawal above), floored at 0 — never left
+ * negative. ATH is deliberately left untouched on an outflow, exactly like
+ * an ordinary withdrawal: it's a planned spend, not a market loss.
+ */
+export function applyExtraordinaryFlow(E: number, C: number, ATH: number, f: ActiveFlow): PeriodState {
+  let e = E;
+  let c = C;
+  if (f.kind === "inflow") {
+    if (f.bucket === "cash") c += f.amount;
+    else e += f.amount;
+    return { E: e, C: c, ATH: Math.max(ATH, e + c) };
+  }
+  if (f.bucket === "cash") {
+    if (c >= f.amount) c -= f.amount;
+    else {
+      const shortfall = f.amount - c;
+      c = 0;
+      e = Math.max(0, e - shortfall);
+    }
+  } else {
+    if (e >= f.amount) e -= f.amount;
+    else {
+      const shortfall = f.amount - e;
+      e = 0;
+      c = Math.max(0, c - shortfall);
+    }
+  }
+  return { E: e, C: c, ATH };
 }

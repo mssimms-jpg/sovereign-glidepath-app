@@ -47,15 +47,30 @@ export function RiskSimulatorPage() {
   // same param scheme as the Comparison Builder launcher, plus growth/cashReal.
   const sp = getQueryParams();
 
-  const equities = Math.max(0, numParam(sp, "eq", 0));
-  const cash = Math.max(0, numParam(sp, "cash", 0));
-  const age = Math.max(0, Math.floor(numParam(sp, "age", 0)));
+  // Build 139 — cold-start defaults. Previously every param defaulted to 0
+  // (or a token fallback like horizon=30), so a user who opened this page
+  // directly — no ledger entry recorded, and not handed a real snapshot via
+  // "from=accumulation-simulator" — saw "Add a ledger entry with capital to
+  // run the simulation" and a dead page. Some people only ever want the
+  // Accumulation or Risk Simulator sandboxes and never touch the ledger at
+  // all, so the simulator should be usable standing entirely on its own.
+  // These defaults are a representative worked example (age 60, £400k/£100k
+  // equities/cash, £35,000/yr withdrawal, £12,500 state pension from 68,
+  // horizon 90) — NOT a recommendation, just something sensible to land on
+  // and edit from.
+  // Only used when a param is genuinely ABSENT from the query string
+  // (numParam only falls back on sp.get()===null) — a real handoff that
+  // explicitly passes eq=0&cash=0 (a genuine zero-capital plan) is left
+  // exactly as sent, never silently overridden.
+  const equities = Math.max(0, numParam(sp, "eq", 400000));
+  const cash = Math.max(0, numParam(sp, "cash", 100000));
+  const age = Math.max(0, Math.floor(numParam(sp, "age", 60)));
   const horizon = Math.max(1, Math.floor(numParam(sp, "horizon", 30)));
-  const withdrawal = Math.max(0, numParam(sp, "withdrawal", 0));
-  const growth = numParam(sp, "growth", 4);
+  const withdrawal = Math.max(0, numParam(sp, "withdrawal", 35000));
+  const growth = numParam(sp, "growth", 5);
   const cashReal = numParam(sp, "cashReal", 1);
-  const pensionAmount = Math.max(0, numParam(sp, "pensionAmount", 0));
-  const pensionAge = Math.max(0, Math.floor(numParam(sp, "pensionAge", 67)));
+  const pensionAmount = Math.max(0, numParam(sp, "pensionAmount", 12500));
+  const pensionAge = Math.max(0, Math.floor(numParam(sp, "pensionAge", 68)));
   const currency = currencyParam(sp, "currency", "£");
   // Build 123 — Horizon Age, seed only, same rules as age. Falls back to
   // age + horizon (reconstructing an age from the old fixed year-count) for

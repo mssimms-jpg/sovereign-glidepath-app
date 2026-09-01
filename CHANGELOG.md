@@ -4,6 +4,37 @@ A running record of updates, improvements and bug fixes by build number.
 
 Location: project root (`CHANGELOG.md`). Update this file every build.
 
+## 1.0.139
+
+### Added
+
+- Risk Simulator (standalone page) now opens with populated cold-start defaults — age 60, £400k equities/£100k cash, £35,000/yr withdrawal, £12,500 state pension from age 68, horizon age 90, quarterly tick, historical mode — instead of an empty "add a ledger entry" prompt, for anyone who only ever uses the Accumulation or Risk Simulator sandboxes and never records a real ledger entry
+- Defaults only fill in query-string params that are genuinely absent; a real handoff from the live app or Accumulation Simulator — including one that explicitly passes a £0 starting pot — is never overridden
+
+## 1.0.138
+
+### Added
+
+- Detailed Path Ledger export (Historical mode): a new "Historical Year Used" column shows which real calendar year's MSCI World return was drawn for each row (e.g. "1975", "1990"); reads "Parametric" in Parametric mode, since there's no historical year to report
+
+## 1.0.137
+
+### Added
+
+- Risk Simulator: "Detailed Path Ledger" export — pick a percentile (10th/25th/50th/75th/90th, or any custom value) and download a styled .xlsx replaying one real simulated path (the path whose own ending value came out at that percentile among all 10,000) at full period detail: market return, opening/closing balances, pension, withdrawal target vs. actual (post-Guyton-Klinger), guardrail state, defensive-draw flag, any Extraordinary Cash Flow that landed, running total, ATH and drawdown-off-ATH — one row per year (Yearly tick) or per quarter (Quarterly tick)
+- Matches the main ledger export's styling (navy header, frozen header row, currency/% number formats) and reuses its header-styling constants directly rather than a second hand-maintained copy
+
+### Changed
+
+- The Extraordinary Cash Flow apply logic (`applyFlow`) is hoisted out of MonteCarloPanel.tsx into a new shared `applyExtraordinaryFlow()` in drawdown.ts, alongside `applyPeriod()` — the stochastic paths, the deterministic reference path, and the new Detailed Path Ledger replay all call the same function, so none of them can disagree on how a flow lands
+
+## 1.0.136
+
+### Added
+
+- Risk Simulator: the old single "Future Extraordinary Inflow" field is now "Extraordinary Cash Flows" — an unlimited list of rows, each an Inflow or an Outflow, with an optional label, amount, year, and destination/source bucket. Models e.g. a boat bought in year 2 (Outflow) and sold in year 7 (Inflow) as two fully independent rows
+- Outflow draws from the chosen bucket first, spilling to the other bucket if it can't cover the full amount (same spill pattern as an ordinary withdrawal), floored at zero. Inflow adds to the chosen bucket and re-anchors the ATH; Outflow deliberately leaves the ATH untouched, exactly like an ordinary withdrawal — it's a planned spend, not a market loss
+
 ## 1.0.135
 
 ### Added
@@ -1176,6 +1207,8 @@ Smaller polish:
 ## Version 1.0 build 010
 
 ### Improvements
+
+g
 
 - **Header layout** — Title is now prominent and centred at the top of the page,
   with the version/build stamp directly beneath it. The action buttons sit on a
