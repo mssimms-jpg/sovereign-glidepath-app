@@ -1208,8 +1208,6 @@ Smaller polish:
 
 ### Improvements
 
-g
-
 - **Header layout** — Title is now prominent and centred at the top of the page,
   with the version/build stamp directly beneath it. The action buttons sit on a
   second row below the title.

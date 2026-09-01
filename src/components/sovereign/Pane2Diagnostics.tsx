@@ -1086,6 +1086,24 @@ export function Pane2Diagnostics({
           >
             <button
               onClick={() => {
+                // Build 140 — if there's no live capital recorded (no ledger
+                // entry yet), don't hand over a hard eq=0&cash=0 — that reads
+                // identically to a genuine real £0 plan and defeats the
+                // Risk Simulator's own cold-start defaults (Build 139),
+                // which exist for exactly this "no ledger at all" case.
+                // Omit every param entirely so the destination page's own
+                // complete, coherent worked-example defaults apply instead
+                // of a confusing mix of real-but-zero and default values.
+                const hasLiveCapital = cleanNum(equityVal) + cleanNum(mmVal) > 0;
+                const isDesktop = typeof window !== "undefined" && window.location.protocol === "file:";
+                if (!hasLiveCapital) {
+                  const params = new URLSearchParams({ currency });
+                  const url = isDesktop
+                    ? `#/risk-simulator?${params.toString()}`
+                    : `/risk-simulator?${params.toString()}`;
+                  window.open(url, "_blank", "noopener");
+                  return;
+                }
                 const params = new URLSearchParams({
                   eq: String(Math.round(cleanNum(equityVal))),
                   cash: String(Math.round(cleanNum(mmVal))),
@@ -1101,7 +1119,6 @@ export function Pane2Diagnostics({
                   params.set("pensionAge", String(pensionStartAge));
                   params.set("pensionAmount", String(Math.round(pen)));
                 }
-                const isDesktop = typeof window !== "undefined" && window.location.protocol === "file:";
                 const url = isDesktop
                   ? `#/risk-simulator?${params.toString()}`
                   : `/risk-simulator?${params.toString()}`;
