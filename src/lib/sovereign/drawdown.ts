@@ -264,3 +264,69 @@ export function applyExtraordinaryFlow(E: number, C: number, ATH: number, f: Act
   }
   return { E: e, C: c, ATH };
 }
+
+// Build 141 — Planned Withdrawal Reductions (e.g. a mortgage being paid off,
+// or a general age-related spending slowdown). Generalises the same
+// "independent list of dated events" shape as the Extraordinary Cash Flow
+// list (Build 136) above, rather than a single step-down field — multiple
+// unlinked reductions are supported (e.g. mortgage ends year 8, general
+// slowdown at year 15).
+//
+// Unlike an Extraordinary Cash Flow (a one-off lump sum landing in a bucket),
+// a reduction PERMANENTLY lowers the annual withdrawal target itself from its
+// year onward, and reductions STACK: a later event reduces whatever the
+// running target has already been reduced to, not the original figure. A
+// "percentage" reduction is taken against that running (already-reduced)
+// target at the moment it lands — the withdrawal rate the person is actually
+// drawing at that point — not the plan's original starting figure.
+//
+// This changes the withdrawAnchor / spendGross figures fed into applyPeriod()
+// itself, so Guyton-Klinger's WR ratios are computed on the ALREADY-REDUCED
+// target — the guardrail never sees the pre-reduction number. Called ONCE per
+// simulation configuration (not once per path) since the schedule is the same
+// deterministic step function regardless of which market-return path is
+// drawn; callers look up schedule[y] inside their per-path loops.
+export type ReductionKind = "fixed" | "percentage";
+export interface WithdrawalReduction {
+  kind: ReductionKind;
+  /** £ (fixed) or 0-100 (percentage of the running target at the time this event lands). */
+  amount: number;
+  /** Years-from-now this reduction takes permanent effect — matched the same way ActiveFlow.year is. */
+  year: number;
+  /** Optional user-entered note (e.g. "Mortgage paid off"), carried through to exports, not used in the maths. */
+  label?: string;
+}
+
+/**
+ * Returns the effective annual withdrawal target (today's real £) for every
+ * year 0..yrs, given the base target and a list of reduction events. Events
+ * are applied in year order (ties broken by input order, i.e. the order the
+ * user listed them), each reducing the RUNNING total — fixed amounts
+ * subtract directly, percentages take a % of the running total — floored at
+ * zero. schedule[0] is always the unreduced base (no event can land at
+ * "year 0" meaningfully before the plan starts); schedule[y] for y >= 1
+ * reflects every event with event.year <= y.
+ */
+export function computeWithdrawalSchedule(
+  baseWithdraw: number,
+  reductions: WithdrawalReduction[],
+  yrs: number,
+): number[] {
+  const sorted = reductions
+    .map((r, i) => ({ ...r, _i: i }))
+    .filter((r) => r.amount > 0 && r.year >= 1)
+    .sort((a, b) => a.year - b.year || a._i - b._i);
+
+  const schedule: number[] = new Array(Math.max(0, yrs) + 1).fill(baseWithdraw);
+  let running = baseWithdraw;
+  let idx = 0;
+  for (let y = 0; y <= yrs; y++) {
+    while (idx < sorted.length && sorted[idx].year <= y) {
+      const ev = sorted[idx];
+      running = Math.max(0, ev.kind === "fixed" ? running - ev.amount : running * (1 - ev.amount / 100));
+      idx++;
+    }
+    schedule[y] = running;
+  }
+  return schedule;
+}

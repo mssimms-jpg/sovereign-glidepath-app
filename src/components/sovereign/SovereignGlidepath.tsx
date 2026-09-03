@@ -38,6 +38,7 @@ import {
 import { IS_STORE_BUILD } from "@/lib/sovereign/build-flags";
 import {
   MIN_PASSPHRASE_LENGTH,
+  VAULT_KEYS,
   changePassphrase,
   decryptBackup,
   detectBackupKind,
@@ -63,10 +64,29 @@ import type { ThresholdMode } from "@/lib/sovereign/drawdown";
 const LEDGER_KEY = "shd_ledger_v4";
 // Build 135 — CPI Index Reference Table. Same literal-key pattern as
 // LEDGER_KEY/SETTINGS_KEY above; also registered in secureStore.ts's
-// VAULT_KEYS so Back-Up/Restore picks it up.
+// VAULT_KEYS, which the Build 143 full-vault backup below now genuinely
+// sweeps up (the comment used to be aspirational — Export Backup only ever
+// serialised the ledger array until this build).
 const CPI_REFERENCE_KEY = "shd_cpi_reference_v1";
 const DISCLAIMER_KEY = "shd_v7_disclaimer";
 const SETTINGS_KEY = "shd_settings_v1";
+// Build 143 — the Risk Simulator's own persisted settings (mode, parametric
+// mean/stdev, threshold, tick, growth-rate assumptions, etc. — see
+// MonteCarloPanel.tsx's own MC_KEY constant, kept in sync with this
+// literal). Deliberately NOT in the encrypted vault (VAULT_KEYS) — it's
+// plain localStorage, same as it's always been — but the full backup file
+// below sweeps it in as its own field anyway, since the .shd file itself is
+// always AES-256-GCM encrypted with the export password regardless of
+// where each piece originally lived, and Mark asked for "everything" backed
+// up, not just what happened to already be in the vault.
+const MC_KEY = "shd_mc_v1";
+// Build 145 — Saved Risk Simulator Models, same plain-localStorage
+// treatment as MC_KEY just above and for the same reason (see
+// MonteCarloPanel.tsx's RISK_MODELS_KEY comment: the Risk Simulator page
+// isn't gated behind AppLockGate, so anything requiring the vault to be
+// unlocked silently fails to persist there). Literal kept in sync with that
+// file's constant. Swept into the full backup alongside MC_KEY below.
+const RISK_MODELS_KEY = "sgp_risk_models_v1";
 // Build 113 — version/build stamp is injected by Vite from package.json's
 // version (see vite.config.ts), so it auto-increments with every release and
 // can no longer drift. The literals are only a dev-time fallback.
@@ -82,6 +102,24 @@ const APP_BUILD = typeof __APP_BUILD__ !== "undefined" ? __APP_BUILD__ : "113";
 // Presets can never drift out of sync with the engine.
 
 type InflowDest = "equities" | "cash";
+
+// Build 143 — full-vault backup payload shape. `vault` holds every
+// VAULT_KEYS entry's raw decrypted JSON string (ledger, settings, license,
+// CPI reference — whatever VAULT_KEYS contains at export time, so this type
+// never needs a field added when a new vault key is introduced); `mc` and
+// `riskModels` (Build 145) hold the Risk Simulator's own plain-localStorage
+// blobs (MC_KEY, RISK_MODELS_KEY), bundled in for the same "everything,
+// securely" reason even though neither is part of the encrypted vault at
+// rest — the .shd file itself is always AES-256-GCM encrypted regardless of
+// where each piece originally lived.
+interface FullBackupPayload {
+  format: "sgp-full-backup";
+  version: 1;
+  exportedAt: string;
+  vault: Record<string, string>;
+  mc: string | null;
+  riskModels: string | null;
+}
 
 function ExtraordinaryInflowPane({
   currency,
@@ -1872,26 +1910,68 @@ export function SovereignGlidepath() {
   // --- Backup / restore ---
   // Build 117 — backups are now really encrypted (AES-256-GCM with a key
   // derived from the password), not obfuscated. Old XOR files still restore.
+  //
+  // Build 143 — widened from a ledger-only export to a FULL backup: every
+  // encrypted-vault key (ledger, settings, license, CPI reference table —
+  // anything ever added to VAULT_KEYS, so this never needs updating again
+  // as new vault keys are added) plus the Risk Simulator's own
+  // plain-localStorage settings (MC_KEY, and Build 145's RISK_MODELS_KEY)
+  // are bundled into one JSON payload, which then goes through the exact
+  // same password-derived AES-256-GCM encryption as before. A backup taken
+  // with an EMPTY vault (no app-lock ever set up) has nothing to bundle
+  // beyond the ledger, which is the pre-143 behaviour anyway — this is a
+  // strict superset, not a parallel format. Old ledger-only .shd files
+  // still restore (see the Array.isArray branch in apply() below) — only
+  // NEW exports use the fuller shape.
   const exportData = () => {
-    if (ledger.length === 0) {
-      alert("Ledger is empty — nothing to export.");
+    const mcRawCheck = (() => {
+      try {
+        return localStorage.getItem(MC_KEY);
+      } catch {
+        return null;
+      }
+    })();
+    const riskModelsRawCheck = (() => {
+      try {
+        return localStorage.getItem(RISK_MODELS_KEY);
+      } catch {
+        return null;
+      }
+    })();
+    const hasAnyData =
+      ledger.length > 0 || VAULT_KEYS.some((k) => secureRead(k) !== null) || !!mcRawCheck || !!riskModelsRawCheck;
+    if (!hasAnyData) {
+      alert("Nothing to export yet.");
       return;
     }
     setModal({
       mode: "export",
-      title: "Export Backup",
-      desc: "Set a password. The backup file is encrypted with AES-256-GCM — without this password the file cannot be read.",
+      title: "Export Full Backup",
+      desc: "Set a password. Everything — ledger, settings, license, CPI reference table, and saved Risk Simulator models and assumptions — is bundled into one file, encrypted with AES-256-GCM. Without this password the file cannot be read.",
       onSubmit: async (pw, confirm) => {
         if (!pw) return "Password cannot be empty.";
         if (pw !== confirm) return "Passwords do not match.";
         const filename = `Backup_${new Date().toISOString().split("T")[0]}.shd`;
-        const data = await encryptBackup(JSON.stringify(ledger, null, 2), pw);
+        const vaultDump: Record<string, string> = {};
+        for (const k of VAULT_KEYS) {
+          const raw = secureRead(k);
+          if (raw !== null) vaultDump[k] = raw;
+        }
+        const payload: FullBackupPayload = {
+          format: "sgp-full-backup",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          vault: vaultDump,
+          mc: mcRawCheck,
+          riskModels: riskModelsRawCheck,
+        };
+        const data = await encryptBackup(JSON.stringify(payload), pw);
         // Try the modern picker first (remembers last folder), fall back to a
         // plain download.
         try {
           const saved = await saveBackupViaPicker(data, filename);
           if (!saved) downloadBackupFallback(data, filename);
-          showToast("Backup exported (encrypted)");
+          showToast("Full backup exported (encrypted)");
         } catch (ex) {
           const e = ex as { name?: string; message?: string };
           if (e?.name === "AbortError") return null; // user cancelled
@@ -1900,6 +1980,45 @@ export function SovereignGlidepath() {
         return null;
       },
     });
+  };
+
+  // Build 143 — applies a full-vault backup (see exportData above). Writes
+  // every bundled vault key back through secureWrite (re-encrypted at rest
+  // under THIS device's app-lock, independent of the export password) and
+  // the Risk Simulator's plain-localStorage settings (MC_KEY, and Build
+  // 145's RISK_MODELS_KEY) back via localStorage directly. A page reload
+  // follows deliberately: ledger, settings, license, CPI reference and
+  // saved Risk Simulator models are each seeded into their own component's
+  // local state ONCE at mount time from these same storage keys, so a live
+  // mid-session write here wouldn't reliably reach every already-mounted
+  // consumer — reloading is the one guarantee that every pane re-hydrates
+  // consistently from what was just restored.
+  const applyFullBackup = (payload: FullBackupPayload): string | null => {
+    try {
+      for (const k of VAULT_KEYS) {
+        const raw = payload.vault?.[k];
+        if (typeof raw === "string") secureWrite(k, raw);
+      }
+      if (typeof payload.mc === "string") {
+        try {
+          localStorage.setItem(MC_KEY, payload.mc);
+        } catch {
+          /* non-fatal — Risk Simulator settings just won't restore */
+        }
+      }
+      if (typeof payload.riskModels === "string") {
+        try {
+          localStorage.setItem(RISK_MODELS_KEY, payload.riskModels);
+        } catch {
+          /* non-fatal — Saved Risk Simulator Models just won't restore */
+        }
+      }
+      showToast("Full backup restored — reloading…");
+      setTimeout(() => window.location.reload(), 900);
+      return null;
+    } catch (ex) {
+      return "Could not apply backup: " + (ex instanceof Error ? ex.message : String(ex));
+    }
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1912,17 +2031,24 @@ export function SovereignGlidepath() {
       const apply = (jsonStr: string): string | null => {
         try {
           const parsed = JSON.parse(jsonStr);
-          if (!Array.isArray(parsed)) return "File does not contain a ledger array.";
-          // Build 074 — auto-heal restored data: run the per-row Period End Date
-          // migration against the incoming array before persisting, so backups
-          // taken before Build 073 (or from any source where dates were never
-          // populated) get their dates derived from the free-text label
-          // wherever possible. Idempotent — rows with a real date are untouched.
-          const healed = migrateLedgerPeriodDates(parsed as LedgerEntry[]).entries;
-          setLedger(healed);
-          saveLedger(healed);
-          showToast("Ledger restored");
-          return null;
+          if (Array.isArray(parsed)) {
+            // Legacy ledger-only backup (pre-Build 143 export, or an older
+            // file restored on a current build) — same healing as before.
+            // Build 074 — auto-heal restored data: run the per-row Period End Date
+            // migration against the incoming array before persisting, so backups
+            // taken before Build 073 (or from any source where dates were never
+            // populated) get their dates derived from the free-text label
+            // wherever possible. Idempotent — rows with a real date are untouched.
+            const healed = migrateLedgerPeriodDates(parsed as LedgerEntry[]).entries;
+            setLedger(healed);
+            saveLedger(healed);
+            showToast("Ledger restored");
+            return null;
+          }
+          if (parsed && typeof parsed === "object" && parsed.format === "sgp-full-backup" && parsed.vault) {
+            return applyFullBackup(parsed as FullBackupPayload);
+          }
+          return "File does not contain a recognised backup.";
         } catch {
           return "File is not valid JSON.";
         }

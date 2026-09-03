@@ -191,9 +191,11 @@ export function HelpContent() {
             <strong>How to read the simulator.</strong> It now reads top-to-bottom in the order you'd actually use it:{" "}
             <em>inputs</em> (pot, withdrawal, pension) → <em>sliders</em> (expected return, volatility, growth, cash
             real return, pension real increase) → <em>Defensive-Draw Threshold</em> → the <em>fan chart</em> → the{" "}
-            <em>percentile stats</em> → <em>Allocation Bias</em> → <em>Extraordinary Cash Flows</em> → the{" "}
-            <em>Detailed Path Ledger</em> export. The methodology footnote that used to sit at the bottom is now behind
-            the <strong>About these figures</strong> button next to the stats.
+            <em>percentile stats</em> → <em>Defensive-Draw Frequency by Year</em> →{" "}
+            <em>Detailed Path Ledger export</em> → <em>AI Report Prompt</em> → <em>Allocation Bias</em> →{" "}
+            <em>Saved Models</em> → <em>Extraordinary Cash Flows</em> → <em>Planned Withdrawal Reductions</em>. The
+            methodology footnote that used to sit at the bottom is now behind the{" "}
+            <strong>About these figures</strong> button next to the stats.
           </p>
           <ul style={{ paddingLeft: "1.25rem", marginTop: "0.4rem" }}>
             <li>
@@ -230,6 +232,23 @@ export function HelpContent() {
               bucket if it can't cover the full amount, floored at zero — the ATH is deliberately left alone on an
               Outflow, exactly like an ordinary withdrawal, since it's a planned spend, not a market loss.
             </li>
+            <li>
+              <strong>Planned Withdrawal Reductions</strong> model a permanent step-down in annual withdrawal from a
+              future year onward — a mortgage being paid off, or a general age-related spending slowdown. Same
+              independent-list shape as Extraordinary Cash Flows: add as many rows as you need, each{" "}
+              <strong>Fixed (£)</strong> or <strong>Percentage</strong>, with an optional label and a year. Multiple
+              reductions stack, and a percentage is taken off the withdrawal rate already in effect at that point, not
+              the original starting figure — Guyton-Klinger always computes on the already-reduced target. The fan
+              chart's hover tooltip, the Fun Bucket figure, and the Detailed Path Ledger export all reflect it.
+            </li>
+            <li>
+              <strong>Saved Models</strong> let you name and freeze the entire current setup — starting
+              Age/Equities/Cash exactly as they stand, withdrawal, pension, threshold, tick mode, growth-rate
+              assumptions, and every Extraordinary Cash Flow / Planned Withdrawal Reduction row — and recall it later.
+              Loading a saved model deliberately does <strong>not</strong> re-pull your live ledger's current
+              Age/Equities/Cash; everything stays exactly as it was when saved, so a model keeps meaning the same thing
+              even as your real portfolio moves on. Saved locally on this device, independent of the app-lock.
+            </li>
           </ul>
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Detailed Path Ledger export.</strong> Below the fan chart's stats, pick a percentile (10th/25th
@@ -241,6 +260,28 @@ export function HelpContent() {
             full, including its market returns, withdrawals, guardrail state, and any Extraordinary Cash Flow that
             landed. In Historical mode each row also shows which real calendar year's return was drawn for that period;
             in Parametric mode the column simply reads "Parametric".
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>Defensive-Draw Frequency by Year.</strong> A bar per year shows what percentage of ALL 10,000
+            simulated paths needed a defensive (cash-first) draw in that specific year — the whole-horizon average
+            shown next to the Defensive-Draw Threshold buttons can't answer "how often would a cut actually be needed
+            in years N–M", e.g. right after a large Extraordinary Cash Flow outflow, since it's collapsed into one
+            single figure across the whole plan. Hover a bar for the exact percentage. Years with a Cash Flow or
+            Withdrawal Reduction event get a small marker dot, so a spike right after a big purchase is easy to spot.
+            Colour bands: green under 25%, blue 25–49%, amber 50–84%, red only at 85%+ — deliberately tuned so the
+            chart reflects that spending some years in a defensive draw is normal guardrail behaviour, not something
+            alarming.
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            <strong>AI Report Prompt.</strong> "📄 Generate AI Report Prompt" bundles a short methodology primer, every
+            assumption currently in force (inputs, Extraordinary Cash Flows, Withdrawal Reductions), the headline
+            results, the full Defensive-Draw Frequency by Year data, an automatic "years to watch" section that
+            averages the defensive-draw frequency across the five years following each Extraordinary Cash Flow /
+            Withdrawal Reduction event and compares it to the plan's overall average, and five percentile path
+            narratives (10th/25th/50th/75th/90th) — all into one self-contained text block. It's shown on-screen with
+            a <strong>Copy to Clipboard</strong> button and a <strong>Download (.md)</strong> button. This is
+            deliberately NOT an in-app AI call — nothing is sent anywhere by this app; paste the result into whichever
+            AI you use, and it does the narrating, under your own judgement.
           </p>
           <p style={{ marginTop: "0.75rem" }}>
             <strong>Opening the simulator with no ledger entry.</strong> If you've never recorded a ledger entry and
@@ -580,10 +621,12 @@ export function HelpContent() {
 
         <Section title="Backup &amp; restore">
           <p>
-            <strong>Backup</strong> exports your ledger as an encrypted
-            <code>.shd</code> file (AES-256-GCM, keyed from a password you set at export time).
-            <strong> Restore</strong> reads a previously exported file, or a plain JSON ledger array. All data lives
-            only on this device — we do not upload anything.
+            <strong>Backup</strong> exports a full encrypted <code>.shd</code> file (AES-256-GCM, keyed from a password
+            you set at export time) — your ledger, settings, licence details and CPI Reference Table, plus the Risk
+            Simulator's own settings and any Saved Models, all bundled into one file. <strong>Restore</strong> reads a
+            previously exported file (or an older ledger-only backup, or a plain JSON ledger array — both still work).
+            Restoring a full backup reloads the app afterward, so every pane picks up what was just restored. All data
+            lives only on this device — we do not upload anything.
           </p>
         </Section>
 

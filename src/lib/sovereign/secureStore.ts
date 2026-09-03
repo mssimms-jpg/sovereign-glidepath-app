@@ -42,6 +42,14 @@ export const LICENSE_STORAGE_KEY = "sgp_license_v2";
 // period-end date). Lives in the encrypted vault like the ledger/settings
 // so Back-Up/Restore carries it along automatically.
 export const CPI_REFERENCE_STORAGE_KEY = "shd_cpi_reference_v1";
+// Build 142 added a RISK_MODELS_STORAGE_KEY here, following the CPI
+// Reference Table's precedent. Build 145 reverted that — the Risk
+// Simulator's Saved Models feature lives on a standalone page that's never
+// gated behind AppLockGate, so anything requiring the vault to be unlocked
+// silently fails to persist there. Saved Models now use plain localStorage
+// instead (RISK_MODELS_KEY in MonteCarloPanel.tsx, alongside that page's
+// own pre-existing MC_KEY settings) — see that file's comment for the full
+// story. Nothing else changes here.
 
 /** Every key held inside the encrypted vault. */
 export const VAULT_KEYS = [

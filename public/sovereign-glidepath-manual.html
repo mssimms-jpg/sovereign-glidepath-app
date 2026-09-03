@@ -200,6 +200,9 @@
               >52. Appendix &mdash; the historical market and inflation data behind the QA scenario pool</a
             >
           </li>
+          <li class="toc-chap">
+            <a href="#ch-53">53. Full Backup &mdash; Export Everything, Not Just the Ledger</a>
+          </li>
         </ul>
       </div>
     </nav>
@@ -2010,7 +2013,8 @@
         Unlock is required at every app start &mdash; there is no lockout period and no "remember me" option, by design.
         Backups exported after this build are encrypted automatically as part of the export step, with no separate
         password prompt each time; a backup made before this build, or a legacy XOR-protected backup from an earlier
-        scheme, both still restore correctly.
+        scheme, both still restore correctly. Since Build 143, Export Backup bundles considerably more than just the
+        ledger &mdash; see Chapter 53.
       </p>
       <aside class="callout">
         <h4>The passphrase cannot be recovered</h4>
@@ -2866,6 +2870,41 @@
         scenario files in the pool, including your own canonical 1996&ndash;2021 lifetime ledger scenario, now share
         this single series.
       </p>
+
+      <h3 class="chapter" id="ch-53">53. Full Backup &mdash; Export Everything, Not Just the Ledger</h3>
+      <p>
+        Before Build 143, <b>Export Backup</b> only ever serialised the ledger array &mdash; your Settings, Licence
+        details, and CPI Index Reference Table were never included, despite already living in the same encrypted
+        vault as the ledger. Export Backup now bundles all of it: the Ledger, Settings, Licence details, CPI Index
+        Reference Table, and (from Build 145) the standalone Risk Simulator's own settings and any Saved Risk
+        Simulator Models. A single <b>.shd</b> file is a complete snapshot of everything this app knows, not just
+        your transaction history.
+      </p>
+      <p>
+        The file itself is protected the same way it always has been: AES-256-GCM, keyed from a password you set at
+        export time, entirely independent of your device's app-lock passphrase. That's true regardless of what's
+        inside &mdash; the Risk Simulator's settings and Saved Models aren't part of the encrypted-at-rest vault on
+        this device (see the Risk Simulator Guide's chapter on Saved Models for why), but once they're bundled into
+        an export they go through exactly the same password-derived encryption as the ledger does.
+      </p>
+      <aside class="callout">
+        <h4>Old backups still restore</h4>
+        <p>
+          A ledger-only backup file from before Build 143 &mdash; or a bare plain-JSON ledger array from any
+          version &mdash; still restores correctly. Restore inspects the decrypted content and detects which shape
+          it's looking at automatically; there is nothing to choose and nothing that breaks by using an older file.
+        </p>
+      </aside>
+      <aside class="callout warn">
+        <h4>Restoring a full backup reloads the app</h4>
+        <p>
+          Unlike restoring a ledger-only backup (which updates the on-screen ledger immediately), restoring a full
+          backup reloads the whole app a moment after applying it. Several pieces &mdash; Settings, the CPI
+          Reference Table, the Risk Simulator's settings, Saved Models &mdash; are only ever read from storage once,
+          when their component first mounts, so a live write while already open wouldn't reliably reach every pane.
+          Reloading is what guarantees everything you just restored is actually in effect.
+        </p>
+      </aside>
     </main>
 
     <script>

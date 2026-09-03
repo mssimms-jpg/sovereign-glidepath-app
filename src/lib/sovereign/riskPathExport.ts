@@ -24,7 +24,14 @@
 // the path exactly, this time capturing every field the loop normally
 // discards after summing to a single year-end total.
 
-import { applyPeriod, applyExtraordinaryFlow, type ActiveFlow, type ThresholdMode } from "./drawdown";
+import {
+  applyPeriod,
+  applyExtraordinaryFlow,
+  computeWithdrawalSchedule,
+  type ActiveFlow,
+  type WithdrawalReduction,
+  type ThresholdMode,
+} from "./drawdown";
 import { drawdownPctOffAth } from "./engine";
 import { localTimestamp, CURRENCY_FMT, PCT_FMT, styleHeaderRow } from "./csvExport";
 
@@ -45,6 +52,8 @@ export interface ReplayConfig {
   tickMode: "yearly" | "quarterly";
   infl: number;
   activeFlows: ActiveFlow[];
+  /** Build 141 — planned withdrawal reductions; see drawdown.ts for the shared schedule logic. */
+  reductions: WithdrawalReduction[];
   yrs: number;
 }
 
@@ -68,6 +77,9 @@ export interface PathRow {
   flowType: string; // "Inflow" | "Outflow" | ""
   flowAmount: number | undefined;
   flowBucket: string;
+  reductionLabel: string;
+  reductionType: string; // "Fixed" | "Percentage" | ""
+  reductionAmount: number | undefined;
   equitiesEnd: number;
   cashEnd: number;
   total: number;
@@ -88,15 +100,21 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
   let C = cfg.C0;
   let ATH = cfg.start;
   const yrs = Math.min(cfg.yrs, nominalReturns.length);
+  // Build 141 — the effective (post-reduction) annual target for every year,
+  // computed once via the single shared schedule function so this replay
+  // can never disagree with the main stochastic/deterministic loops.
+  const withdrawSchedule = computeWithdrawalSchedule(cfg.withdraw, cfg.reductions, yrs);
 
   for (let y = 1; y <= yrs; y++) {
     const nominal = nominalReturns[y - 1];
     const realEq = cfg.infl > 0 ? (1 + nominal) / (1 + cfg.infl) - 1 : nominal;
     const ageThisYear = cfg.currentAge + y - 1;
+    const withdrawThisYear = withdrawSchedule[y];
     const pensionThisYear =
       cfg.pension > 0 && ageThisYear >= cfg.pensionAge ? cfg.pension * Math.pow(cfg.pensionRealFactor, y) : 0;
-    const netDraw = Math.max(0, cfg.withdraw - pensionThisYear);
+    const netDraw = Math.max(0, withdrawThisYear - pensionThisYear);
     const flowThisYear = cfg.activeFlows.find((f) => f.year === y);
+    const reductionThisYear = cfg.reductions.find((r) => r.year === y && r.amount > 0);
 
     const applyFlowIfDue = (onFinalPeriodOfYear: boolean) => {
       if (!onFinalPeriodOfYear || !flowThisYear) return;
@@ -115,6 +133,7 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
       withdrawalTargetThisPeriod: number,
       out: ReturnType<typeof applyPeriod>,
       flowApplied: boolean,
+      reductionApplied: boolean,
     ) => {
       const total = E + C;
       rows.push({
@@ -137,6 +156,10 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
         flowType: flowApplied && flowThisYear ? (flowThisYear.kind === "inflow" ? "Inflow" : "Outflow") : "",
         flowAmount: flowApplied && flowThisYear ? flowThisYear.amount : undefined,
         flowBucket: flowApplied && flowThisYear ? (flowThisYear.bucket === "cash" ? "Cash" : "Equities") : "",
+        reductionLabel: reductionApplied && reductionThisYear?.label ? reductionThisYear.label : "",
+        reductionType:
+          reductionApplied && reductionThisYear ? (reductionThisYear.kind === "fixed" ? "Fixed" : "Percentage") : "",
+        reductionAmount: reductionApplied && reductionThisYear ? reductionThisYear.amount : undefined,
         equitiesEnd: E,
         cashEnd: C,
         total,
@@ -159,7 +182,7 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
             rEqReal: qEqReal,
             rCashReal: qCashReal,
             spendGross: qDraw,
-            withdrawAnchor: cfg.withdraw,
+            withdrawAnchor: withdrawThisYear,
             threshold: cfg.threshold,
             detRReal: cfg.detRReal,
             targetCashBuffer: cfg.targetCashBuffer,
@@ -173,7 +196,11 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
         ATH = out.ATH;
         const flowDue = q === 4;
         applyFlowIfDue(flowDue);
-        pushRow(q, equitiesStart, cashStart, qEqReal, qPension, qDraw, out, flowDue);
+        // Unlike a flow (a lump sum landing at year-end), a reduction is
+        // already baked into withdrawThisYear/qDraw from Q1 onward — the
+        // label is shown against Q1 purely to mark where the step-down
+        // notionally lands, not to delay its effect.
+        pushRow(q, equitiesStart, cashStart, qEqReal, qPension, qDraw, out, flowDue, q === 1 && !!reductionThisYear);
       }
     } else {
       const equitiesStart = E;
@@ -184,7 +211,7 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
           rEqReal: realEq,
           rCashReal: cfg.cashRealReturn,
           spendGross: netDraw,
-          withdrawAnchor: cfg.withdraw,
+          withdrawAnchor: withdrawThisYear,
           threshold: cfg.threshold,
           detRReal: cfg.detRReal,
           targetCashBuffer: cfg.targetCashBuffer,
@@ -197,11 +224,54 @@ export function buildPathRows(nominalReturns: number[], cfg: ReplayConfig, yearL
       C = out.C;
       ATH = out.ATH;
       applyFlowIfDue(true);
-      pushRow(undefined, equitiesStart, cashStart, realEq, pensionThisYear, netDraw, out, true);
+      pushRow(undefined, equitiesStart, cashStart, realEq, pensionThisYear, netDraw, out, true, !!reductionThisYear);
     }
   }
 
   return rows;
+}
+
+// Build 146 — condenses a full buildPathRows() replay into the handful of
+// figures a report actually needs to tell that path's story, rather than
+// dumping every period. Used to summarise several percentile paths at once
+// for the AI Report Prompt, alongside the full Detailed Path Ledger export
+// above (which stays a full per-period replay of ONE chosen path).
+export interface PathSummary {
+  endingValue: number;
+  ranOutOfMoney: boolean;
+  ranOutYear: number | null;
+  /** Count of distinct YEARS (not periods) with at least one defensive draw. */
+  defensiveYears: number;
+  firstDefensiveYear: number | null;
+  maxDrawdownFromAthPct: number;
+}
+
+export function summarizePathRows(rows: PathRow[]): PathSummary {
+  let ranOutOfMoney = false;
+  let ranOutYear: number | null = null;
+  let firstDefensiveYear: number | null = null;
+  let maxDrawdownFromAthPct = 0;
+  const defensiveYearsSeen = new Set<number>();
+  for (const row of rows) {
+    if (!ranOutOfMoney && row.total <= 0) {
+      ranOutOfMoney = true;
+      ranOutYear = row.year;
+    }
+    if (row.defensiveDraw) {
+      defensiveYearsSeen.add(row.year);
+      if (firstDefensiveYear === null) firstDefensiveYear = row.year;
+    }
+    if (row.drawdownFromAthPct > maxDrawdownFromAthPct) maxDrawdownFromAthPct = row.drawdownFromAthPct;
+  }
+  const last = rows[rows.length - 1];
+  return {
+    endingValue: last ? last.total : 0,
+    ranOutOfMoney,
+    ranOutYear,
+    defensiveYears: defensiveYearsSeen.size,
+    firstDefensiveYear,
+    maxDrawdownFromAthPct,
+  };
 }
 
 export interface PathExportMeta {
@@ -223,6 +293,7 @@ export interface PathExportMeta {
   pension: number;
   pensionAge: number;
   flows: ActiveFlow[];
+  reductions: WithdrawalReduction[];
 }
 
 /**
@@ -330,6 +401,20 @@ export async function exportRiskPathXLSX(rows: PathRow[], meta: PathExportMeta):
     }
   }
 
+  if (meta.reductions.length > 0) {
+    ws1.addRow([]);
+    const reductionsHeader = ws1.addRow(["Planned Withdrawal Reduction", "Detail"]);
+    reductionsHeader.font = { bold: true, size: 11 };
+    for (const rdn of meta.reductions) {
+      const label = rdn.label || "Withdrawal reduction";
+      const amountStr = rdn.kind === "fixed" ? `${meta.currency}${rdn.amount.toLocaleString()}` : `${rdn.amount}%`;
+      const detail = `From year ${rdn.year} · ${rdn.kind === "fixed" ? "Fixed reduction" : "Percentage reduction"} of ${amountStr}`;
+      const r = ws1.addRow([label, detail]);
+      r.getCell(1).font = { size: 10 };
+      r.getCell(2).font = { size: 10 };
+    }
+  }
+
   // ---------- Sheet 2: Full Path Ledger ----------
   const ws2 = wb.addWorksheet(`${meta.percentile}th Percentile Path (${rows.length} rows)`);
   const columns: { header: string; width: number; key: keyof PathRow; fmt?: string }[] = [
@@ -350,6 +435,9 @@ export async function exportRiskPathXLSX(rows: PathRow[], meta: PathExportMeta):
     { header: "Flow\nType", width: 10, key: "flowType" },
     { header: "Flow\nAmount (£)", width: 13, key: "flowAmount", fmt: CURRENCY_FMT },
     { header: "Flow\nBucket", width: 10, key: "flowBucket" },
+    { header: "Reduction\nLabel", width: 16, key: "reductionLabel" },
+    { header: "Reduction\nType", width: 11, key: "reductionType" },
+    { header: "Reduction\nAmount", width: 12, key: "reductionAmount" },
     { header: "Equities\nEnd (£)", width: 14, key: "equitiesEnd", fmt: CURRENCY_FMT },
     { header: "Cash\nEnd (£)", width: 14, key: "cashEnd", fmt: CURRENCY_FMT },
     { header: "Portfolio\nTotal (£)", width: 14, key: "total", fmt: CURRENCY_FMT },

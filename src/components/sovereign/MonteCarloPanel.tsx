@@ -3,11 +3,19 @@ import { cleanNum, formatGBP, formatGBPWhole } from "@/lib/sovereign/engine";
 import {
   applyPeriod,
   applyExtraordinaryFlow,
+  computeWithdrawalSchedule,
   type ActiveFlow,
   type ActiveFlowKind,
   type ActiveFlowBucket,
+  type WithdrawalReduction,
+  type ReductionKind,
 } from "@/lib/sovereign/drawdown";
-import { buildPathRows, exportRiskPathXLSX, type ReplayConfig } from "@/lib/sovereign/riskPathExport";
+import {
+  buildPathRows,
+  exportRiskPathXLSX,
+  summarizePathRows,
+  type ReplayConfig,
+} from "@/lib/sovereign/riskPathExport";
 import { exportLedgerCSV } from "@/lib/sovereign/csvExport";
 import {
   mulberry32,
@@ -87,6 +95,83 @@ type ExtraFlow = {
   yearStr: string;
   bucket: ActiveFlowBucket;
 };
+
+// Build 141 — Planned Withdrawal Reduction row (e.g. a mortgage being paid
+// off, or a general age-related spending slowdown). Same "list of
+// independent dated events" shape as ExtraFlow above, reusing
+// ReductionKind from drawdown.ts so the UI-state shape and the calculation
+// shape can't drift apart. No bucket field — a reduction lowers the
+// withdrawal target itself rather than moving money between buckets.
+type ExtraReduction = {
+  id: string;
+  kind: ReductionKind;
+  label: string;
+  amountStr: string;
+  yearStr: string;
+};
+
+// Build 145 — a Saved Risk Simulator Model: a named, FROZEN snapshot of
+// every input on this pane. Flows/reductions are stored WITHOUT their `id`
+// (a fresh id is minted on load) since ids are only ever used to key React
+// list rendering, never persisted meaning.
+type SavedRiskModel = {
+  id: string;
+  name: string;
+  savedAt: number;
+  mode: Mode;
+  meanStr: string;
+  stdevStr: string;
+  inflationPct: number;
+  pensionStr: string;
+  pensionAgeStr: string;
+  pensionIncreasePct: number;
+  withdrawStr: string;
+  equitiesStr: string;
+  cashStr: string;
+  ageStr: string;
+  horizonAgeStr: string;
+  deterministicRatePct: number;
+  cashRealPct: number;
+  threshold: ThresholdMode;
+  tickMode: TickMode;
+  flows: Omit<ExtraFlow, "id">[];
+  reductions: Omit<ExtraReduction, "id">[];
+};
+
+// Build 142 originally stored these in the encrypted vault (secureStore.ts),
+// following the CPI Reference Table's precedent. Build 145 fix — that was
+// wrong for THIS page specifically: the Risk Simulator is a standalone
+// route, reachable without ever going through AppLockGate/unlocking the
+// vault (see RiskSimulatorPage.tsx — it isn't wrapped in the lock gate the
+// way the main app is). secureWrite() only actually persists to localStorage
+// once the vault key is set; on this page it never is, so a "saved" model
+// only ever lived in an in-memory cache that vanished the moment you left
+// the page — nothing was ever written to disk. Plain localStorage, same
+// pattern as this page's own MC_KEY settings a few lines up, fixes that: it
+// works with or without the app-lock ever being unlocked, matching how the
+// rest of this page's persistence already behaves. Trade-off: saved models
+// are no longer encrypted at rest the way the Ledger is — consistent with
+// every other setting already living on this page, but worth knowing.
+const RISK_MODELS_KEY = "sgp_risk_models_v1";
+
+function loadSavedModels(): SavedRiskModel[] {
+  try {
+    const raw = localStorage.getItem(RISK_MODELS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSavedModels(models: SavedRiskModel[]) {
+  try {
+    localStorage.setItem(RISK_MODELS_KEY, JSON.stringify(models));
+  } catch {
+    /* non-fatal — matches saveMC()'s existing best-effort behaviour */
+  }
+}
 
 type PersistedMC = {
   meanStr?: string;
@@ -249,9 +334,41 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
   // Build 137 — percentile of the fan chart the detailed path export should
   // replay (see riskPathExport.ts header comment for what "the Nth
   // percentile path" actually means).
+  // Build 142 — Saved Risk Simulator Models. A named, FROZEN snapshot of
+  // every input on this pane, including starting Age/Equities/Cash exactly
+  // as they stood at Save time — loading a model never depends on what the
+  // live ledger looks like later. Build 145 moved storage to plain
+  // localStorage (RISK_MODELS_KEY, defined near loadSavedModels above) —
+  // see that comment for why the encrypted vault was the wrong choice here.
+  //
+  // Build 144 fix — these hooks originally sat right before the JSX return,
+  // AFTER the "!sim && !auditMode" early return further down (loading /
+  // empty-ledger state). That's a Rules-of-Hooks violation: first render
+  // (sim still null) took the early return with fewer hooks than a later
+  // render once sim populates, which reaches these — "Rendered more hooks
+  // than during the previous render", crashing to the root error boundary.
+  // Hooks must be unconditional on every render, so they live here now,
+  // ahead of every conditional return in this component. The handler
+  // functions that USE this state (persistSavedModels, loadModel, etc.)
+  // are plain closures, not hooks, so they're unaffected by this and stay
+  // where they were, near the Saved Models UI further down.
+  const modelIdRef = React.useRef<number>(1);
+  const newModelId = () => `model-${Date.now()}-${modelIdRef.current++}`;
+  const [savedModels, setSavedModels] = useState<SavedRiskModel[]>(() => loadSavedModels());
+  const [modelNameInput, setModelNameInput] = useState<string>("");
+  const [showSaveModelPrompt, setShowSaveModelPrompt] = useState<boolean>(false);
+  const [modelSaveError, setModelSaveError] = useState<string>("");
+
   const [pathPercentile, setPathPercentile] = useState<number>(50);
   const [pathPercentileStr, setPathPercentileStr] = useState<string>("50");
   const [pathExporting, setPathExporting] = useState(false);
+
+  // Build 146 — AI Report Prompt. Generated text lives in plain state (not
+  // hooks-order-sensitive since these are ordinary useState calls declared
+  // unconditionally up here, same lesson as Build 144's fix above).
+  const [showReportPanel, setShowReportPanel] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [reportCopyStatus, setReportCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const addFlow = (kind: "inflow" | "outflow") =>
     setFlows((prev) => [
@@ -276,6 +393,38 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         }))
         .filter((f) => f.amount > 0),
     [flows],
+  );
+
+  // Build 141 — Planned Withdrawal Reductions. Session-only state, same
+  // pattern as flows above: starts empty (this is an optional feature, not
+  // a default row like the single-inflow field it never replaced).
+  const reductionIdRef = React.useRef<number>(1);
+  const newReductionId = () => `reduction-${reductionIdRef.current++}`;
+  const [reductions, setReductions] = useState<ExtraReduction[]>([]);
+  const [reductionFocusedId, setReductionFocusedId] = useState<string | null>(null);
+
+  const addReduction = (kind: ReductionKind) =>
+    setReductions((prev) => [...prev, { id: newReductionId(), kind, label: "", amountStr: "", yearStr: "5" }]);
+  const removeReduction = (id: string) => setReductions((prev) => prev.filter((r) => r.id !== id));
+  const updateReduction = (id: string, patch: Partial<ExtraReduction>) =>
+    setReductions((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  // Active reductions fed into the simulation — same drop-blank-rows rule as
+  // activeFlows. Percentage amounts are clamped to 0-100.
+  const activeReductions: WithdrawalReduction[] = useMemo(
+    () =>
+      reductions
+        .map((r) => ({
+          kind: r.kind,
+          amount:
+            r.kind === "percentage"
+              ? Math.min(100, Math.max(0, cleanNum(r.amountStr)))
+              : Math.max(0, cleanNum(r.amountStr)),
+          year: Math.max(1, Math.floor(cleanNum(r.yearStr))),
+          label: r.label.trim(),
+        }))
+        .filter((r) => r.amount > 0),
+    [reductions],
   );
 
   // Build 101 — Assumed Real Growth Rate and Cash Real Return are now FULLY
@@ -453,6 +602,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       years: effectiveYears,
       deterministicRatePct,
       activeFlows,
+      activeReductions,
     }),
     [
       mode,
@@ -473,6 +623,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       effectiveYears,
       deterministicRatePct,
       activeFlows,
+      activeReductions,
     ],
   );
   const simInputs = useDebouncedValue(simInputsRaw, 180);
@@ -504,6 +655,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       years,
       deterministicRatePct,
       activeFlows,
+      activeReductions,
     } = simInputs;
 
     const yrs = Math.max(1, Math.min(60, Math.floor(years)));
@@ -570,9 +722,29 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     // show "which year was used" per row instead of just the return figure.
     const pathHistIdx: number[][] = [];
     let defensiveSum = 0;
+    // Build 146 — how many of the RUNS paths were in a defensive (guardrail
+    // cut) state during EACH specific year, not just the whole-horizon
+    // average defensiveSum/avgDefensiveYears above already gave. Needed to
+    // answer "how often would a reduction actually be required in years N-M"
+    // — e.g. right after an Extraordinary Cash Flow outflow — which a
+    // whole-horizon average can't show: a plan could spend 20% of its years
+    // defensive on average while never once needing it early, or vice versa.
+    // Index 0 stays 0 (no draw has happened yet); indices 1..yrs count paths
+    // defensive in that specific year. Cheap: one more counter per path-year,
+    // no extra simulation work, since the loop already visits every path.
+    const defensiveCountByYear: number[] = new Array(yrs + 1).fill(0);
 
     // Target Withdrawal Rate for G-K (fallback when ATH is 0).
     const targetWR_gk = start > 0 ? withdraw / start : 0;
+
+    // Build 141 — effective (post-reduction) annual withdrawal target per
+    // year. Computed ONCE here (not per path) since it's a deterministic
+    // step function independent of which market-return path is drawn;
+    // stochastic AND deterministic loops below both look up
+    // withdrawSchedule[y]. targetWR_gk above deliberately stays anchored to
+    // the ORIGINAL target — it represents the plan's inception baseline for
+    // the Prosperity trigger, not the year-to-year draw.
+    const withdrawSchedule = computeWithdrawalSchedule(withdraw, activeReductions, yrs);
 
     for (let r = 0; r < RUNS; r++) {
       let E = E0;
@@ -595,8 +767,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         const realEq = infl > 0 ? (1 + nominal) / (1 + infl) - 1 : nominal;
 
         const ageThisYear = currentAge + y - 1;
+        const withdrawThisYear = withdrawSchedule[y];
         const pensionThisYear = pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
-        const netDraw = Math.max(0, withdraw - pensionThisYear);
+        const netDraw = Math.max(0, withdrawThisYear - pensionThisYear);
 
         // Delegate to shared applyPeriod. Yearly = one call; Quarterly =
         // four calls with prorated returns and spend.
@@ -612,7 +785,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                 rEqReal: qEqReal,
                 rCashReal: qCashReal,
                 spendGross: qDraw,
-                withdrawAnchor: withdraw,
+                withdrawAnchor: withdrawThisYear,
                 threshold,
                 detRReal,
                 targetCashBuffer,
@@ -626,7 +799,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             ATH = out.ATH;
             if (out.defensive) yearHadDefensive = true;
           }
-          if (yearHadDefensive) defensiveSum++;
+          if (yearHadDefensive) {
+            defensiveSum++;
+            defensiveCountByYear[y]++;
+          }
         } else {
           const out = applyPeriod(
             { E, C, ATH },
@@ -634,7 +810,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               rEqReal: realEq,
               rCashReal: cashRealReturn,
               spendGross: netDraw,
-              withdrawAnchor: withdraw,
+              withdrawAnchor: withdrawThisYear,
               threshold,
               detRReal,
               targetCashBuffer,
@@ -646,7 +822,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           E = out.E;
           C = out.C;
           ATH = out.ATH;
-          if (out.defensive) defensiveSum++;
+          if (out.defensive) {
+            defensiveSum++;
+            defensiveCountByYear[y]++;
+          }
         }
 
         // Extraordinary cash flows due at the end of this year.
@@ -689,8 +868,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     let dATH = start;
     for (let y = 1; y <= yrs; y++) {
       const ageThisYear = currentAge + y - 1;
+      const withdrawThisYear = withdrawSchedule[y];
       const pensionThisYear = pension > 0 && ageThisYear >= pensionAge ? pension * Math.pow(pensionRealFactor, y) : 0;
-      const netDraw = Math.max(0, withdraw - pensionThisYear);
+      const netDraw = Math.max(0, withdrawThisYear - pensionThisYear);
 
       if (tickMode === "quarterly") {
         const qEqReal = Math.pow(1 + detRReal, 0.25) - 1;
@@ -703,7 +883,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               rEqReal: qEqReal,
               rCashReal: qCashReal,
               spendGross: qDraw,
-              withdrawAnchor: withdraw,
+              withdrawAnchor: withdrawThisYear,
               threshold,
               detRReal,
               targetCashBuffer,
@@ -723,7 +903,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             rEqReal: detRReal,
             rCashReal: cashRealReturn,
             spendGross: netDraw,
-            withdrawAnchor: withdraw,
+            withdrawAnchor: withdrawThisYear,
             threshold,
             detRReal,
             targetCashBuffer,
@@ -765,6 +945,9 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
 
     const avgDefensiveYears = defensiveSum / RUNS;
     const defensivePct = Math.round((avgDefensiveYears / yrs) * 100);
+    // Build 146 — the per-year population frequency itself: what % of the
+    // RUNS paths were defensive in year y specifically. Index 0 stays 0.
+    const defensiveFreqByYear: number[] = defensiveCountByYear.map((c) => Math.round((c / RUNS) * 100));
 
     // Build 137 — path indices ranked by each path's OWN ending value, so a
     // chosen percentile (e.g. 50th) can be resolved to one real simulated
@@ -790,6 +973,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       tickMode,
       infl,
       activeFlows,
+      reductions: activeReductions,
       yrs,
     };
 
@@ -804,10 +988,17 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       detRuined,
       avgDefensiveYears,
       defensivePct,
+      defensiveFreqByYear,
       pathReturns,
       pathHistIdx,
       rankedFinalIndices,
       replayConfig,
+      // Build 141 fix — exposed so the fan chart's hover tooltip (and the
+      // Fun Bucket approximation beside it) can show the ACTUAL reduced
+      // withdrawal at the hovered year instead of the flat pre-reduction
+      // `withdraw` figure. The simulation loops above already used this
+      // schedule internally; it just wasn't surfaced to the display layer.
+      withdrawSchedule,
       exportMeta: {
         mode,
         meanPct,
@@ -892,10 +1083,209 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         pension: exportMeta.pension,
         pensionAge: exportMeta.pensionAge,
         flows: replayConfig.activeFlows,
+        reductions: replayConfig.reductions,
       });
     } finally {
       setPathExporting(false);
     }
+  }
+
+  // Build 146 — AI Report Prompt. Builds a self-contained text bundle
+  // (methodology + assumptions + headline stats + the NEW defensive-frequency
+  // -by-year data + a handful of percentile narrative summaries) for the user
+  // to paste into whichever AI they choose. Deliberately NOT an in-app AI API
+  // call — see the design discussion this was agreed from: no API key to
+  // manage, no per-user cost, and it keeps the app itself out of the FCA
+  // advice/guidance boundary question. The app describes its own simulation
+  // precisely; whichever AI narrates it does so under the user's own choice
+  // and judgement, not this app's.
+  const REPORT_PERCENTILES = [10, 25, 50, 75, 90];
+
+  function buildReportText(): string {
+    if (!sim) return "";
+    const { pathReturns, pathHistIdx, rankedFinalIndices, replayConfig, finals, exportMeta } = sim;
+    const n = rankedFinalIndices.length;
+
+    const resolvePath = (p: number) => {
+      const rank = Math.min(n - 1, Math.max(0, Math.round((p / 100) * (n - 1))));
+      const pathIdx = rankedFinalIndices[rank];
+      const yearLabels =
+        exportMeta.mode === "historical"
+          ? pathHistIdx[pathIdx].map((idx) => String(GLOBAL_ANNUAL_BASE_YEAR + idx))
+          : pathReturns[pathIdx].map(() => "Parametric");
+      const rows = buildPathRows(pathReturns[pathIdx], replayConfig, yearLabels);
+      return { rank, finalValue: finals[rank] ?? 0, summary: summarizePathRows(rows) };
+    };
+
+    const lines: string[] = [];
+    lines.push("# Sovereign Glidepath — Risk Simulator Report Data");
+    lines.push(`Generated: ${new Date().toISOString().split("T")[0]}`);
+    lines.push("");
+    lines.push("## What this is");
+    lines.push(
+      "This is data from a Monte Carlo retirement drawdown simulation using the Guyton-Klinger guardrail " +
+        "method, generated by Sovereign Glidepath (a personal retirement planning tool). It is NOT financial " +
+        "advice — it describes the output of a mathematical simulation only. Please write a clear, plain-English " +
+        "report explaining what this data shows: the plan's overall robustness, its main risks (especially any " +
+        "early-year affordability concerns flagged below), and what the different percentile paths look like. " +
+        "Describe what the simulation shows — do not recommend specific financial actions or tell the reader " +
+        "what they should do.",
+    );
+    lines.push("");
+    lines.push("## Methodology in brief");
+    lines.push(
+      '- Guyton-Klinger guardrails: withdrawal is cut 10% ("Preservation") if the current withdrawal rate ' +
+        'rises too far above the plan\'s baseline rate; raised 10% ("Prosperity") if it falls too far below it; ' +
+        'otherwise unchanged ("Normal").',
+    );
+    lines.push(
+      '- A "defensive draw" means a period where spending was funded from Cash rather than Equities, to ' +
+        "avoid selling equities during a downturn.",
+    );
+    lines.push(
+      exportMeta.mode === "historical"
+        ? "- Historical mode: each simulated year's return is bootstrapped from real MSCI World NTR (GBP) annual returns, 1970–2024."
+        : `- Parametric mode: each simulated year's return is drawn from a Normal distribution, mean ${exportMeta.meanPct}%, standard deviation ${exportMeta.stdevPct}%.`,
+    );
+    lines.push(`- ${RUNS.toLocaleString()} independent simulated paths were run.`);
+    lines.push("");
+    lines.push("## Assumptions in force");
+    lines.push(
+      `- Starting position: age ${exportMeta.currentAge}, ${formatGBP(exportMeta.start)} total (today's ${currency})`,
+    );
+    lines.push(`- Horizon: ${exportMeta.yrs} years (to age ${exportMeta.currentAge + exportMeta.yrs})`);
+    lines.push(`- Annual withdrawal target: ${formatGBP(exportMeta.withdraw)} (today's money)`);
+    lines.push(
+      exportMeta.pension > 0
+        ? `- State pension: ${formatGBP(exportMeta.pension)}/yr from age ${exportMeta.pensionAge}`
+        : "- No state pension modelled",
+    );
+    lines.push(`- Guyton-Klinger threshold mode: ${exportMeta.threshold}`);
+    lines.push(`- Tick: ${exportMeta.tickMode === "quarterly" ? "Quarterly" : "Yearly"}`);
+    if (replayConfig.activeFlows.length > 0) {
+      lines.push("- Extraordinary Cash Flows:");
+      for (const f of replayConfig.activeFlows) {
+        lines.push(
+          `  - ${f.label || "(unlabelled)"}: ${f.kind === "inflow" ? "Inflow" : "Outflow"} of ${formatGBP(f.amount)} in year ${f.year} (${f.bucket === "cash" ? "Cash" : "Equities"})`,
+        );
+      }
+    } else {
+      lines.push("- Extraordinary Cash Flows: none");
+    }
+    if (replayConfig.reductions.length > 0) {
+      lines.push("- Planned Withdrawal Reductions:");
+      for (const r of replayConfig.reductions) {
+        lines.push(
+          `  - ${r.label || "(unlabelled)"}: ${r.kind === "fixed" ? formatGBP(r.amount) + " fixed" : r.amount + "%"} reduction from year ${r.year} onward`,
+        );
+      }
+    } else {
+      lines.push("- Planned Withdrawal Reductions: none");
+    }
+    lines.push("");
+    lines.push("## Headline results (across all simulated paths)");
+    lines.push(`- Success rate (ended ≥ starting capital): ${successRate}%`);
+    lines.push(`- Ruin rate (ran out of money): ${ruinRate}%`);
+    lines.push(`- Median ending value: ${formatGBP(bands[yrs].p50)} (today's ${currency})`);
+    lines.push(`- 10th–90th percentile ending range: ${formatGBP(bands[yrs].p10)} – ${formatGBP(bands[yrs].p90)}`);
+    lines.push(
+      `- Average time spent in defensive draw: ${avgDefensiveYears.toFixed(1)} of ${yrs} years (${defensivePct}%)`,
+    );
+    lines.push("");
+    lines.push("## Defensive-draw frequency by year (% of all simulated paths defensive that year)");
+    lines.push(
+      Array.from({ length: yrs }, (_, i) => i + 1)
+        .map((y) => `Y${y}: ${defensiveFreqByYear[y] ?? 0}%`)
+        .join(", "),
+    );
+    lines.push("");
+
+    const events = [
+      ...replayConfig.activeFlows.map((f) => ({
+        label: f.label || (f.kind === "inflow" ? "Inflow" : "Outflow"),
+        kind: f.kind === "inflow" ? "Inflow" : "Outflow",
+        year: f.year,
+      })),
+      ...replayConfig.reductions.map((r) => ({
+        label: r.label || "Withdrawal reduction",
+        kind: "Reduction starts",
+        year: r.year,
+      })),
+    ];
+    if (events.length > 0) {
+      lines.push("## Years to watch (around each Extraordinary Cash Flow / Withdrawal Reduction)");
+      for (const ev of events) {
+        const windowEnd = Math.min(ev.year + 4, yrs);
+        const windowYears = Array.from({ length: windowEnd - ev.year + 1 }, (_, i) => ev.year + i).filter(
+          (y) => y >= 1 && y <= yrs,
+        );
+        const windowAvg =
+          windowYears.length > 0
+            ? Math.round(windowYears.reduce((sum, y) => sum + (defensiveFreqByYear[y] ?? 0), 0) / windowYears.length)
+            : 0;
+        lines.push(
+          `- "${ev.label}" (${ev.kind}, year ${ev.year}): average defensive-draw frequency across years ${ev.year}–${windowEnd} was ${windowAvg}% (vs ${defensivePct}% averaged across the whole plan)`,
+        );
+      }
+      lines.push("");
+    }
+
+    lines.push("## Percentile path narratives");
+    for (const p of REPORT_PERCENTILES) {
+      const { summary } = resolvePath(p);
+      const outcome = summary.ranOutOfMoney
+        ? `ran out of money in year ${summary.ranOutYear}`
+        : `ended at ${formatGBP(summary.endingValue)}`;
+      const defensiveNote =
+        summary.defensiveYears > 0
+          ? `${summary.defensiveYears} of ${yrs} years spent in defensive draw (first in year ${summary.firstDefensiveYear})`
+          : "never needed a defensive draw";
+      lines.push(
+        `- ${p}th percentile: ${outcome}; ${defensiveNote}; worst drawdown from its own peak: ${summary.maxDrawdownFromAthPct.toFixed(1)}%`,
+      );
+    }
+    lines.push("");
+    lines.push("## What to write");
+    lines.push(
+      "Please turn the above into a clear, plain-English report. Cover: (1) how robust this plan looks overall, " +
+        "(2) whether any Extraordinary Cash Flow or Withdrawal Reduction creates a meaningfully elevated risk of " +
+        "needing a defensive cut in the years right after it lands, (3) what the pessimistic (10th), typical " +
+        "(50th) and optimistic (90th) percentile stories each look like in plain terms. Do not give financial " +
+        "advice or recommend specific actions — describe what this simulation shows, and note that it is a " +
+        "hypothetical model, not a prediction.",
+    );
+
+    return lines.join("\n");
+  }
+
+  function handleGenerateReport() {
+    const text = buildReportText();
+    if (!text) return;
+    setReportText(text);
+    setShowReportPanel(true);
+    setReportCopyStatus("idle");
+  }
+
+  async function handleCopyReport() {
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setReportCopyStatus("copied");
+      setTimeout(() => setReportCopyStatus("idle"), 2000);
+    } catch {
+      setReportCopyStatus("failed");
+    }
+  }
+
+  function handleDownloadReport() {
+    const blob = new Blob([reportText], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Sovereign_Glidepath_Report_Data_${new Date().toISOString().split("T")[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   // -------- AUDIT MODE ---------------------------------------------------
@@ -948,6 +1338,12 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     let ATH = start;
     let defensiveTicks = 0;
     let totalTicks = 0;
+    // Build 146 — audit mode is one canonical deterministic path, not 10,000,
+    // so "frequency" here is just 0 or 100 per year (that one path was or
+    // wasn't defensive) — tracked the same way as the real sim purely so
+    // activeSim (the auditMode ? auditSim : sim union used by the render
+    // below) always has this field in the same shape, no special-casing.
+    const defensiveByYearAudit: number[] = new Array(yrs + 1).fill(0);
 
     const YEARLY_ROWS = 30;
     const QUARTERLY_ROWS_YEARS = 30; // 30y × 4 = 120 rows (audit tabulates all)
@@ -965,6 +1361,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         const qEqReal = Math.pow(1 + realEq, 0.25) - 1;
         const qCashReal = Math.pow(1 + AUDIT.cashReal, 0.25) - 1;
         const qDraw = netDraw / 4;
+        let yearHadDefensive = false;
         for (let q = 0; q < 4; q++) {
           const startE = E;
           const startC = C;
@@ -987,7 +1384,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
           E = out.E;
           C = out.C;
           ATH = out.ATH;
-          if (out.defensive) defensiveTicks++;
+          if (out.defensive) {
+            defensiveTicks++;
+            yearHadDefensive = true;
+          }
           if (y <= QUARTERLY_ROWS_YEARS) {
             steps.push({
               interval: `Y${y} Q${q + 1}`,
@@ -1003,6 +1403,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             });
           }
         }
+        if (yearHadDefensive) defensiveByYearAudit[y] = 100;
       } else {
         const startE = E;
         const startC = C;
@@ -1025,7 +1426,10 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         E = out.E;
         C = out.C;
         ATH = out.ATH;
-        if (out.defensive) defensiveTicks++;
+        if (out.defensive) {
+          defensiveTicks++;
+          defensiveByYearAudit[y] = 100;
+        }
         if (y <= YEARLY_ROWS) {
           steps.push({
             interval: `Y${y}`,
@@ -1066,6 +1470,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
       detRuined: false,
       avgDefensiveYears: defYears,
       defensivePct: defPct,
+      defensiveFreqByYear: defensiveByYearAudit,
     };
   }, [mode, tickMode, auditMode, threshold]);
   void auditSim.finals;
@@ -1095,6 +1500,7 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
     detRuined,
     avgDefensiveYears,
     defensivePct,
+    defensiveFreqByYear,
   } = activeSim;
   void _finals;
 
@@ -1272,6 +1678,97 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         : beatRate >= 25
           ? `Optimistic — minority of futures meet your assumption${ruinRate > 0 ? ` (${ruinRate}% deplete)` : ""}`
           : `Aggressive — few futures match your assumption${ruinRate > 0 ? ` (${ruinRate}% deplete)` : ""}`;
+
+  // Build 142 — Saved Risk Simulator Models: handler functions. The hook
+  // declarations themselves (modelIdRef, newModelId, savedModels, etc.)
+  // moved above the early return earlier in this component — see the
+  // Build 144 comment there — since these plain functions aren't hooks and
+  // don't need to be unconditional, only the state/ref they close over does.
+  const persistSavedModels = (next: SavedRiskModel[]) => {
+    setSavedModels(next);
+    saveSavedModels(next);
+  };
+
+  const currentModelSnapshot = (name: string, id: string): SavedRiskModel => ({
+    id,
+    name,
+    savedAt: Date.now(),
+    mode,
+    meanStr,
+    stdevStr,
+    inflationPct,
+    pensionStr,
+    pensionAgeStr,
+    pensionIncreasePct,
+    withdrawStr,
+    equitiesStr,
+    cashStr,
+    ageStr,
+    horizonAgeStr,
+    deterministicRatePct,
+    cashRealPct,
+    threshold,
+    tickMode,
+    flows: flows.map(({ kind, label, amountStr, yearStr, bucket }) => ({ kind, label, amountStr, yearStr, bucket })),
+    reductions: reductions.map(({ kind, label, amountStr, yearStr }) => ({ kind, label, amountStr, yearStr })),
+  });
+
+  const doSaveModel = (name: string, existingId?: string) => {
+    const id = existingId ?? newModelId();
+    const snapshot = currentModelSnapshot(name, id);
+    const next = existingId ? savedModels.map((m) => (m.id === existingId ? snapshot : m)) : [...savedModels, snapshot];
+    persistSavedModels(next);
+    setShowSaveModelPrompt(false);
+    setModelNameInput("");
+    setModelSaveError("");
+  };
+
+  const handleSaveModelSubmit = () => {
+    const name = modelNameInput.trim();
+    if (!name) {
+      setModelSaveError("Give the model a name.");
+      return;
+    }
+    const existing = savedModels.find((m) => m.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      if (!confirm(`A model named "${existing.name}" already exists. Overwrite it?`)) return;
+      doSaveModel(name, existing.id);
+    } else {
+      doSaveModel(name);
+    }
+  };
+
+  const loadModel = (m: SavedRiskModel) => {
+    setMode(m.mode);
+    setMeanStr(m.meanStr);
+    setStdevStr(m.stdevStr);
+    setInflationPct(m.inflationPct);
+    // Freezing the pension means fully detaching from Pane 1's live pension
+    // for this model — same "hypothetical" path the user gets from the
+    // pension toggle, just pre-filled from the saved snapshot.
+    setUseRealPension(false);
+    setHypPensionStr(m.pensionStr);
+    setHypPensionAgeStr(m.pensionAgeStr);
+    setHypPensionIncreasePct(m.pensionIncreasePct);
+    setWithdrawStr(m.withdrawStr);
+    setEquitiesStr(m.equitiesStr);
+    setCashStr(m.cashStr);
+    setAgeStr(m.ageStr);
+    setHorizonAgeStr(m.horizonAgeStr);
+    setDeterministicRatePct(m.deterministicRatePct);
+    setCashRealPct(m.cashRealPct);
+    setThreshold(m.threshold);
+    setTickMode(m.tickMode);
+    setFlows(m.flows.map((f) => ({ id: newFlowId(), ...f })));
+    setReductions(m.reductions.map((r) => ({ id: newReductionId(), ...r })));
+  };
+
+  const deleteModel = (id: string) => {
+    const m = savedModels.find((x) => x.id === id);
+    if (!m) return;
+    if (!confirm(`Delete the saved model "${m.name}"? This cannot be undone.`)) return;
+    persistSavedModels(savedModels.filter((x) => x.id !== id));
+  };
 
   return (
     <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
@@ -2151,12 +2648,22 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   // (see netDraw a few hundred lines up): withdraw minus
                   // whatever pension has started paying by this age, floored
                   // at zero. Purely informational -- doesn't change the sim.
+                  //
+                  // Build 141 fix — "withdraw" here used to mean the flat,
+                  // pre-reduction annual target, so a Planned Withdrawal
+                  // Reduction never showed up in this tooltip even though it
+                  // was already being applied correctly inside the
+                  // simulation itself. Now reads the same withdrawSchedule
+                  // the sim loops use, at the hovered year — audit mode has
+                  // no reductions (fixed canonical inputs), so it keeps using
+                  // the flat AUDIT.withdraw as before.
                   const ageAtHover = (auditMode ? AUDIT.age : simAge) + hoverAbs;
                   const pensG = Math.max(0, pensionIncreasePct) / 100;
                   const pensionAtHover =
                     pension > 0 && ageAtHover >= pensionAge ? pension * Math.pow(1 + pensG, hoverAbs) : 0;
-                  const netDrawAtHover = Math.max(0, withdraw - pensionAtHover);
-                  const rows = [{ label: "Annual Drawdown", value: withdraw }];
+                  const withdrawAtHover = auditMode ? AUDIT.withdraw : (sim?.withdrawSchedule[hoverAbs] ?? withdraw);
+                  const netDrawAtHover = Math.max(0, withdrawAtHover - pensionAtHover);
+                  const rows = [{ label: "Annual Drawdown", value: withdrawAtHover }];
                   if (pensionAtHover > 0) {
                     rows.push(
                       { label: "− State Pension", value: pensionAtHover },
@@ -2268,17 +2775,33 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
                   // draw a byte-identical blended rate from, so this is the
                   // closest faithful equivalent available here, not a
                   // literal copy of Pane 2's exact calc.
+                  //
+                  // Build 141 fix — the closed-form annuity formula assumed a
+                  // FLAT withdrawal for every remaining year, so a Planned
+                  // Withdrawal Reduction landing partway through the horizon
+                  // was invisible here too (same root cause as the tooltip
+                  // fix above). A single flat rate can't represent a
+                  // step-down mid-stream, so this is now an explicit
+                  // year-by-year sum of each remaining year's ACTUAL
+                  // (already-reduced) target from withdrawSchedule,
+                  // discounted back to the hovered year annuity-due (k=0 =
+                  // this year's draw, undiscounted). With no reductions
+                  // in effect this collapses to exactly the same figure the
+                  // old closed-form formula gave — the annuity formula is
+                  // just this sum's shortcut for a flat W.
                   const inflLocal = Math.max(0, inflationPct) / 100;
                   const detRNominalLocal = deterministicRatePct / 100;
                   const detRRealLocal = inflLocal > 0 ? (1 + detRNominalLocal) / (1 + inflLocal) - 1 : detRNominalLocal;
                   const ageAtHoverFb = (auditMode ? AUDIT.age : simAge) + hoverAbs;
                   const remainingYears = Math.max(0, simHorizonAge - ageAtHoverFb);
-                  const baselineNeed =
-                    detRRealLocal > 0
-                      ? withdraw *
-                        ((1 - Math.pow(1 + detRRealLocal, -remainingYears)) / detRRealLocal) *
-                        (1 + detRRealLocal)
-                      : withdraw * remainingYears;
+                  const scheduleFb = auditMode ? null : sim?.withdrawSchedule;
+                  let baselineNeed = 0;
+                  for (let k = 0; k < remainingYears; k++) {
+                    const wAtYear = auditMode
+                      ? AUDIT.withdraw
+                      : (scheduleFb?.[Math.min(hoverAbs + k, scheduleFb.length - 1)] ?? withdraw);
+                    baselineNeed += wAtYear / Math.pow(1 + detRRealLocal, k);
+                  }
                   const funBucket = hoverBand.p50 - baselineNeed;
                   return (
                     <div
@@ -2620,6 +3143,124 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
         </div>
       )}
 
+      {/* Build 146 — Defensive-Draw Frequency by Year. avgDefensiveYears/
+          defensivePct above are a single whole-horizon average and can't
+          answer "how often would a cut actually be needed in years N-M" —
+          e.g. right after an Extraordinary Cash Flow outflow, or once a
+          Planned Withdrawal Reduction is due to land. This is the same
+          defensive flag already computed per period, just kept broken out
+          by year across all paths instead of collapsed into one average.
+          Cash Flow / Reduction event years get a small marker dot so a
+          spike right after a big outflow is easy to spot at a glance.
+          Colour bands (Build 146 fix, per Mark's feedback that 20%/50% read
+          as needlessly alarming for what's normal guardrail behaviour):
+          green <25%, blue 25-49%, amber 50-84%, red only at 85%+ — red is
+          now reserved for "defensive draw needed in nearly every future",
+          not "needed in half of them". */}
+      <div
+        style={{
+          marginBottom: "1rem",
+          padding: "0.7rem 0.85rem",
+          background: "rgba(59,130,246,0.05)",
+          border: "1px solid var(--border-color)",
+          borderRadius: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            marginBottom: "0.5rem",
+          }}
+        >
+          <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>
+            Defensive-Draw Frequency by Year
+          </span>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+            {auditMode
+              ? "Audit Mode shows one canonical path — each bar is 0% or 100%."
+              : `% of the ${RUNS.toLocaleString()} simulated paths that needed a defensive (cash-first) draw in that specific year. Hover a bar for the exact figure.`}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 90 }}>
+          {Array.from({ length: yrs }, (_, i) => i + 1).map((y) => {
+            const pct = defensiveFreqByYear[y] ?? 0;
+            const flowThisYear = activeFlows.find((f) => f.year === y);
+            const reductionThisYear = activeReductions.find((r) => r.year === y);
+            const barColor =
+              pct >= 85
+                ? "var(--accent-red)"
+                : pct >= 50
+                  ? "var(--accent-amber)"
+                  : pct >= 25
+                    ? "var(--accent-blue)"
+                    : "var(--accent-green, #16a34a)";
+            const titleParts = [`Year ${y}: ${pct}% of simulated paths needed a defensive draw`];
+            if (flowThisYear) titleParts.push(`Cash Flow: ${flowThisYear.label || flowThisYear.kind}`);
+            if (reductionThisYear) titleParts.push(`Reduction starts: ${reductionThisYear.label || "withdrawal cut"}`);
+            return (
+              <div
+                key={y}
+                title={titleParts.join(" · ")}
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 2,
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  cursor: "default",
+                }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    height: `${Math.max(pct, 0)}%`,
+                    minHeight: pct > 0 ? 2 : 0,
+                    background: barColor,
+                    opacity: 0.85,
+                    borderRadius: "2px 2px 0 0",
+                  }}
+                />
+                {(flowThisYear || reductionThisYear) && (
+                  <div
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: flowThisYear ? "var(--accent-green, #16a34a)" : "var(--accent-amber)",
+                      marginTop: 3,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "0.65rem",
+            color: "var(--text-muted)",
+            marginTop: "0.3rem",
+          }}
+        >
+          <span>Year 1</span>
+          <span>Year {yrs}</span>
+        </div>
+        {(activeFlows.length > 0 || activeReductions.length > 0) && (
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+            <span style={{ color: "var(--accent-green, #16a34a)" }}>●</span> Cash Flow event &nbsp;
+            <span style={{ color: "var(--accent-amber)" }}>●</span> Reduction starts
+          </div>
+        )}
+      </div>
+
       {/* Build 137 — Detailed Path Ledger export. Only meaningful against
           the real 10,000-path sim, not the fixed-scenario Audit Mode. */}
       {!auditMode && sim && (
@@ -2694,6 +3335,95 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
               {pathExporting ? "Building…" : "Download Detailed Path Ledger (.xlsx)"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Build 146 — AI Report Prompt. Bundles the assumptions, headline
+          stats, the new defensive-frequency-by-year data, and a handful of
+          percentile narratives into one self-contained text block for the
+          user to paste into whichever AI they choose. Deliberately not an
+          in-app AI call — see buildReportText()'s comment above for why. */}
+      {!auditMode && sim && (
+        <div
+          style={{
+            marginBottom: "1rem",
+            padding: "0.7rem 0.85rem",
+            background: "rgba(99,102,241,0.05)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 8,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              marginBottom: "0.6rem",
+            }}
+          >
+            <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>AI Report Prompt</span>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+              Generates a text bundle — methodology, assumptions, headline results, defensive-draw frequency by year,
+              and five percentile path narratives ({REPORT_PERCENTILES.join("/")}th) — to paste into the AI of your
+              choice for a plain-English report. Nothing is sent anywhere by this app.
+            </span>
+          </div>
+          <button type="button" onClick={handleGenerateReport}>
+            📄 Generate AI Report Prompt
+          </button>
+
+          {showReportPanel && (
+            <div style={{ marginTop: "0.75rem" }}>
+              <textarea
+                readOnly
+                value={reportText}
+                style={{
+                  width: "100%",
+                  height: 260,
+                  fontFamily: "monospace",
+                  fontSize: "0.72rem",
+                  padding: "0.5rem",
+                  background: "rgba(0,0,0,0.15)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 6,
+                  color: "var(--text-main)",
+                  resize: "vertical",
+                }}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+                  onClick={handleCopyReport}
+                >
+                  {reportCopyStatus === "copied"
+                    ? "Copied ✓"
+                    : reportCopyStatus === "failed"
+                      ? "Copy failed — select and copy manually"
+                      : "Copy to Clipboard"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+                  onClick={handleDownloadReport}
+                >
+                  Download (.md)
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+                  onClick={() => setShowReportPanel(false)}
+                >
+                  Hide
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2784,6 +3514,140 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             </div>
           );
         })()}
+
+      {/* Build 142 — Saved Risk Simulator Models: name and freeze the entire
+          current input set (starting Age/Equities/Cash included, exactly as
+          they stand now), recall it later without depending on what the
+          live ledger looks like by then. */}
+      <div
+        style={{
+          marginBottom: "1rem",
+          padding: "0.7rem 0.85rem",
+          background: "rgba(99,102,241,0.05)",
+          border: "1px solid var(--border-color)",
+          borderRadius: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            marginBottom: "0.6rem",
+          }}
+        >
+          <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>Saved Models</span>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+            Save the entire current setup — Age/Equities/Cash, withdrawal, pension, thresholds, flows and reductions —
+            under a name, frozen exactly as it stands, and recall it later.
+          </span>
+        </div>
+
+        {savedModels.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.6rem" }}>
+            {savedModels
+              .slice()
+              .sort((a, b) => b.savedAt - a.savedAt)
+              .map((m) => (
+                <div
+                  key={m.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.6rem",
+                    padding: "0.4rem 0.5rem",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 6,
+                  }}
+                >
+                  <div style={{ flex: "1 1 160px", minWidth: 120 }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)" }}>{m.name}</div>
+                    <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                      Saved {new Date(m.savedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
+                    onClick={() => loadModel(m)}
+                  >
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    aria-label={`Delete saved model ${m.name}`}
+                    title="Delete"
+                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", color: "var(--accent-red, #ef4444)" }}
+                    onClick={() => deleteModel(m.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {showSaveModelPrompt ? (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.5rem" }}>
+            <div style={{ flex: "1 1 200px", minWidth: 160 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Model Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Base case, age 60"
+                value={modelNameInput}
+                autoFocus
+                onChange={(e) => {
+                  setModelNameInput(e.target.value);
+                  if (modelSaveError) setModelSaveError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveModelSubmit();
+                  if (e.key === "Escape") {
+                    setShowSaveModelPrompt(false);
+                    setModelNameInput("");
+                    setModelSaveError("");
+                  }
+                }}
+              />
+              {modelSaveError && (
+                <div style={{ fontSize: "0.7rem", color: "var(--accent-red, #ef4444)", marginTop: "0.2rem" }}>
+                  {modelSaveError}
+                </div>
+              )}
+            </div>
+            <button type="button" onClick={handleSaveModelSubmit}>
+              Confirm
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+              onClick={() => {
+                setShowSaveModelPrompt(false);
+                setModelNameInput("");
+                setModelSaveError("");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          // Build 145 — made this the one full-prominence (default/primary
+          // blue) button on this whole pane, rather than the small
+          // "secondary" utility style shared with +Add Flow/+Add Reduction.
+          // Saving is the one action here worth standing out — everything
+          // else on this pane is instantly recomputed from the visible
+          // inputs, but a save is the only thing you'd actually lose.
+          <button type="button" onClick={() => setShowSaveModelPrompt(true)}>
+            💾 Save Current as Model
+          </button>
+        )}
+      </div>
 
       {/* Extraordinary cash flows (planned lump-sum inflows AND outflows
           injected mid-simulation) — Build 136 generalisation of the old
@@ -2928,6 +3792,142 @@ export const MonteCarloPanel: React.FC<MonteCarloPanelProps> = ({
             onClick={() => addFlow("outflow")}
           >
             + Add Outflow
+          </button>
+        </div>
+      </div>
+
+      {/* Planned Withdrawal Reductions (Build 141) — e.g. a mortgage being
+          paid off, or a general age-related spending slowdown. Same list
+          shape as Extraordinary Cash Flows above: multiple independent
+          events, each permanently lowering the withdrawal target from its
+          year onward and stacking with earlier events. */}
+      <div
+        style={{
+          marginBottom: "1rem",
+          padding: "0.7rem 0.85rem",
+          background: "rgba(16,185,129,0.05)",
+          border: "1px solid var(--border-color)",
+          borderRadius: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            marginBottom: "0.6rem",
+          }}
+        >
+          <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)" }}>
+            Planned Withdrawal Reductions
+          </span>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+            Model a permanent step-down in annual withdrawal from year N onward — a mortgage being paid off, or a
+            general age-related spending slowdown. Multiple events stack; a percentage is taken off the withdrawal rate
+            already in effect at that point, not the original figure.
+          </span>
+        </div>
+
+        {reductions.map((r, idx) => (
+          <div
+            key={r.id}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              gap: "0.6rem",
+              padding: "0.5rem 0",
+              borderTop: idx > 0 ? "1px dashed var(--border-color)" : undefined,
+            }}
+          >
+            <div>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Type</label>
+              <div style={{ display: "flex", gap: 4, marginTop: "0.35rem" }}>
+                {(["fixed", "percentage"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={r.kind === k ? "" : "secondary"}
+                    style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem", textTransform: "capitalize" }}
+                    aria-pressed={r.kind === k}
+                    onClick={() => updateReduction(r.id, { kind: k })}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ flex: "1 1 120px", minWidth: 100 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Label (optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Mortgage paid off"
+                value={r.label}
+                onChange={(e) => updateReduction(r.id, { label: e.target.value })}
+              />
+            </div>
+            <div style={{ flex: "1 1 100px", minWidth: 90 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                {r.kind === "percentage" ? "Amount (%)" : `Amount (${currency})`}
+              </label>
+              {r.kind === "percentage" ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={r.amountStr}
+                  onChange={(e) => updateReduction(r.id, { amountStr: e.target.value })}
+                />
+              ) : (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder={`${currency}0.00`}
+                  value={
+                    reductionFocusedId === r.id ? r.amountStr : r.amountStr ? formatGBP(cleanNum(r.amountStr)) : ""
+                  }
+                  onFocus={(e) => {
+                    const n = cleanNum(e.currentTarget.value);
+                    updateReduction(r.id, { amountStr: n !== 0 ? n.toFixed(2) : "" });
+                    setReductionFocusedId(r.id);
+                  }}
+                  onBlur={() => setReductionFocusedId((cur) => (cur === r.id ? null : cur))}
+                  onChange={(e) => updateReduction(r.id, { amountStr: e.target.value })}
+                />
+              )}
+            </div>
+            <div style={{ flex: "0 1 110px", minWidth: 90 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Years From Now</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="5"
+                value={r.yearStr}
+                onChange={(e) => updateReduction(r.id, { yearStr: e.target.value })}
+              />
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              aria-label="Remove this withdrawal reduction"
+              title="Remove"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", color: "var(--accent-red, #ef4444)" }}
+              onClick={() => removeReduction(r.id)}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: reductions.length > 0 ? "0.6rem" : 0 }}>
+          <button
+            type="button"
+            className="secondary"
+            style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+            onClick={() => addReduction("fixed")}
+          >
+            + Add Reduction
           </button>
         </div>
       </div>

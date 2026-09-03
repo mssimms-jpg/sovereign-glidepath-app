@@ -11,6 +11,142 @@ export function ChangelogContent() {
 
         <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
           <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.146 — Defensive-Draw Frequency by Year &amp; AI Report Prompt
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> A new inline chart on the Risk Simulator page shows, for every year of the
+              horizon, what percentage of all simulated paths needed a defensive (cash-first) draw that specific
+              year — not just the whole-horizon average the page already showed. Hover any bar for the exact figure.
+              Years where an Extraordinary Cash Flow or Planned Withdrawal Reduction lands get a small marker dot, so
+              a spike right after a large purchase is visible at a glance. Colour bands: green under 25%, blue
+              25–49%, amber 50–84%, red only at 85% and above — tuned so the chart reflects that spending some years
+              in a defensive draw is normal guardrail behaviour, not something alarming.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Added:</strong> "📄 Generate AI Report Prompt" bundles a methodology primer, the full
+              assumptions in force, headline results, the complete defensive-draw-frequency data, an automatic
+              "years to watch" summary comparing the window right after each Extraordinary Cash Flow/Withdrawal
+              Reduction against the plan's overall average, and five percentile path narratives into one text block —
+              shown on-screen with Copy to Clipboard, and downloadable as a .md file. Deliberately not an in-app AI
+              API call; whichever AI you paste it into does the narrating, under your own judgement.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.145 — Saved Models: fixed persistence, more prominent Save button
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Fixed:</strong> Saved Risk Simulator Models (v1.0.142) were stored in the app's encrypted vault,
+              which only actually persists to disk once the app-lock is unlocked — but the standalone Risk Simulator
+              page is reachable without ever unlocking anything, so a "saved" model only ever lived in memory for that
+              page load and was gone the moment you navigated away. Saved Models now use plain localStorage instead,
+              the same mechanism this page's own settings have always used — they persist regardless of whether the
+              app-lock is set up. Trade-off: no longer encrypted at rest the way the Ledger is, consistent with
+              everything else already on this page.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Changed:</strong> "💾 Save Current as Model" (and its Confirm button) now use the app's default
+              full-prominence button style instead of the small muted style shared with utility buttons like "+ Add
+              Flow" — it's the one action on that pane genuinely worth losing if missed.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.144 — Fixed a Risk Simulator crash after a run completed
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Fixed:</strong> The Risk Simulator page could crash to "This page didn't load" shortly after a
+              simulation finished running — a Rules-of-Hooks violation in Saved Risk Simulator Models (v1.0.142): its
+              hooks were declared after a conditional early-return (the "Running 10,000 simulations…" loading state),
+              so the first render and a later render disagreed on hook order, which React treats as fatal. Neither
+              TypeScript nor the build catch this class of bug — only an actual render does. Hooks moved above every
+              conditional return in the component.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.143 — Export Backup now backs up everything
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> Export Backup is now a full backup, not a ledger-only one: every encrypted-vault
+              key (Ledger, Settings, License, CPI Reference Table) plus the Risk Simulator's own plain-localStorage
+              settings and Saved Models are all bundled into one JSON payload before going through the same
+              password-derived AES-256-GCM encryption as before. A backup taken with an empty vault still just
+              contains the ledger, so this is a strict superset of the old format — old ledger-only .shd files still
+              restore correctly.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              Restoring a full backup writes every bundled piece back to its correct storage and reloads the app,
+              since several panes only ever read their storage key once at mount.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.142 — Saved Risk Simulator Models
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Added:</strong> Name and freeze the entire current Risk Simulator setup — starting
+              Age/Equities/Cash exactly as they stand, withdrawal, pension, Guyton-Klinger threshold, tick mode,
+              growth-rate assumptions, and the full Extraordinary Cash Flow and Planned Withdrawal Reduction lists —
+              under a name, and recall it later. Saving under an existing name asks to confirm overwrite; deleting a
+              saved model asks to confirm too. Loading deliberately does NOT re-pull the live ledger's current
+              Age/Equities/Cash — everything stays frozen exactly as it was when saved.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.141 — Planned Withdrawal Reductions
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Added:</strong> Model a permanent step-down in annual withdrawal from a future year onward — a
+              mortgage being paid off, or a general age-related spending slowdown. Same "independent list of dated
+              events" shape as Extraordinary Cash Flows: add as many reduction rows as needed, each Fixed (£) or
+              Percentage, with an optional label and a year. Multiple reductions stack, each applying to the
+              withdrawal rate already in effect at that point rather than the original starting figure.
+              Guyton-Klinger computes on the already-reduced target, not the pre-reduction one. The Detailed Path
+              Ledger export, the fan chart's hover tooltip and the "Fun Bucket" figure all reflect the reduction
+              schedule via one shared function, so none of them can disagree.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>Fixed:</strong> the hover tooltip and Fun Bucket figure initially still showed the flat
+              pre-reduction withdrawal — both were reading the raw withdrawal input directly rather than the
+              schedule the simulation itself already used internally.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
+            v1.0.140 — Risk Simulator launcher fix
+          </h2>
+          <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              <strong>Fixed:</strong> Pane 2's "🎲 Risk Simulator" launcher button was always sending explicit
+              eq=0&amp;cash=0 etc. when there's no live ledger, which looked identical to a genuine £0 handoff and
+              defeated the v1.0.139 cold-start defaults. The button now omits all params when there's no live
+              capital, so a true cold start reaches the simulator's populated worked example properly.
+            </p>
+          </div>
+        </div>
+
+        <div className="shd-card" style={{ marginBottom: "1.5rem" }}>
+          <h2 className="shd-h2" style={{ marginBottom: "0.75rem" }}>
             v1.0.139 — Risk Simulator cold-start defaults
           </h2>
           <div style={{ lineHeight: 1.7, color: "var(--text-main)" }}>
